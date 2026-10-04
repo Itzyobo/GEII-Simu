@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+/* « Établi de labo » : anthracite, cartes plus claires, un seul accent ambre. */
+@theme static {
+  --color-bg: #1d1f22;
+  --color-card: #272a2e;
+  --color-card-2: #31353a;
+  --color-line: #40454c;
+  --color-ink: #e7e8ea;
+  --color-muted: #9aa0a8;
+  --color-accent: #f5a524;
+  --color-ok: #4ade80;
+  --color-err: #f87171;
+  --color-screen: #050607;
+  --color-ch1: #f4e04d;
+  --color-ch2: #3fd8ea;
+  --color-seg: #3dff86;
+  --radius-card: 12px;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+}
