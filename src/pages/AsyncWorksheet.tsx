@@ -23,11 +23,11 @@ function Chart({ title, data, x, lines, xLabel, yFromZero }: { title: string; da
       <div className="mb-1 text-xs font-semibold text-muted">{title}</div>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={[...data].sort((a, b) => a[x] - b[x])} margin={{ top: 5, right: 10, bottom: 15, left: 0 }}>
-          <CartesianGrid stroke="#3a3e44" strokeDasharray="3 3" />
-          <XAxis dataKey={x} type="number" domain={['auto', 'auto']} stroke="#9aa0a8" fontSize={10} label={{ value: xLabel, position: 'insideBottom', offset: -8, fill: '#9aa0a8', fontSize: 10 }} />
-          <YAxis yAxisId="l" stroke="#9aa0a8" fontSize={10} domain={yFromZero ? [0, 'auto'] : ['auto', 'auto']} />
-          {hasRight && <YAxis yAxisId="r" orientation="right" stroke="#9aa0a8" fontSize={10} domain={['auto', 'auto']} />}
-          <Tooltip contentStyle={{ background: '#272a2e', border: '1px solid #40454c', fontSize: 11 }} />
+          <CartesianGrid stroke="var(--color-line)" strokeDasharray="3 3" />
+          <XAxis dataKey={x} type="number" domain={['auto', 'auto']} stroke="var(--color-muted)" fontSize={10} label={{ value: xLabel, position: 'insideBottom', offset: -8, fill: 'var(--color-muted)', fontSize: 10 }} />
+          <YAxis yAxisId="l" stroke="var(--color-muted)" fontSize={10} domain={yFromZero ? [0, 'auto'] : ['auto', 'auto']} />
+          {hasRight && <YAxis yAxisId="r" orientation="right" stroke="var(--color-muted)" fontSize={10} domain={['auto', 'auto']} />}
+          <Tooltip contentStyle={{ background: 'var(--color-card)', border: '1px solid var(--color-line)', borderRadius: 10, fontSize: 11 }} />
           {lines.length > 1 && <Legend verticalAlign="top" wrapperStyle={{ fontSize: 10 }} />}
           {lines.map((l) => (
             <Line key={l.key} yAxisId={l.right ? 'r' : 'l'} dataKey={l.key} name={l.name} stroke={l.color} dot={{ r: 3 }} isAnimationActive={false} connectNulls />
@@ -138,7 +138,7 @@ export function ReleveTable({ id }: { id: string }) {
         </table>
       </div>
       <GradeBar exam={g.exam} saved={g.saved} onSubmit={submit} label="Vérifier le tableau">
-        <button type="button" onClick={trace} className="min-h-11 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-[#1a1306]">
+        <button type="button" onClick={trace} className="min-h-11 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">
           Tracer
         </button>
         {!g.exam && <span className="text-xs text-muted">Calculs (lignes ambrées) vérifiés à ±3 % depuis vos mesures ; mesures à ±5 % du banc. Survolez une case rouge.</span>}
@@ -216,7 +216,7 @@ export function VariateurTable({ id }: { id: string }) {
         <button
           type="button"
           onClick={() => setPlot(FREQS.map((f, k) => ({ f, n: num(rows[k].n) })).filter((p) => Number.isFinite(p.n)))}
-          className="min-h-11 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-[#1a1306]"
+          className="min-h-11 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent"
         >
           Tracer N = f(f)
         </button>

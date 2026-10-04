@@ -232,10 +232,10 @@ export default function Oscilloscope({
   const dV = Math.abs(cur.y2 - cur.y1) * vdiv[curCh]
 
   return (
-    <div className="rounded-card bg-card p-3 shadow-lg ring-1 ring-line">
+    <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 shadow-lg ring-1 ring-line">
       <div className="mb-2 flex items-center justify-between text-xs">
         <span className="font-semibold tracking-wide text-muted">OSCILLOSCOPE · 2 VOIES</span>
-        <span className={`font-mono ${readout.triggered ? 'text-ok' : 'text-accent'}`}>{readout.triggered ? "Trig'd" : 'Auto'}</span>
+        <span className={`font-mono ${readout.triggered ? 'text-ok' : 'text-warn'}`}>{readout.triggered ? "Trig'd" : 'Auto'}</span>
       </div>
       <div className="rounded-lg bg-screen p-2 ring-1 ring-black">
         <canvas
@@ -318,7 +318,7 @@ export default function Oscilloscope({
             type="button"
             onClick={() => setCursorsOn(!cursorsOn)}
             aria-pressed={cursorsOn}
-            className={`min-h-11 rounded-md px-3 py-1 font-semibold ring-1 ring-line ${cursorsOn ? 'bg-accent text-[#1a1306]' : ''}`}
+            className={`min-h-11 rounded-md px-3 py-1 font-semibold ring-1 ring-line ${cursorsOn ? 'bg-accent text-on-accent' : ''}`}
           >
             Curseurs
           </button>

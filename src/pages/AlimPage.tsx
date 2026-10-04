@@ -15,7 +15,7 @@ export default function AlimPage({ tp }: { tp: Tp }) {
   // Lien « revoir » vers une question de la partie 2 : ouvrir directement le bon onglet
   const [tab, setTab] = useState<1 | 2>(() => (params.get('q')?.startsWith('alim2-') ? 2 : 1))
   const tabs = (
-    <div role="tablist" className="flex gap-1 rounded-card bg-card p-1 ring-1 ring-line">
+    <div role="tablist" className="flex gap-1 rounded-card bg-card shadow-sm shadow-black/[0.03] p-1 ring-1 ring-line">
       {TABS.map((t) => (
         <button
           key={t.id}
@@ -23,7 +23,7 @@ export default function AlimPage({ tp }: { tp: Tp }) {
           role="tab"
           aria-selected={tab === t.id}
           onClick={() => setTab(t.id)}
-          className={`min-h-11 rounded-lg px-3 py-1 text-sm ${tab === t.id ? 'bg-accent font-semibold text-[#1a1306]' : 'text-muted hover:text-ink'}`}
+          className={`min-h-11 rounded-lg px-3 py-1 text-sm ${tab === t.id ? 'bg-accent font-semibold text-on-accent' : 'text-muted hover:text-ink'}`}
         >
           {t.label}
         </button>

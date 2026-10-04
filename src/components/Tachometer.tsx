@@ -11,7 +11,7 @@ export default function Tachometer({ rpm, max = 2000, label = 'tr/min' }: Tachom
   const ticks = Array.from({ length: max / 100 + 1 }, (_, k) => k * 100)
   return (
     <svg viewBox="-80 -80 160 130" className="w-full max-w-[220px]" role="img" aria-label={`Tachymètre ${Math.round(rpm)} tr/min`}>
-      <circle r="76" fill="#121416" stroke="var(--color-line)" strokeWidth="2" />
+      <circle r="76" fill="var(--color-card)" stroke="var(--color-line)" strokeWidth="2" />
       {ticks.map((v) => {
         const a = ((angle(v) - 90) * Math.PI) / 180
         const major = v % 500 === 0
@@ -29,7 +29,7 @@ export default function Tachometer({ rpm, max = 2000, label = 'tr/min' }: Tachom
       <g style={{ transform: `rotate(${angle(rpm)}deg)`, transition: 'transform 0.8s cubic-bezier(.3,1.4,.6,1)' }}>
         <line y1="8" y2="-62" stroke="var(--color-accent)" strokeWidth="3" strokeLinecap="round" />
       </g>
-      <circle r="6" fill="#9aa0a8" />
+      <circle r="6" fill="var(--color-muted)" />
       <text y="30" textAnchor="middle" fontSize="14" fill="var(--color-ink)" className="font-mono">
         {Math.round(rpm)}
       </text>

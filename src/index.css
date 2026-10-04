@@ -1,25 +1,32 @@
 @import 'tailwindcss';
 
-/* « Établi de labo » : anthracite, cartes plus claires, un seul accent ambre. */
+/* « Serre » : blanc doux, vert plante en accent, écrans d'instruments restés sombres. */
 @theme static {
-  --color-bg: #1d1f22;
-  --color-card: #272a2e;
-  --color-card-2: #31353a;
-  --color-line: #40454c;
-  --color-ink: #e7e8ea;
-  --color-muted: #9aa0a8;
-  --color-accent: #f5a524;
-  --color-ok: #4ade80;
-  --color-err: #f87171;
-  --color-screen: #050607;
-  --color-ch1: #f4e04d;
-  --color-ch2: #3fd8ea;
+  --color-bg: #f6f8f4;
+  --color-card: #ffffff;
+  --color-card-2: #eef3ec;
+  --color-field: #fbfcfa;
+  --color-line: #dfe6dc;
+  --color-ink: #1e2a22;
+  --color-muted: #6a776d;
+  --color-accent: #2f7d4f;
+  --color-on-accent: #ffffff;
+  --color-warn: #b45309;
+  --color-ok: #15803d;
+  --color-err: #dc2626;
+  --color-screen: #0b0f0c;
+  --color-ch1: #e8b500;
+  --color-ch2: #12b5c9;
   --color-seg: #3dff86;
-  --radius-card: 12px;
+  --radius-card: 16px;
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 body {
   @apply bg-bg text-ink font-sans antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
 }

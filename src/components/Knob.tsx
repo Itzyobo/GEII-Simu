@@ -134,8 +134,8 @@ export default function Knob(props: KnobProps) {
               <line key={i} x1={25 * Math.cos(a)} y1={25 * Math.sin(a)} x2={22 * Math.cos(a)} y2={22 * Math.sin(a)} stroke="var(--color-line)" strokeWidth="1.5" />
             )
           })}
-          <circle r="19" fill="#17191b" stroke="#4a4f56" strokeWidth="1.5" />
-          <circle r="15" fill="#2b2e33" />
+          <circle r="19" fill="var(--color-card)" stroke="var(--color-line)" strokeWidth="1.5" />
+          <circle r="15" fill="var(--color-card-2)" />
           <g transform={`rotate(${angle})`}>
             <line y1="-6" y2="-16" stroke={color ?? 'var(--color-accent)'} strokeWidth="3" strokeLinecap="round" />
           </g>

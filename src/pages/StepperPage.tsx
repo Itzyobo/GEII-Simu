@@ -126,7 +126,7 @@ export default function StepperPage({ tp }: { tp: Tp }) {
           </WiringBoard>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-card bg-card p-3 ring-1 ring-line">
+            <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
               <div className="mb-2 text-xs font-semibold tracking-wide text-muted">GBF · HORLOGE PUL</div>
               <div className="flex items-center gap-3">
                 <Knob label="Fréquence" value={f} onChange={setF} min={10} max={10000} step={1} unit="Hz" log />
@@ -146,14 +146,14 @@ export default function StepperPage({ tp }: { tp: Tp }) {
                         const v = Math.round(Number(e.target.value))
                         if (v >= 10 && v <= 10000) setF(v)
                       }}
-                      className="min-h-11 w-24 rounded-md bg-[#17191c] px-2 py-1 font-mono text-ink ring-1 ring-line outline-none focus:ring-accent"
+                      className="min-h-11 w-24 rounded-md bg-field px-2 py-1 font-mono text-ink ring-1 ring-line outline-none focus:ring-accent"
                     />
                   </label>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-card bg-card p-3 ring-1 ring-line">
+            <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
               <div className="mb-2 text-xs font-semibold tracking-wide text-muted">DRIVER TB6600</div>
               <div className="flex items-start gap-4">
                 <DipSwitch values={switches} onChange={(v) => guard('Micro-switches S1–S3', () => setSwitches(v))} />
@@ -173,19 +173,19 @@ export default function StepperPage({ tp }: { tp: Tp }) {
                     onClick={toggleDir}
                     className="flex min-h-11 items-center gap-2 rounded-lg bg-card-2 px-2 py-1.5 ring-1 ring-line"
                   >
-                    <span className={`relative h-5 w-9 rounded-full ring-1 ring-black ${dir === -1 ? 'bg-accent' : 'bg-[#15171a]'}`}>
+                    <span className={`relative h-5 w-9 rounded-full ring-1 ring-line ${dir === -1 ? 'bg-accent' : 'bg-line'}`}>
                       <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-ink transition-all ${dir === -1 ? 'left-[18px]' : 'left-0.5'}`} />
                     </span>
                     <span className="font-mono text-xs">DIR {dir === 1 ? '0 (horaire)' : '1 (anti-horaire)'}</span>
                   </button>
                   {mode && powered && sim && sim.rpm === 0 && (
-                    <p className="text-accent">Décrochage : le rotor ne suit plus au-delà de {PAP.fDecrochage} Hz.</p>
+                    <p className="text-warn">Décrochage : le rotor ne suit plus au-delà de {PAP.fDecrochage} Hz.</p>
                   )}
                 </div>
               </div>
               {liveAlert && <div className="mt-3">{liveAlert}</div>}
               {dirAlert && (
-                <div className="mt-3 flex items-start gap-3 rounded-lg bg-accent/15 px-3 py-2 text-sm text-accent ring-1 ring-accent/40" role="alert">
+                <div className="mt-3 flex items-start gap-3 rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn ring-1 ring-warn/30" role="alert">
                   <span className="flex-1">⚠ Énoncé : on ne change le sens (DIR) que moteur arrêté. Coupez l’alimentation avant de basculer DIR.</span>
                   <button type="button" onClick={() => setDirAlert(false)} className="text-xs underline">
                     OK
@@ -198,7 +198,7 @@ export default function StepperPage({ tp }: { tp: Tp }) {
       }
       instruments={
         <>
-          <div className="flex flex-wrap gap-3 rounded-card bg-card px-3 py-2 text-xs ring-1 ring-line">
+          <div className="flex flex-wrap gap-3 rounded-card bg-card shadow-sm shadow-black/[0.03] px-3 py-2 text-xs ring-1 ring-line">
             {([0, 1] as const).map((c) => (
               <label key={c} className="flex items-center gap-2">
                 <span className="font-mono font-semibold" style={{ color: `var(--color-ch${c + 1})` }}>
@@ -207,7 +207,7 @@ export default function StepperPage({ tp }: { tp: Tp }) {
                 <select
                   value={src[c]}
                   onChange={(e) => setSrc(c === 0 ? [e.target.value as Source, src[1]] : [src[0], e.target.value as Source])}
-                  className="min-h-11 rounded-md bg-[#17191c] px-2 py-1 text-ink ring-1 ring-line"
+                  className="min-h-11 rounded-md bg-field px-2 py-1 text-ink ring-1 ring-line"
                 >
                   {Object.entries(SOURCES).map(([k, s]) => (
                     <option key={k} value={k}>

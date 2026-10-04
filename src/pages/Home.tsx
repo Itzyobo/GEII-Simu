@@ -27,7 +27,7 @@ export default function Home() {
           const pct = (100 * ids.filter(ok).length) / ids.length
           const last = progress.exams.filter((e) => e.kind === tp.slug).at(-1)
           return (
-            <Link key={tp.slug} to={`/tp/${tp.slug}`} className="group flex flex-col rounded-card bg-card p-5 ring-1 ring-line transition hover:ring-accent">
+            <Link key={tp.slug} to={`/tp/${tp.slug}`} className="group flex flex-col rounded-card bg-card shadow-sm shadow-black/[0.03] p-5 ring-1 ring-line transition hover:ring-accent">
               <h2 className="text-lg font-semibold group-hover:text-accent">{tp.title}</h2>
               <p className="mt-2 flex-1 text-sm text-muted">{tp.summary}</p>
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-card-2" aria-hidden>
@@ -41,7 +41,7 @@ export default function Home() {
         })}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-4 rounded-card bg-card p-5 ring-1 ring-line">
+      <div className="mt-6 flex flex-wrap items-center gap-4 rounded-card bg-card shadow-sm shadow-black/[0.03] p-5 ring-1 ring-line">
         <div className="flex-1">
           <h2 className="font-semibold">Examen blanc — 1 h 30</h2>
           <p className="text-sm text-muted">
@@ -49,7 +49,7 @@ export default function Home() {
             {lastBlanc && ` Dernier : ${fr(lastBlanc.note)} / 20 (${dateFr(lastBlanc.date)}).`}
           </p>
         </div>
-        <Link to="/examen-blanc" className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-[#1a1306]">
+        <Link to="/examen-blanc" className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-on-accent">
           Commencer l’examen blanc
         </Link>
       </div>
@@ -67,7 +67,7 @@ export default function Home() {
                 <tbody>
                   {ATTENDUS.filter((a) => a.tp === tp.slug).map((a) => {
                     const status = a.ids.length === 0 ? 'non couvert' : a.ids.every(ok) ? 'acquis' : 'à revoir'
-                    const tone = status === 'acquis' ? 'bg-ok/15 text-ok' : status === 'à revoir' ? 'bg-accent/15 text-accent' : 'bg-card-2 text-muted'
+                    const tone = status === 'acquis' ? 'bg-ok/15 text-ok' : status === 'à revoir' ? 'bg-warn/10 text-warn' : 'bg-card-2 text-muted'
                     return (
                       <tr key={a.text} className="border-t border-line first:border-t-0 align-top">
                         <td className="w-2/5 px-3 py-2">{a.text}</td>
@@ -115,7 +115,7 @@ export default function Home() {
                 resetProgress()
                 setConfirmReset(false)
               }}
-              className="min-h-11 rounded-lg bg-err px-4 text-sm font-semibold text-[#1a0606]"
+              className="min-h-11 rounded-lg bg-err px-4 text-sm font-semibold text-white"
             >
               Oui, réinitialiser
             </button>

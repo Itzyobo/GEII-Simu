@@ -18,7 +18,7 @@ export default function Wattmeter({ label = 'WATTMÈTRE', p, q, s, decimals = 0 
     ['S', s, 'VA'],
   ]
   return (
-    <div className="rounded-card bg-card p-3 ring-1 ring-line">
+    <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
       <div className="mb-2 text-xs font-semibold tracking-wide text-muted">{label}</div>
       <div className="grid gap-1 rounded-lg bg-[#0b120d] px-3 py-2 ring-1 ring-black">
         {rows.map(([name, v, unit]) => (

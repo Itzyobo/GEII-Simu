@@ -30,12 +30,12 @@ export default function TerminalBox({ value, onChange, disabled }: TerminalBoxPr
         className="block w-full rounded-lg disabled:cursor-not-allowed"
       >
         <svg viewBox="0 0 200 150" className="w-full max-w-[260px]">
-          <rect x="5" y="5" width="190" height="140" rx="10" fill="#1a1c1f" stroke="var(--color-line)" />
+          <rect x="5" y="5" width="190" height="140" rx="10" fill="var(--color-card-2)" stroke="var(--color-line)" />
           {value === 'triangle' && X.map((x, k) => bar(x, TOP, x, BOTTOM, `t${k}`))}
           {value === 'etoile' && [bar(X[0], BOTTOM, X[1], BOTTOM, 's1'), bar(X[1], BOTTOM, X[2], BOTTOM, 's2')]}
           {['U1', 'V1', 'W1'].map((n, k) => (
             <g key={n}>
-              <circle cx={X[k]} cy={TOP} r="11" fill="#8a9099" stroke="#2b2f35" strokeWidth="3" />
+              <circle cx={X[k]} cy={TOP} r="11" fill="#8a9099" stroke="#6a776d" strokeWidth="3" />
               <text x={X[k]} y={TOP - 18} textAnchor="middle" fontSize="11" fill="var(--color-ink)">
                 {n}
               </text>
@@ -43,7 +43,7 @@ export default function TerminalBox({ value, onChange, disabled }: TerminalBoxPr
           ))}
           {['W2', 'U2', 'V2'].map((n, k) => (
             <g key={n}>
-              <circle cx={X[k]} cy={BOTTOM} r="11" fill="#8a9099" stroke="#2b2f35" strokeWidth="3" />
+              <circle cx={X[k]} cy={BOTTOM} r="11" fill="#8a9099" stroke="#6a776d" strokeWidth="3" />
               <text x={X[k]} y={BOTTOM + 28} textAnchor="middle" fontSize="11" fill="var(--color-ink)">
                 {n}
               </text>
@@ -59,7 +59,7 @@ export default function TerminalBox({ value, onChange, disabled }: TerminalBoxPr
             disabled={disabled}
             onClick={() => onChange(b)}
             aria-pressed={value === b}
-            className={`min-h-11 rounded-md px-3 py-1 text-xs ring-1 ring-line disabled:opacity-40 ${value === b ? 'bg-accent font-semibold text-[#1a1306]' : ''}`}
+            className={`min-h-11 rounded-md px-3 py-1 text-xs ring-1 ring-line disabled:opacity-40 ${value === b ? 'bg-accent font-semibold text-on-accent' : ''}`}
           >
             {LABEL[b]}
           </button>

@@ -86,7 +86,7 @@ export default function QuestionCard(props: QuestionCardProps) {
       ref={ref}
       id={`q-${qid}`}
       onSubmit={submit}
-      className={`scroll-mt-24 rounded-card bg-card p-4 ring-1 ${focused ? 'ring-2 ring-accent' : 'ring-line'}`}
+      className={`scroll-mt-24 rounded-card bg-card shadow-sm shadow-black/[0.03] p-4 ring-1 ${focused ? 'ring-2 ring-accent' : 'ring-line'}`}
     >
       {props.kind === 'choix' ? (
         <fieldset>
@@ -133,7 +133,7 @@ export default function QuestionCard(props: QuestionCardProps) {
                 setInput(e.target.value)
                 reset()
               }}
-              className="min-h-11 w-36 rounded-lg bg-[#17191c] px-3 py-1.5 font-mono text-sm ring-1 ring-line outline-none focus:ring-accent"
+              className="min-h-11 w-36 rounded-lg bg-field px-3 py-1.5 font-mono text-sm ring-1 ring-line outline-none focus:ring-accent"
             />
             <span className="font-mono text-sm text-muted">{props.unit}</span>
             <button type="submit" className="min-h-11 rounded-lg bg-card-2 px-4 py-1.5 text-sm font-medium ring-1 ring-line hover:ring-accent">

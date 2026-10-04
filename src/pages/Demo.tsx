@@ -44,7 +44,7 @@ export default function Demo() {
             <Multimeter label="VOLTMÈTRE" value={powered ? volts : null} unit="V" />
             <Wattmeter p={powered ? 1060 : null} q={powered ? 1373 : null} s={powered ? 1735 : null} />
           </div>
-          <div className="flex justify-around rounded-card bg-card p-3 ring-1 ring-line">
+          <div className="flex justify-around rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
             <Knob label="Tension" value={volts} onChange={setVolts} min={0} max={20} step={0.1} unit="V" />
             <Knob label="Fréquence (log)" value={freq} onChange={setFreq} min={10} max={10000} step={1} unit="Hz" log />
           </div>

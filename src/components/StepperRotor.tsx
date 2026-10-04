@@ -66,18 +66,18 @@ export default function StepperRotor({ stepRate, stepsPerTurn, dir }: StepperRot
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-5 rounded-card bg-card p-3 ring-1 ring-line">
+    <div className="flex flex-wrap items-center gap-5 rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
       <svg width="140" height="140" viewBox="-70 -70 140 140" role="img" aria-label="Rotor du moteur pas à pas">
-        <circle r="66" fill="#16181b" stroke="var(--color-line)" strokeWidth="2" />
+        <circle r="66" fill="var(--color-card-2)" stroke="var(--color-line)" strokeWidth="2" />
         {Array.from({ length: 8 }, (_, k) => (
-          <rect key={k} x="-7" y="-64" width="14" height="14" rx="2" fill="#3a3f46" transform={`rotate(${k * 45})`} />
+          <rect key={k} x="-7" y="-64" width="14" height="14" rx="2" fill="#c9d3c5" transform={`rotate(${k * 45})`} />
         ))}
         <g ref={rotorRef}>
-          <circle r="44" fill="#2b2f35" stroke="#59606a" strokeWidth="1.5" />
+          <circle r="44" fill="var(--color-card)" stroke="#aab5a6" strokeWidth="1.5" />
           {Array.from({ length: 50 }, (_, k) => (
-            <line key={k} y1="-44" y2="-39" stroke="#59606a" strokeWidth="2" transform={`rotate(${k * 7.2})`} />
+            <line key={k} y1="-44" y2="-39" stroke="#aab5a6" strokeWidth="2" transform={`rotate(${k * 7.2})`} />
           ))}
-          <circle r="8" fill="#9aa0a8" />
+          <circle r="8" fill="var(--color-muted)" />
           <line y1="-8" y2="-36" stroke="var(--color-accent)" strokeWidth="5" strokeLinecap="round" />
         </g>
       </svg>
@@ -89,7 +89,7 @@ export default function StepperRotor({ stepRate, stepsPerTurn, dir }: StepperRot
         <button
           type="button"
           onClick={toggle}
-          className={`min-h-11 rounded-lg px-3 py-1.5 text-sm font-semibold ring-1 ring-line ${running ? 'bg-accent text-[#1a1306]' : 'bg-card-2'}`}
+          className={`min-h-11 rounded-lg px-3 py-1.5 text-sm font-semibold ring-1 ring-line ${running ? 'bg-accent text-on-accent' : 'bg-card-2'}`}
         >
           {running ? 'Stop' : 'Départ chrono'}
         </button>

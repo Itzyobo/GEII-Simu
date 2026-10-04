@@ -339,7 +339,7 @@ export default function AlimPart2({ title, tabs }: { title: string; tabs: ReactN
           >
             <Schematic />
           </WiringBoard>
-          <div className="rounded-card bg-card p-3 ring-1 ring-line">
+          <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
             <div className="mb-2 text-xs font-semibold tracking-wide text-muted">RÉGLAGES</div>
             <div className="flex flex-wrap items-center gap-5">
               <Knob label="Ve" value={ve} onChange={setVe} min={FLYBACK.veMin} max={FLYBACK.veMax} step={0.1} unit="V" />
@@ -359,7 +359,7 @@ export default function AlimPart2({ title, tabs }: { title: string; tabs: ReactN
             <Multimeter label="AMPÈREMÈTRE SORTIE" value={powered ? readings.is : null} unit="A" decimals={3} />
           </div>
           {powered && refPrimary && refSecondary && (
-            <p className="rounded-lg bg-accent/15 px-3 py-2 text-sm text-accent ring-1 ring-accent/40" role="alert">
+            <p className="rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn ring-1 ring-warn/30" role="alert">
               ⚠ Masses de l’oscilloscope reliées : l’isolation galvanique est court-circuitée.
             </p>
           )}

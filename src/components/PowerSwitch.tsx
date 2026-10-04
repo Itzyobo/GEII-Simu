@@ -19,7 +19,7 @@ export default function PowerSwitch({ on, onToggle, disabled, label = 'Mise sous
       onClick={() => onToggle(!on)}
       className="flex min-h-11 items-center gap-3 rounded-card bg-card-2 px-3 py-2 ring-1 ring-line transition disabled:cursor-not-allowed disabled:opacity-40"
     >
-      <span className={`relative h-7 w-12 rounded-full ring-1 ring-black transition ${on ? 'bg-accent' : 'bg-[#15171a]'}`}>
+      <span className={`relative h-7 w-12 rounded-full ring-1 ring-line transition ${on ? 'bg-accent' : 'bg-line'}`}>
         <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-ink shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
       </span>
       <span className="text-sm font-medium">{label}</span>

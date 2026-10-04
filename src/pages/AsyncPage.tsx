@@ -135,12 +135,12 @@ export default function AsyncPage({ tp }: { tp: Tp }) {
             <Schematic source={source} />
           </WiringBoard>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-3 rounded-card bg-card p-3 ring-1 ring-line">
+            <div className="space-y-3 rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
               <div className="text-xs font-semibold tracking-wide text-muted">BOÎTE À BORNES {powered && '· verrouillée sous tension'}</div>
               <TerminalBox value={barrettes} onChange={(b) => guard('Barrettes de la boîte à bornes', () => setBarrettes(b))} />
               <NamePlate />
             </div>
-            <div className="space-y-3 rounded-card bg-card p-3 ring-1 ring-line">
+            <div className="space-y-3 rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
               <div className="text-xs font-semibold tracking-wide text-muted">ALIMENTATION</div>
               <Toggle on={source === 'variateur'} onChange={(v) => guard('Sélecteur réseau / variateur', () => setSource(v ? 'variateur' : 'reseau'))} label={source === 'variateur' ? 'Variateur de vitesse' : 'Réseau 400 V – 50 Hz'} />
               {source === 'variateur' && <Knob label="Fréquence variateur" value={f} onChange={setF} min={15} max={50} step={1} unit="Hz" />}
@@ -152,7 +152,7 @@ export default function AsyncPage({ tp }: { tp: Tp }) {
                     type="button"
                     onClick={() => setOhmPair(pr)}
                     aria-pressed={ohmPair === pr}
-                    className={`min-h-11 rounded-md px-3 py-1 font-mono text-xs ring-1 ring-line ${ohmPair === pr ? 'bg-accent font-semibold text-[#1a1306]' : ''}`}
+                    className={`min-h-11 rounded-md px-3 py-1 font-mono text-xs ring-1 ring-line ${ohmPair === pr ? 'bg-accent font-semibold text-on-accent' : ''}`}
                   >
                     {pr.replace('-', '–')}
                   </button>
@@ -182,11 +182,11 @@ export default function AsyncPage({ tp }: { tp: Tp }) {
             </div>
           )}
           {running && st.alerts.map((a) => (
-            <p key={a} className="rounded-lg bg-accent/15 px-3 py-2 text-sm text-accent ring-1 ring-accent/40" role="alert">
+            <p key={a} className="rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn ring-1 ring-warn/30" role="alert">
               ⚠ {a}
             </p>
           ))}
-          <div className="rounded-card bg-card p-3 ring-1 ring-line">
+          <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold tracking-wide text-muted">WATTMÈTRE · 3 WATTMÈTRES</span>
               {(['Ph 1', 'Ph 2', 'Ph 3', 'Σ'] as const).map((l, i) => (
@@ -195,7 +195,7 @@ export default function AsyncPage({ tp }: { tp: Tp }) {
                   type="button"
                   onClick={() => setPhase(i as 0 | 1 | 2 | 3)}
                   aria-pressed={phase === i}
-                  className={`min-h-11 min-w-11 rounded-md px-2 py-0.5 font-mono text-xs ring-1 ring-line ${phase === i ? 'bg-accent font-semibold text-[#1a1306]' : ''}`}
+                  className={`min-h-11 min-w-11 rounded-md px-2 py-0.5 font-mono text-xs ring-1 ring-line ${phase === i ? 'bg-accent font-semibold text-on-accent' : ''}`}
                 >
                   {l}
                 </button>
@@ -215,7 +215,7 @@ export default function AsyncPage({ tp }: { tp: Tp }) {
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-3 rounded-card bg-card p-3 ring-1 ring-line">
+            <div className="space-y-3 rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
               <div className="text-xs font-semibold tracking-wide text-muted">CHARGE ACTIVE</div>
               <div className="flex items-center gap-4">
                 <Toggle on={pos1} onChange={setPos1} label={`Commutateur : position ${pos1 ? 1 : 0}`} />
@@ -224,7 +224,7 @@ export default function AsyncPage({ tp }: { tp: Tp }) {
               <Multimeter label="CAPTEUR DE COUPLE (0,3 V/N·m)" value={running ? read.sensor : null} unit="V" />
               <Multimeter label="VITESSE (VARIATEUR CHARGE)" value={running ? read.n : null} unit="tr/min" decimals={0} />
             </div>
-            <div className="flex flex-col items-center justify-center rounded-card bg-card p-3 ring-1 ring-line">
+            <div className="flex flex-col items-center justify-center rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
               <Tachometer rpm={running ? read.n : 0} />
               <span className="mt-1 text-xs text-muted">
                 {running ? `Ns = ${Math.round(st.ns)} tr/min` : 'Moteur arrêté'} · {params.couplage === 'triangle' ? 'Δ' : 'Y'}

@@ -51,7 +51,7 @@ export function Cell({ value, onChange, check, checked, label, calc }: { value: 
       value={value}
       onChange={(e) => onChange(e.target.value)}
       title={show && !ok ? `Attendu ≈ ${Number(check.expected.toPrecision(4))}` : undefined}
-      className={`min-h-11 w-20 rounded-md px-1.5 py-1 text-right font-mono text-xs ring-1 outline-none focus:ring-accent ${calc ? 'bg-[#1d1a12]' : 'bg-[#17191c]'} ${show ? (ok ? 'ring-ok' : 'ring-err') : 'ring-line'}`}
+      className={`min-h-11 w-20 rounded-md px-1.5 py-1 text-right font-mono text-xs ring-1 outline-none focus:ring-accent ${calc ? 'bg-accent/5' : 'bg-field'} ${show ? (ok ? 'ring-ok' : 'ring-err') : 'ring-line'}`}
     />
   )
 }
@@ -72,7 +72,7 @@ export function GradeBar({ exam, saved, onSubmit, label, children }: { exam: boo
 export function Exercise({ id, label, statement, children }: { id: string; label: string; statement: string; children: ReactNode }) {
   const { ref, focused } = useQuestionFocus<HTMLElement>(id)
   return (
-    <section ref={ref} id={`q-${id}`} className={`scroll-mt-24 rounded-card bg-card p-4 ring-1 ${focused ? 'ring-2 ring-accent' : 'ring-line'}`}>
+    <section ref={ref} id={`q-${id}`} className={`scroll-mt-24 rounded-card bg-card shadow-sm shadow-black/[0.03] p-4 ring-1 ${focused ? 'ring-2 ring-accent' : 'ring-line'}`}>
       <p className="mb-3 text-sm">
         <span className="mr-2 font-semibold text-accent">{label}</span>
         {statement}

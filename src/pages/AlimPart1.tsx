@@ -219,7 +219,7 @@ export default function AlimPart1({ title, tabs }: { title: string; tabs: ReactN
             progressId="alim1-cablage" terminals={TERMINALS} expected={EXPECTED} width={670} height={340} onPowerChange={setPowered}>
             <Schematic d2={d2} c={d2 && c} />
           </WiringBoard>
-          <div className="rounded-card bg-card p-3 ring-1 ring-line">
+          <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
             <div className="mb-2 text-xs font-semibold tracking-wide text-muted">GÉNÉRATEUR D’IMPULSIONS · SECONDAIRE</div>
             <div className="flex flex-wrap items-center gap-5">
               <Knob label="Fréquence" value={f} onChange={setF} min={500} max={10000} step={10} unit="Hz" log />
@@ -240,7 +240,7 @@ export default function AlimPart1({ title, tabs }: { title: string; tabs: ReactN
               </p>
             )}
             {powered && sim.saturates && !sim.accumulates && (
-              <p className="mt-3 rounded-lg bg-accent/15 px-3 py-2 text-sm text-accent ring-1 ring-accent/40">
+              <p className="mt-3 rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn ring-1 ring-warn/30">
                 Saturation du circuit magnétique : l’aire E·t dépasse la valeur admissible.
               </p>
             )}
@@ -249,7 +249,7 @@ export default function AlimPart1({ title, tabs }: { title: string; tabs: ReactN
       }
       instruments={
         <>
-          <div className="flex flex-wrap gap-3 rounded-card bg-card px-3 py-2 text-xs ring-1 ring-line">
+          <div className="flex flex-wrap gap-3 rounded-card bg-card shadow-sm shadow-black/[0.03] px-3 py-2 text-xs ring-1 ring-line">
             {([0, 1] as const).map((k) => (
               <label key={k} className="flex items-center gap-2">
                 <span className="font-mono font-semibold" style={{ color: `var(--color-ch${k + 1})` }}>
@@ -258,7 +258,7 @@ export default function AlimPart1({ title, tabs }: { title: string; tabs: ReactN
                 <select
                   value={src[k]}
                   onChange={(e) => setSrc(k === 0 ? [e.target.value as Source, src[1]] : [src[0], e.target.value as Source])}
-                  className="min-h-11 rounded-md bg-[#17191c] px-2 py-1 text-ink ring-1 ring-line"
+                  className="min-h-11 rounded-md bg-field px-2 py-1 text-ink ring-1 ring-line"
                 >
                   {Object.entries(SOURCES).map(([key, label]) => (
                     <option key={key} value={key}>

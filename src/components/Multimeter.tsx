@@ -13,7 +13,7 @@ interface MultimeterProps {
 /** Multimètre : boîtier + afficheur 7 segments. */
 export default function Multimeter({ label, value, unit, decimals = 2, digits = 4 }: MultimeterProps) {
   return (
-    <div className="rounded-card bg-card p-3 ring-1 ring-line">
+    <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
       <div className="mb-2 text-xs font-semibold tracking-wide text-muted">{label}</div>
       <div className="flex items-end gap-2 rounded-lg bg-[#0b120d] px-3 py-2 ring-1 ring-black">
         <Display7Seg value={toDisplay(value, decimals, digits)} digits={digits} />

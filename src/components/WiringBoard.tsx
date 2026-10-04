@@ -149,10 +149,10 @@ export default function WiringBoard({ terminals, expected, width, height, childr
   const from = selected === null ? undefined : byId.get(selected)
 
   return (
-    <div className="rounded-card bg-card p-3 ring-1 ring-line">
+    <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 ring-1 ring-line">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full touch-manipulation rounded-lg bg-[#202327]"
+        className="w-full touch-manipulation rounded-lg bg-card-2"
         onPointerMove={onMove}
         onPointerLeave={() => setCursor(null)}
         onClick={onTap}
@@ -168,7 +168,7 @@ export default function WiringBoard({ terminals, expected, width, height, childr
             <g key={`${w.a}|${w.b}`} className="cursor-pointer" data-wire={k}>
               <title>{`${p.label} — ${q.label} (clic pour retirer)`}</title>
               <path d={d} stroke="transparent" strokeWidth="20" fill="none" />
-              <path d={d} stroke="rgba(255,255,255,0.25)" strokeWidth="5" fill="none" />
+              <path d={d} stroke="rgba(0,0,0,0.12)" strokeWidth="5" fill="none" />
               <path d={d} stroke={HEX[w.color]} strokeWidth="3" fill="none" strokeLinecap="round" />
             </g>
           )
@@ -182,7 +182,7 @@ export default function WiringBoard({ terminals, expected, width, height, childr
               {t.label}
             </text>
             {selected === t.id && <circle cx={t.x} cy={t.y} r="13" fill="none" stroke="var(--color-accent)" strokeWidth="2" />}
-            <circle cx={t.x} cy={t.y} r="9" fill={HEX[t.color]} stroke="#8a9099" strokeWidth="1.5" />
+            <circle cx={t.x} cy={t.y} r="9" fill={HEX[t.color]} stroke="#6a776d" strokeWidth="1.5" />
             <circle cx={t.x} cy={t.y} r="3" fill="#0c0d0e" />
           </g>
         ))}
@@ -192,7 +192,7 @@ export default function WiringBoard({ terminals, expected, width, height, childr
         <button
           type="button"
           onClick={check}
-          className="min-h-11 rounded-card bg-accent px-4 py-2 text-sm font-semibold text-[#1a1306] hover:brightness-110"
+          className="min-h-11 rounded-card bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:brightness-110"
         >
           Faire vérifier
         </button>
@@ -218,7 +218,7 @@ export default function WiringBoard({ terminals, expected, width, height, childr
         </div>
       )}
       {alert && (
-        <div className="mt-3 flex items-start gap-3 rounded-lg bg-accent/15 px-3 py-2 text-sm text-accent ring-1 ring-accent/40" role="alert">
+        <div className="mt-3 flex items-start gap-3 rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn ring-1 ring-warn/30" role="alert">
           <span className="flex-1">⚠ {alert}</span>
           <button type="button" onClick={() => setAlert(null)} className="text-xs underline">
             OK

@@ -14,7 +14,7 @@ export function useLiveGuard(powered: boolean) {
     setWhat(label)
   }
   const alert = what && (
-    <div className="flex items-start gap-3 rounded-lg bg-accent/15 px-3 py-2 text-sm text-accent ring-1 ring-accent/40" role="alert">
+    <div className="flex items-start gap-3 rounded-lg bg-warn/10 px-3 py-2 text-sm text-warn ring-1 ring-warn/30" role="alert">
       <span className="flex-1">⚠ {what} : modification refusée sous tension. Coupez l’alimentation avant de modifier le montage.</span>
       <button type="button" onClick={() => setWhat(null)} className="min-h-11 px-2 text-xs underline">
         OK

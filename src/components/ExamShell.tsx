@@ -189,7 +189,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
                 </tbody>
               </table>
             </div>
-            <div className="rounded-card bg-card p-3 text-sm ring-1 ring-line">
+            <div className="rounded-card bg-card shadow-sm shadow-black/[0.03] p-3 text-sm ring-1 ring-line">
               <div className="mb-1 font-semibold">Pénalités : −{fr(penaltyPoints(r.pen), 1)}</div>
               {r.pen.length === 0 ? (
                 <p className="text-muted">Aucune.</p>
@@ -211,7 +211,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
               Retour à l’entraînement
             </button>
           ) : null}
-          <Link to="/" onClick={leave} className={`${btn} inline-flex items-center bg-accent text-[#1a1306]`}>
+          <Link to="/" onClick={leave} className={`${btn} inline-flex items-center bg-accent text-on-accent`}>
             Accueil
           </Link>
         </div>
@@ -225,7 +225,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
           {phase === 'training' ? (
             <>
               <span className="text-sm text-muted">Mode entraînement : verdicts et explications affichés.</span>
-              <button type="button" onClick={start} className={`${btn} ml-auto bg-accent text-[#1a1306]`}>
+              <button type="button" onClick={start} className={`${btn} ml-auto bg-accent text-on-accent`}>
                 Examen {minutes} min
               </button>
             </>
@@ -254,7 +254,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
                 )}
                 {confirmHand ? (
                   <>
-                    <button type="button" disabled={finishing} onClick={() => void finish()} className={`${btn} bg-err text-[#1a0606] disabled:opacity-50`}>
+                    <button type="button" disabled={finishing} onClick={() => void finish()} className={`${btn} bg-err text-white disabled:opacity-50`}>
                       Confirmer la remise
                     </button>
                     <button type="button" onClick={() => setConfirmHand(false)} className={`${btn} bg-card-2`}>
@@ -262,7 +262,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
                     </button>
                   </>
                 ) : (
-                  <button type="button" onClick={() => setConfirmHand(true)} className={`${btn} bg-accent text-[#1a1306]`}>
+                  <button type="button" onClick={() => setConfirmHand(true)} className={`${btn} bg-accent text-on-accent`}>
                     Rendre
                   </button>
                 )}
