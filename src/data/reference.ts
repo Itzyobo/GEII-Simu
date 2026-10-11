@@ -99,10 +99,10 @@ export const PAP = {
   hysteresis: 0.1,
   /** Inductance apparente d'une phase, L = 15·Δt/Δi à 1 kHz en pas entier — H (9,7 mH ; Δt = 1,28 ms, Δi = 1,98 A) — CR, valeur cible */
   lApparenteMesuree: 9.7e-3,
-  /** Inductance réelle d'une phase (modèle) — H (6,885 mH) — calé avec ke (voir stepper.test.ts) */
-  lReelle: 6.885e-3,
-  /** Résistance d'une phase — Ω — hypothèse */
-  rPhase: 1.5,
+  /** Inductance réelle d’une phase (modèle) — H (6,894 mH) — calé avec ke (voir stepper.test.ts) */
+  lReelle: 6.894e-3,
+  /** Résistance d’une phase — Ω — hypothèse, faible devant E − e pour un courant bien triangulaire à Freq2 */
+  rPhase: 0.5,
   /** Freq2, passage en mode tension en pas entier — Hz (≈ 1400 Hz, à obtenir par calage de la f.c.é.m.) — CR */
   freq2: 1400,
   /** Fréquence de décrochage — Hz (au-delà de ≈ 2,5 kHz) — hypothèse */
@@ -112,7 +112,7 @@ export const PAP = {
   /** Déphasage I_A / I_B — fraction de période (T/4), signe inversé avec DIR — CR */
   dephasageIaIb: 0.25,
   /** Constante de f.c.é.m. Ke (e = Ke·Ω·signe(consigne)) — V·s/rad — calé avec lReelle : Freq2 ≈ 1425 Hz et L apparente = 9,7 mH à 1 kHz (voir stepper.test.ts) */
-  ke: 0.1366,
+  ke: 0.1379,
 } as const
 
 /**
@@ -198,6 +198,14 @@ export const MAS = {
     { f: 35, u: 302 },
     { f: 50, u: 409.6 },
   ] as const,
+  /** Montage 1 (réseau) : sorties du commutateur 3 wattmètres où la pince de l'analyseur est acceptée — hypothèse, à vérifier */
+  pinceMontage1: ['S1', 'S2', 'S3'] as const,
+  /** Montage 2 (variateur) : sorties du variateur où la pince de l'analyseur est acceptée — hypothèse, à vérifier */
+  pinceMontage2: ['U/T1', 'V/T2', 'W/T3'] as const,
+  /** Repérage des bornes de puissance du variateur Schneider (entrée réseau / sortie moteur) — hypothèse, à vérifier */
+  bornesVariateur: { entree: ['R/L1', 'S/L2', 'T/L3'], sortie: ['U/T1', 'V/T2', 'W/T3'] } as const,
+  /** Tension lue par l'analyseur : simple (phase–N) en montage 1, composée (entre 2 sorties) en montage 2 — hypothèse, à vérifier */
+  tensionAnalyseur: { montage1: 'simple', montage2: 'composee' } as const,
 } as const
 
 /* ───────────────────────────────── Commun ───────────────────────────────── */

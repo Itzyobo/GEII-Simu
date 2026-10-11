@@ -14,12 +14,42 @@ const X = [40, 100, 160]
 const TOP = 40
 const BOTTOM = 110
 
+const bar = (x1: number, y1: number, x2: number, y2: number, key: string) => (
+  <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#c9a227" strokeWidth="9" strokeLinecap="round" opacity="0.9" />
+)
+
+/** Dessin de la boîte à bornes (repère 200 × 150), réutilisé sur le banc. `topLabels` : repères U1 V1 W1 au-dessus. */
+export function TerminalBoxArt({ value, topLabels = true }: { value: Barrettes; topLabels?: boolean }) {
+  return (
+    <>
+      <rect x="5" y="5" width="190" height="140" rx="10" fill="var(--color-card-2)" stroke="var(--color-line)" />
+      {value === 'triangle' && X.map((x, k) => bar(x, TOP, x, BOTTOM, `t${k}`))}
+      {value === 'etoile' && [bar(X[0], BOTTOM, X[1], BOTTOM, 's1'), bar(X[1], BOTTOM, X[2], BOTTOM, 's2')]}
+      {['U1', 'V1', 'W1'].map((n, k) => (
+        <g key={n}>
+          <circle cx={X[k]} cy={TOP} r="11" fill="#8a9099" stroke="#6a776d" strokeWidth="3" />
+          {topLabels && (
+            <text x={X[k]} y={TOP - 18} textAnchor="middle" fontSize="11" fill="var(--color-ink)">
+              {n}
+            </text>
+          )}
+        </g>
+      ))}
+      {['W2', 'U2', 'V2'].map((n, k) => (
+        <g key={n}>
+          <circle cx={X[k]} cy={BOTTOM} r="11" fill="#8a9099" stroke="#6a776d" strokeWidth="3" />
+          <text x={X[k]} y={BOTTOM + 28} textAnchor="middle" fontSize="11" fill="var(--color-ink)">
+            {n}
+          </text>
+        </g>
+      ))}
+    </>
+  )
+}
+
 /** Boîte à bornes : clic pour faire tourner les barrettes (triangle → étoile → retirées), ou boutons. */
 export default function TerminalBox({ value, onChange, disabled }: TerminalBoxProps) {
   const next = () => onChange(ORDER[(ORDER.indexOf(value) + 1) % ORDER.length])
-  const bar = (x1: number, y1: number, x2: number, y2: number, key: string) => (
-    <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#c9a227" strokeWidth="9" strokeLinecap="round" opacity="0.9" />
-  )
   return (
     <div className="space-y-2">
       <button
@@ -30,25 +60,7 @@ export default function TerminalBox({ value, onChange, disabled }: TerminalBoxPr
         className="block w-full rounded-lg disabled:cursor-not-allowed"
       >
         <svg viewBox="0 0 200 150" className="w-full max-w-[260px]">
-          <rect x="5" y="5" width="190" height="140" rx="10" fill="var(--color-card-2)" stroke="var(--color-line)" />
-          {value === 'triangle' && X.map((x, k) => bar(x, TOP, x, BOTTOM, `t${k}`))}
-          {value === 'etoile' && [bar(X[0], BOTTOM, X[1], BOTTOM, 's1'), bar(X[1], BOTTOM, X[2], BOTTOM, 's2')]}
-          {['U1', 'V1', 'W1'].map((n, k) => (
-            <g key={n}>
-              <circle cx={X[k]} cy={TOP} r="11" fill="#8a9099" stroke="#6a776d" strokeWidth="3" />
-              <text x={X[k]} y={TOP - 18} textAnchor="middle" fontSize="11" fill="var(--color-ink)">
-                {n}
-              </text>
-            </g>
-          ))}
-          {['W2', 'U2', 'V2'].map((n, k) => (
-            <g key={n}>
-              <circle cx={X[k]} cy={BOTTOM} r="11" fill="#8a9099" stroke="#6a776d" strokeWidth="3" />
-              <text x={X[k]} y={BOTTOM + 28} textAnchor="middle" fontSize="11" fill="var(--color-ink)">
-                {n}
-              </text>
-            </g>
-          ))}
+          <TerminalBoxArt value={value} />
         </svg>
       </button>
       <div className="flex gap-1">

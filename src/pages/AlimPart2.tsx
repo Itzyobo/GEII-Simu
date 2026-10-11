@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import TpLayout from './TpLayout'
-import WiringBoard, { type Terminal } from '../components/WiringBoard'
+import WiringBoard, { Device, type Terminal } from '../components/WiringBoard'
 import Oscilloscope from '../components/Oscilloscope'
 import Knob from '../components/Knob'
 import Toggle from '../components/Toggle'
@@ -16,22 +16,22 @@ import { Cell, Exercise, GradeBar, num, useTableGrading } from '../components/Wo
 const TERMINALS: Terminal[] = [
   { id: 'aliP', label: 'Alim +', color: 'red', x: 40, y: 200 },
   { id: 'aliN', label: 'Alim −', color: 'black', x: 90, y: 200 },
-  { id: 'vinV', label: 'Ve V', color: 'red', x: 150, y: 72 },
-  { id: 'vinC', label: 'Ve COM', color: 'black', x: 205, y: 72 },
+  { id: 'vinV', label: 'Ve V', color: 'red', x: 150, y: 80 },
+  { id: 'vinC', label: 'Ve COM', color: 'black', x: 205, y: 80 },
   { id: 'ainA', label: 'Ie A', color: 'red', x: 150, y: 302 },
   { id: 'ainC', label: 'Ie COM', color: 'black', x: 205, y: 302 },
   { id: 'vin', label: 'VIN', color: 'red', x: 295, y: 150 },
   { id: 'pgnd', label: 'PGND', color: 'black', x: 295, y: 240 },
   { id: 'vout', label: 'VOUT', color: 'red', x: 405, y: 150 },
   { id: 'gnd0', label: 'GND0', color: 'black', x: 405, y: 240 },
-  { id: 'voV', label: 'Vs V', color: 'red', x: 490, y: 72 },
-  { id: 'voC', label: 'Vs COM', color: 'black', x: 545, y: 72 },
+  { id: 'voV', label: 'Vs V', color: 'red', x: 490, y: 80 },
+  { id: 'voC', label: 'Vs COM', color: 'black', x: 545, y: 80 },
   { id: 'aoA', label: 'Is A', color: 'red', x: 490, y: 302 },
   { id: 'aoC', label: 'Is COM', color: 'black', x: 545, y: 302 },
   { id: 'rh1', label: 'Rh 1', color: 'brown', x: 640, y: 150 },
-  { id: 'rh2', label: 'Rh 2', color: 'brown', x: 640, y: 240 },
-  { id: 'm1', label: 'Masse CH1', color: 'black', x: 300, y: 340 },
-  { id: 'm2', label: 'Masse CH2', color: 'black', x: 400, y: 340 },
+  { id: 'rh2', label: 'Rh 2', color: 'brown', x: 640, y: 258 },
+  { id: 'm1', label: 'Masse CH1', color: 'black', x: 310, y: 362 },
+  { id: 'm2', label: 'Masse CH2', color: 'black', x: 390, y: 362 },
 ]
 
 /** Ampèremètres en série, voltmètres en parallèle, côté entrée puis côté sortie ; rhéostat en charge. */
@@ -59,26 +59,58 @@ const fr = (x: number, digits = 3) => String(Number(x.toPrecision(digits))).repl
 const noisy = (x: number) => x * (1 + (Math.random() * 2 - 1) * BRUIT.min)
 
 
+/** Multimètre de table : boîtier sombre, écran LCD avec la grandeur mesurée et son unité. */
+function Meter({ x, y, w, h, name, unit }: { x: number; y: number; w: number; h: number; name: string; unit: 'V' | 'A' }) {
+  return (
+    <g stroke="none">
+      <rect x={x} y={y} width={w} height={h} rx="12" fill="#2c3238" stroke="#15191c" strokeWidth="1.5" filter="url(#wb-shadow)" />
+      <rect x={x + 3} y={y + 3} width={w - 6} height={h - 6} rx="10" fill="none" stroke={unit === 'V' ? '#e8b500' : '#12b5c9'} strokeWidth="2" />
+      <rect x={x + 9} y={y + 7} width={w - 18} height="20" rx="3" fill="#a9c2a1" stroke="#15191c" />
+      <text x={x + 14} y={y + 21} fontSize="9.5" fontWeight="600" fill="#1d2a1d" className="select-none">{name}</text>
+      <text x={x + w - 14} y={y + 21.5} fontSize="12" fontWeight="700" textAnchor="end" fill="#1d2a1d" className="font-mono select-none">{unit}</text>
+    </g>
+  )
+}
+
 function Schematic() {
   const txt = { fill: 'var(--color-muted)', stroke: 'none', fontSize: 11, textAnchor: 'middle' as const }
   return (
     <>
-      <rect x="15" y="140" width="100" height="80" rx="6" />
-      <text x="65" y="165" {...txt}>Alim Ve</text>
-      <rect x="125" y="20" width="105" height="70" rx="6" />
-      <text x="177" y="40" {...txt}>Voltmètre entrée</text>
-      <rect x="125" y="250" width="105" height="70" rx="6" />
-      <text x="177" y="270" {...txt}>Ampèremètre entrée</text>
-      <rect x="265" y="100" width="170" height="180" rx="8" />
-      <text x="350" y="122" {...txt} fontSize={12}>MAX17691B</text>
-      <line x1="350" y1="130" x2="350" y2="275" strokeDasharray="5 4" />
-      <text x="350" y="205" {...txt} fontSize={9}>isolation</text>
-      <rect x="465" y="20" width="105" height="70" rx="6" />
-      <text x="517" y="40" {...txt}>Voltmètre sortie</text>
-      <rect x="465" y="250" width="105" height="70" rx="6" />
-      <text x="517" y="270" {...txt}>Ampèremètre sortie</text>
-      <rect x="615" y="130" width="50" height="130" rx="6" />
-      <text x="640" y="200" {...txt}>Rhéostat</text>
+      {/* alimentation de laboratoire : façade claire, afficheur rouge */}
+      <g stroke="none">
+        <rect x="12" y="132" width="110" height="88" rx="6" fill="#dfe6ee" stroke="#8e9cab" strokeWidth="1.5" filter="url(#wb-shadow)" />
+        <rect x="12" y="132" width="110" height="6" rx="3" fill="#3b6fb6" />
+        <rect x="20" y="143" width="60" height="18" rx="3" fill="#1b1f24" />
+        <text x="50" y="156" fontSize="10" fontWeight="700" textAnchor="middle" fill="#ff5a4a" className="font-mono select-none">ALIM Ve</text>
+        <circle cx="101" cy="152" r="9" fill="#2c3238" stroke="#8e9cab" />
+        <line x1="101" y1="152" x2="101" y2="145" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      </g>
+      <Meter x={122} y={20} w={112} h={80} name="Voltmètre Ve" unit="V" />
+      <Meter x={122} y={244} w={112} h={76} name="Ampèremètre Ie" unit="A" />
+      <Device x={265} y={100} w={170} h={180} title="MAX17691B (flyback)" />
+      {/* transformateur d'isolement entre primaire et secondaire */}
+      <g stroke="var(--color-ink)" strokeWidth="1.5">
+        <path d="M335 170 q8 7 0 14 q8 7 0 14 q8 7 0 14" />
+        <path d="M365 170 q-8 7 0 14 q-8 7 0 14 q-8 7 0 14" />
+        <path d="M348 166 V216 M352 166 V216" strokeWidth="2" />
+      </g>
+      <line x1="350" y1="128" x2="350" y2="160" strokeDasharray="4 4" />
+      <line x1="350" y1="222" x2="350" y2="262" strokeDasharray="4 4" />
+      <text x="350" y="274" {...txt} fontSize={9}>isolation galvanique</text>
+      <Meter x={466} y={20} w={112} h={80} name="Voltmètre Vs" unit="V" />
+      <Meter x={466} y={244} w={112} h={76} name="Ampèremètre Is" unit="A" />
+      {/* rhéostat : socle bois, bobinage sur tube céramique, curseur */}
+      <g stroke="none">
+        <rect x="600" y="100" width="80" height="188" rx="8" fill="#c99a63" stroke="#8a6236" strokeWidth="1.5" filter="url(#wb-shadow)" />
+        <rect x="606" y="104" width="68" height="15" rx="4" fill="#f4ead9" stroke="#8a6236" />
+        <text x="640" y="115.5" fontSize="10" fontWeight="700" textAnchor="middle" fill="#5a3d1c" className="select-none">Rhéostat</text>
+        <rect x="628" y="166" width="24" height="54" rx="5" fill="#f4ead9" stroke="#8a6236" />
+      </g>
+      <g stroke="#5a3d1c" strokeWidth="1.5" strokeLinejoin="round">
+        <path d="M640 162 V172 l-8 4 l16 6 l-16 6 l16 6 l-16 6 l16 6 l-16 6 l8 4 V222" />
+        <path d="M624 214 L658 172 l-6 1 M658 172 l-1 6" />
+      </g>
+      <Device x={255} y={312} w={190} h={68} title="Masses des sondes oscillo" />
     </>
   )
 }
@@ -333,7 +365,7 @@ export default function AlimPart2({ title, tabs }: { title: string; tabs: ReactN
             expected={EXPECTED}
             optional={OPTIONAL}
             width={690}
-            height={360}
+            height={385}
             onPowerChange={setPowered}
             onWiresChange={setWires}
           >

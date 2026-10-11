@@ -30,3 +30,9 @@ body {
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
+
+/* Courant qui circule dans les fils sous tension (--flow animé par WiringBoard à 30 images/s) */
+.wire-flow {
+  stroke-dashoffset: var(--flow, 0);
+}
+

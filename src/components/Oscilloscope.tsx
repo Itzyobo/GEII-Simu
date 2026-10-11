@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import Knob from './Knob'
 import { PINCE_SENSIBILITE } from '../data/reference'
 import { formatSI } from '../lib/format'
-import { acquire, frameStart, measure, SCOPE_POINTS, type Measures, type Signal } from '../lib/scope'
+import { acquire, frameStart, measure, nextTick, SCOPE_POINTS, type Measures, type Signal } from '../lib/scope'
 
 interface OscilloscopeProps {
   /** Signal de la voie 1 (V en fonction de t en s) ; absent = voie indisponible */
@@ -54,7 +54,7 @@ interface Readout {
   m: (Measures | null)[]
 }
 
-/** Oscilloscope 2 voies : grille 10×8, trigger front montant CH1 au centre, mesures auto. */
+/** Oscilloscope 2 voies : grille 10×8, trigger front montant (CH1 ou CH2) au centre, mesures auto. */
 export default function Oscilloscope({
   ch1,
   ch2,
@@ -72,6 +72,8 @@ export default function Oscilloscope({
     setPrevClamp(clamp)
     setProbeA(clamp)
   }
+  /** Couplage AC : la composante continue est retirée (voir l'ondulation d'une tension continue) */
+  const [ac, setAc] = useState<[boolean, boolean]>([false, false])
   const [cursorsOn, setCursorsOn] = useState(false)
   const [cur, setCur] = useState<Cursors>({ x1: 3, x2: 7, y1: -2, y2: 2 })
   const [curCh, setCurCh] = useState<0 | 1>(0)
@@ -79,14 +81,16 @@ export default function Oscilloscope({
   const [pos, setPos] = useState<[number, number]>([0, 0])
   const [sdiv, setSdiv] = useState(secPerDiv)
   const [level, setLevel] = useState(triggerLevel)
+  /** Voie de déclenchement */
+  const [trig, setTrig] = useState<0 | 1>(0)
   const [readout, setReadout] = useState<Readout>({ triggered: false, m: [null, null] })
 
   const fns = [ch1, ch2]
   const units = probeA.map((a) => (a ? 'A' : 'V'))
   // Entrée de l'oscillo = tension (la pince convertit A → V), affichage selon le réglage sonde.
   const gains = [0, 1].map((c) => (clamp[c] ? PINCE_SENSIBILITE : 1) / (probeA[c] ? PINCE_SENSIBILITE : 1))
-  const live = useRef({ fns, gains, on, vdiv, pos, sdiv, level, cursorsOn, cur, curCh })
-  live.current = { fns, gains, on, vdiv, pos, sdiv, level, cursorsOn, cur, curCh }
+  const live = useRef({ fns, gains, ac, on, vdiv, pos, sdiv, level, trig, cursorsOn, cur, curCh })
+  live.current = { fns, gains, ac, on, vdiv, pos, sdiv, level, trig, cursorsOn, cur, curCh }
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
@@ -94,10 +98,11 @@ export default function Oscilloscope({
     const dpr = window.devicePixelRatio || 1
     canvas.width = W * dpr
     canvas.height = H * dpr
-    const ctx = canvas.getContext('2d')!
+    // Fond toujours opaque : canevas sans canal alpha, moins cher à composer.
+    const ctx = canvas.getContext('2d', { alpha: false })!
     const css = getComputedStyle(document.documentElement)
     const colors = [css.getPropertyValue('--color-ch1').trim(), css.getPropertyValue('--color-ch2').trim()]
-    let raf = 0
+    let timer = 0
     const line = (x1: number, y1: number, x2: number, y2: number) => {
       ctx.moveTo(x1, y1)
       ctx.lineTo(x2, y2)
@@ -110,47 +115,110 @@ export default function Oscilloscope({
       ctx.lineTo(x, y + 7)
       ctx.fill()
     }
+    // Grille statique rendue une fois hors écran, puis recopiée pixel à pixel à chaque image.
+    const grid = document.createElement('canvas')
+    grid.width = canvas.width
+    grid.height = canvas.height
+    {
+      const g = grid.getContext('2d')!
+      g.setTransform(dpr, 0, 0, dpr, 0, 0)
+      g.fillStyle = '#050607'
+      g.fillRect(0, 0, W, H)
+      const gl = (x1: number, y1: number, x2: number, y2: number) => {
+        g.moveTo(x1, y1)
+        g.lineTo(x2, y2)
+      }
+      // Grille 10×8 + axes gradués
+      g.strokeStyle = 'rgba(160,170,180,0.18)'
+      g.lineWidth = 1
+      g.beginPath()
+      for (let i = 0; i <= 10; i++) gl(i * DIV + 0.5, 0, i * DIV + 0.5, H)
+      for (let j = 0; j <= 8; j++) gl(0, j * DIV + 0.5, W, j * DIV + 0.5)
+      g.stroke()
+      g.strokeStyle = 'rgba(160,170,180,0.4)'
+      g.beginPath()
+      for (let k = 0; k <= 50; k++) gl(k * (DIV / 5) + 0.5, H / 2 - 3, k * (DIV / 5) + 0.5, H / 2 + 4)
+      for (let k = 0; k <= 40; k++) gl(W / 2 - 3, k * (DIV / 5) + 0.5, W / 2 + 4, k * (DIV / 5) + 0.5)
+      g.stroke()
+    }
+    let lastDraw = -Infinity
     let lastReadout = 0
+    /** Composante continue estimée par voie (couplage AC) */
+    const dc = [0, 0]
+    /** Image précédente (réglages + ordonnées des traces) : une image identique n'est pas redessinée. */
+    let prevKey = ''
+    const prevYs: (Float32Array | null)[] = [null, null]
+    const sameYs = (a: Float32Array | null, b: Float32Array | null) => {
+      if (!a || !b) return a === b
+      for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 1e-3) return false // < 1/1000 px : invisible
+      return true
+    }
+
+    // Minuterie à ANIM_FPS plutôt que requestAnimationFrame : le navigateur ne relance plus tout son
+    // pipeline de rendu à chaque rafraîchissement d'écran (60 à 165 fois/s) pour rien.
+    const tick = () => {
+      timer = window.setTimeout(tick, nextTick())
+      draw(performance.now())
+    }
+    // Arrêt complet quand l'écran de l'oscillo est hors de la vue.
+    const io = new IntersectionObserver(([e]) => {
+      clearTimeout(timer)
+      if (e.isIntersecting) tick()
+    })
+    io.observe(canvas)
 
     const draw = (now: number) => {
+      const elapsed = Math.min(100, now - lastDraw)
+      lastDraw = now
       const s = live.current
       const span = 10 * s.sdiv
       const dt = span / SCOPE_POINTS
       const tNow = now / 1000
-      const shown = s.fns.map((fn, c) => fn && ((t: number) => fn(t) * s.gains[c]))
-      const { t0, triggered } = shown[0] ? frameStart(shown[0], s.level, tNow, span, SCOPE_POINTS) : { t0: tNow, triggered: false }
+      const shown = s.fns.map((fn, c) => fn && ((t: number) => fn(t) * s.gains[c] - (s.ac[c] ? dc[c] : 0)))
+      const trigFn = shown[s.trig]
+      const { t0, triggered } = trigFn ? frameStart(trigFn, s.level, tNow, span, SCOPE_POINTS) : { t0: tNow, triggered: false }
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.fillStyle = '#050607'
-      ctx.fillRect(0, 0, W, H)
-      // Grille 10×8 + axes gradués
-      ctx.strokeStyle = 'rgba(160,170,180,0.18)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      for (let i = 0; i <= 10; i++) line(i * DIV + 0.5, 0, i * DIV + 0.5, H)
-      for (let j = 0; j <= 8; j++) line(0, j * DIV + 0.5, W, j * DIV + 0.5)
-      ctx.stroke()
-      ctx.strokeStyle = 'rgba(160,170,180,0.4)'
-      ctx.beginPath()
-      for (let k = 0; k <= 50; k++) line(k * (DIV / 5) + 0.5, H / 2 - 3, k * (DIV / 5) + 0.5, H / 2 + 4)
-      for (let k = 0; k <= 40; k++) line(W / 2 - 3, k * (DIV / 5) + 0.5, W / 2 + 4, k * (DIV / 5) + 0.5)
-      ctx.stroke()
-
+      // Acquisition et mesures d'abord, dessin ensuite (et seulement si l'image change).
       const ms: (Measures | null)[] = [null, null]
-      ctx.font = '600 12px "JetBrains Mono", monospace'
+      const ys: (Float32Array | null)[] = [null, null]
       for (let c = 0; c < 2; c++) {
         const fn = shown[c]
         if (!fn || !s.on[c]) continue
         const toY = (v: number) => H / 2 - (v / s.vdiv[c] + s.pos[c]) * DIV
         const samples = acquire(fn, t0, span, SCOPE_POINTS)
         ms[c] = measure(samples, dt)
+        // Condensateur de liaison ≈ passe-haut : la moyenne résiduelle de l'écran rejoint dc en ~0,17 s
+        // (coefficient rapporté au temps écoulé : même réponse quelle que soit la cadence).
+        if (s.ac[c]) dc[c] += (1 - 0.9 ** (elapsed / (1000 / 60))) * (samples.reduce((a, x) => a + x, 0) / SCOPE_POINTS)
+        else dc[c] = 0
+        const y = new Float32Array(SCOPE_POINTS)
+        for (let i = 0; i < SCOPE_POINTS; i++) y[i] = Math.min(H + 2, Math.max(-2, toY(samples[i])))
+        ys[c] = y
+      }
+      if (now - lastReadout > 250) {
+        lastReadout = now
+        setReadout({ triggered, m: ms })
+      }
+      const key = JSON.stringify([s.on, s.vdiv, s.pos, s.level, s.trig, s.cursorsOn, s.cur, s.curCh])
+      if (key === prevKey && sameYs(ys[0], prevYs[0]) && sameYs(ys[1], prevYs[1])) return
+      prevKey = key
+      prevYs[0] = ys[0]
+      prevYs[1] = ys[1]
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.drawImage(grid, 0, 0)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.font = '600 12px "JetBrains Mono", monospace'
+      for (let c = 0; c < 2; c++) {
+        const y = ys[c]
+        if (!y) continue
+        const toY = (v: number) => H / 2 - (v / s.vdiv[c] + s.pos[c]) * DIV
         ctx.strokeStyle = colors[c]
         ctx.lineWidth = 1.6
         ctx.beginPath()
         for (let i = 0; i < SCOPE_POINTS; i++) {
-          const y = Math.min(H + 2, Math.max(-2, toY(samples[i])))
-          if (i === 0) ctx.moveTo(0, y)
-          else ctx.lineTo((i * W) / SCOPE_POINTS, y)
+          if (i === 0) ctx.moveTo(0, y[i])
+          else ctx.lineTo((i * W) / SCOPE_POINTS, y[i])
         }
         ctx.stroke()
         // Repère de masse à gauche
@@ -158,8 +226,8 @@ export default function Oscilloscope({
         const yg = Math.min(H - 8, Math.max(8, toY(0)))
         marker(0, yg, 12)
         ctx.fillText(String(c + 1), 14, yg + 4)
-        // Repère de niveau de trigger à droite (CH1)
-        if (c === 0) {
+        // Repère de niveau de trigger à droite (voie de déclenchement)
+        if (c === s.trig) {
           const yt = Math.min(H - 8, Math.max(8, toY(s.level)))
           marker(W, yt, -12)
           ctx.fillText('T', W - 24, yt + 4)
@@ -180,14 +248,11 @@ export default function Oscilloscope({
         ctx.stroke()
         ctx.setLineDash([])
       }
-      if (now - lastReadout > 250) {
-        lastReadout = now
-        setReadout({ triggered, m: ms })
-      }
-      raf = requestAnimationFrame(draw)
     }
-    raf = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(raf)
+    return () => {
+      clearTimeout(timer)
+      io.disconnect()
+    }
   }, [])
 
   const set2 = <T,>(arr: [T, T], c: number, v: T): [T, T] => (c === 0 ? [v, arr[1]] : [arr[0], v])
@@ -249,12 +314,12 @@ export default function Oscilloscope({
           {CH.map((name, c) =>
             fns[c] && on[c] ? (
               <span key={name} style={{ color: `var(--color-${name})` }}>
-                CH{c + 1} {formatSI(vdiv[c], units[c])}/div
+                CH{c + 1} {formatSI(vdiv[c], units[c])}/div{ac[c] ? ' AC' : ''}
               </span>
             ) : null,
           )}
           <span>M {formatSI(sdiv, 's')}/div</span>
-          <span>T CH1 ↑ {formatSI(level, units[0])}</span>
+          <span>T CH{trig + 1} ↑ {formatSI(level, units[trig])}</span>
         </div>
         <div className="mt-1 grid gap-0.5 font-mono text-[11px]">
           {CH.map((name, c) => {
@@ -270,7 +335,7 @@ export default function Oscilloscope({
             ) : null
           })}
           {cursorsOn && (
-            <div className="flex flex-wrap gap-x-4 text-ink">
+            <div className="flex flex-wrap gap-x-4 text-[#e7e8ea]">
               <span>Curseurs</span>
               <span>Δt {formatSI(dT, 's')}</span>
               <span>1/Δt {fmtHz(1 / dT)}</span>
@@ -282,7 +347,8 @@ export default function Oscilloscope({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap justify-between gap-3">
+      {/* Ligne 1 : réglages des voies et du trigger ; ligne 2 : base de temps et curseurs */}
+      <div className="mt-3 flex flex-wrap justify-between gap-2">
         {CH.map((name, c) => (
           <div key={name} className="flex items-end gap-2 rounded-lg bg-card-2 px-2 py-2">
             <div className="flex flex-col gap-1">
@@ -304,16 +370,45 @@ export default function Oscilloscope({
               >
                 {probeA[c] ? 'Pince A' : 'Sonde ×1'}
               </button>
+              <button
+                type="button"
+                onClick={() => setAc(set2(ac, c, !ac[c]))}
+                aria-pressed={ac[c]}
+                className={`min-h-11 rounded-md px-1 py-0.5 font-mono text-[10px] ring-1 ring-line ${ac[c] ? 'bg-accent text-on-accent' : 'text-muted hover:text-ink'}`}
+                title="Couplage : DC (signal complet) ou AC (composante continue retirée, pour voir une ondulation)"
+              >
+                {ac[c] ? 'AC' : 'DC'}
+              </button>
             </div>
             <Knob label={`${units[c]}/div`} value={vdiv[c]} onChange={(v) => setVdiv(set2(vdiv, c, v))} unit={units[c]} steps={VOLT_STEPS} color={`var(--color-${name})`} />
             <Knob label="Position" value={pos[c]} onChange={(v) => setPos(set2(pos, c, v))} min={-4} max={4} step={0.1} unit="div" format={fmtDiv} color={`var(--color-${name})`} />
           </div>
         ))}
         <div className="flex items-end gap-2 rounded-lg bg-card-2 px-2 py-2">
-          <Knob label="s/div" value={sdiv} onChange={setSdiv} unit="s" steps={TIME_STEPS} />
-          <Knob label="Niveau trig." value={level} onChange={setLevel} min={-4 * vdiv[0]} max={4 * vdiv[0]} step={vdiv[0] / 10} unit={units[0]} />
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] text-muted">Source trig.</span>
+            {CH.map((name, c) => (
+              <button
+                key={name}
+                type="button"
+                disabled={!fns[c]}
+                onClick={() => setTrig(c as 0 | 1)}
+                aria-pressed={trig === c}
+                className="min-h-11 rounded-md px-2 py-1 font-mono text-xs ring-1 ring-line disabled:opacity-30"
+                style={trig === c ? { background: `var(--color-${name})`, color: '#111' } : undefined}
+              >
+                CH{c + 1}
+              </button>
+            ))}
+          </div>
+          <Knob label="Niveau trig." value={level} onChange={setLevel} min={-4 * vdiv[trig]} max={4 * vdiv[trig]} step={vdiv[trig] / 10} unit={units[trig]} />
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-card-2 px-2 py-2 text-xs">
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <div className="flex items-end gap-2 rounded-lg bg-card-2 px-2 py-2">
+          <Knob label="s/div" value={sdiv} onChange={setSdiv} unit="s" steps={TIME_STEPS} />
+        </div>
+        <div className="flex flex-1 items-center gap-2 rounded-lg bg-card-2 px-2 py-2 text-xs">
           <button
             type="button"
             onClick={() => setCursorsOn(!cursorsOn)}

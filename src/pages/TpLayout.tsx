@@ -11,10 +11,12 @@ interface TpLayoutProps {
   questions: ReactNode
   /** Onglets éventuels, affichés à droite du titre */
   tabs?: ReactNode
+  /** Schéma pleine largeur au-dessus des instruments (banc trop large pour une demi-colonne) */
+  wideSchematic?: boolean
 }
 
 /** Mise en page commune des TP : schéma à gauche, instruments à droite, questions en bas. */
-export default function TpLayout({ title, schematic, instruments, questions, tabs }: TpLayoutProps) {
+export default function TpLayout({ title, schematic, instruments, questions, tabs, wideSchematic }: TpLayoutProps) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <header className="mb-5 flex flex-wrap items-baseline gap-4">
@@ -25,10 +27,10 @@ export default function TpLayout({ title, schematic, instruments, questions, tab
         {tabs}
       </header>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section aria-label="Schéma de la platine" className="min-w-0 space-y-4">
+        <section aria-label="Schéma de la platine" className={`min-w-0 space-y-4 ${wideSchematic ? 'lg:col-span-2' : ''}`}>
           {schematic}
         </section>
-        <section aria-label="Instruments" className="min-w-0 space-y-4">
+        <section aria-label="Instruments" className={`min-w-0 space-y-4 ${wideSchematic ? 'lg:col-span-2' : ''}`}>
           {instruments}
         </section>
       </div>

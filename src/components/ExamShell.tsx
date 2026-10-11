@@ -133,7 +133,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
     setPhase('training')
   }
 
-  const bar = 'sticky top-0 z-40 border-b border-line bg-bg/95 backdrop-blur'
+  const bar = 'sticky top-0 z-40 border-b border-line bg-bg'
   const btn = 'min-h-11 rounded-lg px-4 py-2 text-sm font-semibold ring-1 ring-line'
 
   if (phase === 'results')

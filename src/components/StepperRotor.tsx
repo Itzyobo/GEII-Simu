@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { nextTick } from '../lib/scope'
 
 interface StepperRotorProps {
   /** Fréquence des pas (horloge PUL) — Hz ; 0 = rotor immobile */
@@ -29,26 +30,33 @@ export default function StepperRotor({ stepRate, stepsPerTurn, dir }: StepperRot
   const [turns, setTurns] = useState(0)
 
   useEffect(() => {
-    let raf = 0
+    let timer = 0
     let last = performance.now()
     let lastUi = 0
-    const frame = (now: number) => {
+    let lastAngle = NaN
+    // Horloge commune à 30 images/s plutôt que requestAnimationFrame (rendu du navigateur à chaque rafraîchissement).
+    const frame = () => {
+      const now = performance.now()
       const s = live.current
       const dt = Math.min(0.1, (now - last) / 1000) // onglet en arrière-plan : pas de saut
       last = now
       steps.current += s.dir * s.stepRate * dt
       const angle = (Math.floor(steps.current) * 360) / s.stepsPerTurn
-      rotorRef.current?.setAttribute('transform', `rotate(${angle % 360})`)
+      // Le rotor n'avance que par pas : on ne touche au DOM (et ne repeint) qu'à chaque nouveau pas.
+      if (angle !== lastAngle) {
+        lastAngle = angle
+        rotorRef.current?.setAttribute('transform', `rotate(${angle % 360})`)
+      }
       const c = chronoStart.current
       if (c && now - lastUi > 100) {
         lastUi = now
         setElapsed((now - c.t) / 1000)
         setTurns(Math.abs(Math.floor(steps.current) - c.steps) / s.stepsPerTurn)
       }
-      raf = requestAnimationFrame(frame)
+      timer = window.setTimeout(frame, nextTick())
     }
-    raf = requestAnimationFrame(frame)
-    return () => cancelAnimationFrame(raf)
+    frame()
+    return () => clearTimeout(timer)
   }, [])
 
   const toggle = () => {

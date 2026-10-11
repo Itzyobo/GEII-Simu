@@ -133,6 +133,11 @@ export const UNVERIFIED: Record<string, string[]> = {
   'alim2-q5-m': ['FLYBACK.m'],
   'alim2-dcm-mode': ['FLYBACK.iDiscontinu'],
   'alim2-dcm-courant': ['FLYBACK.iDiscontinu'],
+  // Banc MAS : montage attendu et grandeur lue par l'analyseur (V simple en montage 1, U composée en montage 2)
+  'mas-cablage': ['MAS.pinceMontage1', 'MAS.pinceMontage2', 'MAS.bornesVariateur', 'MAS.tensionAnalyseur'],
+  'mas-q3': ['MAS.tensionAnalyseur'],
+  'mas-q7-table': ['MAS.tensionAnalyseur'],
+  'mas-q7-uf': ['MAS.tensionAnalyseur'],
 }
 
 /** Badges supplémentaires selon le mode réglé sur le driver : en 1/4 de pas, la table S1–S3 est à vérifier. */

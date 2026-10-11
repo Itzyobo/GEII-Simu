@@ -3,6 +3,14 @@
 /** Points par trace (et par mesure) sur les 10 divisions horizontales. */
 export const SCOPE_POINTS = 1000
 
+/** Cadence commune des animations (oscillo, courant dans les fils) — images/s */
+export const ANIM_FPS = 30
+/**
+ * Délai jusqu'au prochain top d'une horloge commune à ANIM_FPS : toutes les animations se mettent à jour
+ * au même instant, le navigateur ne fait donc qu'un seul rendu pour elles toutes.
+ */
+export const nextTick = () => 1000 / ANIM_FPS - (performance.now() % (1000 / ANIM_FPS))
+
 export type Signal = (t: number) => number
 
 /**

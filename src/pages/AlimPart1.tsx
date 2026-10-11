@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState, type ReactNode } from 'react'
 import TpLayout from './TpLayout'
-import WiringBoard, { type Terminal } from '../components/WiringBoard'
+import WiringBoard, { Device, type Terminal } from '../components/WiringBoard'
 import Oscilloscope from '../components/Oscilloscope'
 import Knob from '../components/Knob'
 import Toggle from '../components/Toggle'
@@ -48,47 +48,66 @@ const fr = (x: number, digits = 3) => String(Number(x.toPrecision(digits))).repl
 function Schematic({ d2, c }: { d2: boolean; c: boolean }) {
   const txt = { fill: 'var(--color-muted)', stroke: 'none', fontSize: 11, textAnchor: 'middle' as const }
   const on = (x: boolean) => (x ? undefined : '4 4')
+  const node = (x: number, y: number) => <circle cx={x} cy={y} r="2.5" fill="var(--color-ink)" stroke="none" />
   return (
     <>
-      <rect x="15" y="20" width="125" height="82" rx="6" />
-      <text x="77" y="40" {...txt}>Alim E = 5 V</text>
-      <rect x="15" y="130" width="125" height="82" rx="6" />
-      <text x="77" y="150" {...txt}>Géné d’impulsions</text>
-      <rect x="15" y="240" width="125" height="82" rx="6" />
-      <text x="77" y="260" {...txt}>Sondes oscillo</text>
-      <rect x="220" y="20" width="430" height="305" rx="8" />
-      <text x="435" y="40" {...txt} fontSize={13}>Maquette — transfo IT237, m = 1</text>
-      {/* primaire : transistor + D1/Dz, enroulement, shunt */}
-      <rect x="300" y="160" width="50" height="40" rx="4" />
-      <text x="325" y="184" {...txt}>T</text>
-      <text x="325" y="125" {...txt}>D1 + Dz</text>
-      <path d="M380 110 q12 10 0 20 q12 10 0 20 q12 10 0 20 q12 10 0 20" />
-      <path d="M420 110 q-12 10 0 20 q-12 10 0 20 q-12 10 0 20 q-12 10 0 20" />
-      <line x1="398" y1="105" x2="398" y2="195" />
-      <line x1="402" y1="105" x2="402" y2="195" />
-      <text x="360" y="215" {...txt}>V1</text>
-      <text x="440" y="215" {...txt}>V2</text>
-      <rect x="340" y="250" width="40" height="14" rx="2" />
-      <text x="360" y="285" {...txt}>shunt 1 Ω (i1)</text>
+      <Device x={12} y={20} w={142} h={82} title="Alim E = 5 V" />
+      <Device x={12} y={130} w={142} h={82} title="Géné d’impulsions" />
+      <Device x={12} y={240} w={142} h={82} title="Sondes oscillo" />
+      <Device x={220} y={12} w={430} h={313} title="Maquette — transfo IT237, m = 1" />
+      <g stroke="var(--color-ink)" strokeWidth="1.5" strokeLinejoin="round">
+        {/* primaire : Vcc → enroulement → T → shunt → GND1 */}
+        <path d="M257 70 H380 V110" />
+        <path d="M380 110 q12 10 0 20 q12 10 0 20 q12 10 0 20 q12 10 0 20" />
+        <path d="M380 190 V214" />
+        {/* D1 + Dz en parallèle sur le primaire (démagnétisation) */}
+        <path d="M330 70 V92 M330 110 V122 M330 138 V202 H380" />
+        <path d="M322 92 h16 l-8 14 z M320 106 h20 M320 106 l-3 -3 M340 106 l3 3" fill="var(--color-card)" />
+        <path d="M322 138 h16 l-8 -14 z M322 124 h16" fill="var(--color-card)" />
+        {node(330, 70)}
+        {node(380, 202)}
+        {/* transistor NPN, base pilotée par Vimp */}
+        <circle cx="374" cy="232" r="17" fill="var(--color-card)" />
+        <path d="M368 220 V244 M368 226 L380 214 M368 238 L380 250 M257 185 H300 V232 H368" />
+        <path d="M380 250 l-7 -1.5 l3.5 -5 z" fill="var(--color-ink)" />
+        {/* shunt 1 Ω */}
+        <path d="M380 250 V258 M380 282 V300 M257 300 H380" />
+        <rect x="373" y="258" width="14" height="24" rx="2" fill="var(--color-card)" />
+        {node(380, 300)}
+        {/* noyau */}
+        <path d="M420 110 q-12 10 0 20 q-12 10 0 20 q-12 10 0 20 q-12 10 0 20" />
+        <path d="M398 105 V195 M402 105 V195" strokeWidth="2" />
+        <path d="M420 190 V300 H613" />
+      </g>
+      <circle cx="373" cy="108" r="2.5" fill="var(--color-ink)" stroke="none" />
+      <circle cx="427" cy="108" r="2.5" fill="var(--color-ink)" stroke="none" />
+      <text x="310" y="117" {...txt} textAnchor="end">Dz</text>
+      <text x="310" y="135" {...txt} textAnchor="end">D1</text>
+      <text x="400" y="228" {...txt} textAnchor="start">T</text>
+      <text x="396" y="275" {...txt} textAnchor="start">shunt 1 Ω → i1</text>
+      <text x="364" y="155" {...txt} fontWeight={600}>v1</text>
+      <text x="436" y="155" {...txt} fontWeight={600}>v2</text>
       {/* secondaire : D2, C, Rs */}
-      <g strokeDasharray={on(d2)}>
+      <g stroke="var(--color-ink)" strokeWidth="1.5" strokeDasharray={on(d2)}>
         <line x1="420" y1="110" x2="480" y2="110" />
-        <path d="M480 100 l0 20 l18 -10 z" />
+        <path d="M480 100 l0 20 l18 -10 z" fill="var(--color-card)" />
         <line x1="498" y1="100" x2="498" y2="120" />
         <line x1="498" y1="110" x2="600" y2="110" />
-        <rect x="592" y="150" width="16" height="60" rx="2" />
+        <rect x="592" y="150" width="16" height="60" rx="2" fill="var(--color-card)" />
         <line x1="600" y1="110" x2="600" y2="150" />
         <line x1="600" y1="210" x2="600" y2="300" />
       </g>
       <text x="490" y="92" {...txt}>D2</text>
-      <text x="630" y="185" {...txt}>Rs</text>
-      <g strokeDasharray={on(c)}>
+      <text x="625" y="185" {...txt}>Rs</text>
+      <text x="625" y="240" {...txt} fontWeight={600}>vs</text>
+      <g stroke="var(--color-ink)" strokeWidth="1.5" strokeDasharray={on(c)}>
         <line x1="550" y1="110" x2="550" y2="170" />
-        <line x1="535" y1="170" x2="565" y2="170" />
-        <line x1="535" y1="178" x2="565" y2="178" />
+        <line x1="535" y1="170" x2="565" y2="170" strokeWidth="2.5" />
+        <line x1="535" y1="178" x2="565" y2="178" strokeWidth="2.5" />
         <line x1="550" y1="178" x2="550" y2="300" />
       </g>
       <text x="530" y="200" {...txt}>C</text>
+      {!d2 && <text x="540" y="140" {...txt} fontSize={10} fontStyle="italic">secondaire à vide</text>}
     </>
   )
 }

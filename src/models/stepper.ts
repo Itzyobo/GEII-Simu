@@ -87,7 +87,7 @@ export function simulate({ f, mode, dir }: StepperParams, motor: Motor = MOTOR):
   const tableA = Array.from({ length: states }, (_, k) => setpoint(mode, k, 'A', dir))
   const tableB = Array.from({ length: states }, (_, k) => setpoint(mode, k, 'B', dir))
 
-  const warmSteps = Math.round(0.05 / DT) // 50 ms ≈ 7·L/R simulés avant le buffer (t < 0)
+  const warmSteps = Math.round(0.1 / DT) // 100 ms ≈ 7·L/R simulés avant le buffer (t < 0)
   const keepPeriods = period > LONG_PERIOD ? 1 : Math.max(4, Math.ceil(0.01 / period))
   const keepSteps = Math.round((keepPeriods * period) / DT)
   const stride = Math.max(1, Math.ceil(keepSteps / MAX_SAMPLES))
