@@ -8,7 +8,7 @@ function memoryStorage() {
   return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) }
 }
 
-describe('examen : reprise après rechargement (sessionStorage)', () => {
+describe('examen : reprise après rechargement (localStorage)', () => {
   it('chrono, réponses, pénalités et ordre sont restaurés, puis effacés au retour à l’entraînement', () => {
     const s = memoryStorage()
     const state: ExamSession = {

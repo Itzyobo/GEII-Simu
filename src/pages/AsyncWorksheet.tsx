@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { MAS } from '../data/reference'
 import { Cell, GradeBar, num, TOL_CALC, TOL_READ, useTableGrading, type Check } from '../components/Worksheet'
 import { inverterVoltage, lossSeparation, motorState, powerBalance, syncSpeed } from '../models/asyncMotor'
+import { usePersisted } from '../lib/exam'
 
 const fr = (x: number, digits = 3) => String(Number(x.toPrecision(digits))).replace('.', ',')
 
@@ -98,8 +98,8 @@ function releveCheck(key: RowKey, col: Record<string, string>, c: number): Check
 }
 
 export function ReleveTable({ id }: { id: string }) {
-  const [cols, setCols] = useState<Record<string, string>[]>(LOADS.map(() => ({})))
-  const [plot, setPlot] = useState<Record<string, number>[] | null>(null)
+  const [cols, setCols] = usePersisted<Record<string, string>[]>(`${id}:cols`, () => LOADS.map(() => ({})))
+  const [plot, setPlot] = usePersisted<Record<string, number>[] | null>(`${id}:plot`, null)
   const g = useTableGrading(id, TABLE_EXPLANATIONS.releve)
 
   const set = (c: number, key: RowKey, v: string) => {
@@ -171,8 +171,8 @@ export function ReleveTable({ id }: { id: string }) {
 const FREQS = [15, 35, 50]
 
 export function VariateurTable({ id }: { id: string }) {
-  const [rows, setRows] = useState<Record<string, string>[]>(FREQS.map(() => ({})))
-  const [plot, setPlot] = useState<{ f: number; n: number }[] | null>(null)
+  const [rows, setRows] = usePersisted<Record<string, string>[]>(`${id}:rows`, () => FREQS.map(() => ({})))
+  const [plot, setPlot] = usePersisted<{ f: number; n: number }[] | null>(`${id}:plot`, null)
   const g = useTableGrading(id, TABLE_EXPLANATIONS.variateur)
   const checks = (k: number) => ({
     u: { expected: inverterVoltage(FREQS[k], 'fondamental'), tol: TOL_READ },
@@ -301,7 +301,7 @@ const BAL_OUT = [
 ] as const
 
 export function BalanceSection({ id, lossVals }: { id: string; lossVals: LossValues }) {
-  const [vals, setVals] = useState<LossValues>({})
+  const [vals, setVals] = usePersisted<LossValues>(`${id}:vals`, {})
   const g = useTableGrading(id, TABLE_EXPLANATIONS.bilan)
   const nominal = motorState({ couple: 10, couplage: 'triangle', source: 'reseau', f: MAS.fReseau })
   const data = { pa: num(vals.pa), is: num(vals.is), g: num(vals.g) / 100, pu: num(vals.pu), alpha: num(vals.alpha) }

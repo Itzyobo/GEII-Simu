@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { LABEL_OF, QUESTIONS, type TpSlug } from '../data/questions'
-import { ExamContext, examNote, penaltyPoints, type ExamAnswer, type ExamApi, type Penalty, type PenaltyKind, type QuestionMeta } from '../lib/exam'
+import { clearPersisted, ExamContext, examNote, penaltyPoints, type ExamAnswer, type ExamApi, type Penalty, type PenaltyKind, type QuestionMeta } from '../lib/exam'
 import { recordExam } from '../lib/progress'
 import { loadAnswerKey } from '../lib/answerKeys'
 import { clearExamSession, loadExamSession, saveExamSession } from '../lib/examSession'
@@ -38,7 +38,7 @@ const clock = (ms: number) => {
  * Fournit le contexte d'examen lu par QuestionCard, les tableaux et le câblage.
  */
 export default function ExamShell({ tps, minutes, kind, autoStart, render }: ExamShellProps) {
-  // Reprise après rechargement : examen en cours ou résultats sauvegardés dans sessionStorage
+  // Reprise après rechargement : examen en cours ou résultats sauvegardés dans localStorage
   const [saved] = useState(() => loadExamSession(kind))
   const [phase, setPhase] = useState<Phase>(saved?.phase ?? (autoStart ? 'exam' : 'training'))
   const [examId, setExamId] = useState(saved?.examId ?? 0)
@@ -58,6 +58,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
   }, [kind, phase, examId, index, endAt, answers, meta, penalties, tps])
 
   const start = () => {
+    clearPersisted(`${kind}:exam`)
     setExamId((k) => k + 1)
     setIndex(0)
     setAnswers({})
@@ -123,8 +124,8 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
     [tp.slug],
   )
   const api = useMemo<ExamApi>(
-    () => ({ active: phase === 'exam', record, answerOf: (id) => answers[id], register, penalize }),
-    [phase, record, answers, register, penalize],
+    () => ({ active: phase === 'exam', record, answerOf: (id) => answers[id], register, penalize, scope: `${kind}:${phase === 'exam' ? `exam${examId}` : 'training'}` }),
+    [phase, record, answers, register, penalize, kind, examId],
   )
 
   /** Quitter les résultats : retour à l'entraînement et session d'examen effacée. */

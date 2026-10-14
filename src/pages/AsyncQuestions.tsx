@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import QuestionCard from '../components/QuestionCard'
 import { MAS } from '../data/reference'
-import { metaOf, tableMeta, type AnswerSpec, type QuestionMeta } from '../lib/exam'
+import { metaOf, usePersisted, tableMeta, type AnswerSpec, type QuestionMeta } from '../lib/exam'
 import { exactNoLoad, inverterVoltage, lossSeparation, lossVerdict, motorState, nominalTorque, ohmmeter, polePairs, powerBalance, syncSpeed, type LossInputs } from '../models/asyncMotor'
 import { BalanceSection, Exercise, LossSection, lossComplete, lossInputs, ReleveTable, TABLE_EXPLANATIONS, VariateurTable, type LossValues } from './AsyncWorksheet'
 
@@ -77,7 +77,7 @@ function specs(): Record<string, AnswerSpec> {
     },
     'mas-q6-cos': {
       kind: 'choix',
-      choices: ['Parce que la puissance réactive magnétisante domine la faible puissance active absorbée', 'Parce que le courant à vide est nul', 'Parce que le rendement est maximal à vide'],
+      choices: ['Parce que la puissance réactive magnétisante domine la faible puissance active', 'Parce que le courant à vide est nul, donc la puissance active absorbée aussi', 'Parce que le rendement est maximal à vide, les pertes y étant les plus faibles'],
       correct: a.cos0 < 0.3 ? 0 : 1,
       explanation: `À vide, Pa ne couvre que les pertes (≈ ${MAS.releves[0].pa} W) alors que Qa ≈ ${MAS.releves[0].qa} var magnétise la machine : cos φ = Pa/S ≈ ${fr(a.cos0, 2)}.`,
     },
@@ -94,16 +94,16 @@ function specs(): Record<string, AnswerSpec> {
     },
     'mas-q7-var': {
       kind: 'choix',
-      choices: ['Il fait varier la vitesse en changeant f, à flux constant (U/f constant)', 'Il augmente le rendement en réduisant le glissement à zéro', 'Il ne sert qu’au démarrage'],
+      choices: ['Il fait varier la vitesse en changeant f, à U/f constant', 'Il augmente le rendement en annulant le glissement quelle que soit la charge', 'Il ne sert qu’à limiter le courant d’appel au démarrage'],
       correct: a.nPropF ? 0 : 1,
       explanation: 'N ≈ Ns·(1 − g) avec Ns = 60·f/p : la vitesse suit la fréquence, et le rapport U/f constant garde le couple disponible.',
     },
     'mas-bilan-qcm': {
       kind: 'choix',
       choices: [
-        'Le bilan au point nominal : les puissances mesurées sont grandes et le cos φ élevé (≈ 0,8), l’erreur relative reste faible',
-        'La séparation à vide : elle n’utilise que deux essais simples',
-        'Les deux méthodes sont équivalentes et donnent le même Pméca',
+        'Le bilan au point nominal : puissances grandes et cos φ ≈ 0,8, l’erreur relative reste faible',
+        'La séparation à vide : deux essais simples suffisent, sans avoir à charger la machine',
+        'Les deux méthodes sont équivalentes et donnent le même Pméca aux erreurs de lecture près',
       ],
       correct: a.bilan.pmeca > 0 && a.loss.pmeca < 0 ? 0 : 2,
       explanation: `Avec les valeurs du banc, le bilan donne Pméca ≈ ${fr(a.bilan.pmeca)} W contre ${fr(a.loss.pmeca)} W pour la séparation à vide. Les deux méthodes ne concordent pas. La séparation à vide est peu fiable, parce que le circuit est saturé et que le wattmètre est imprécis à faible cos φ.`,
@@ -136,7 +136,7 @@ export function answerKey(): Record<string, QuestionMeta> {
 export default function AsyncQuestions() {
   const s = useMemo(specs, [])
   // Explication de Q8 selon le signe du Pméca calculé depuis les saisies (valeurs exactes tant qu'elles sont incomplètes)
-  const [lossVals, setLossVals] = useState<LossValues>({})
+  const [lossVals, setLossVals] = usePersisted<LossValues>('mas-q8-pertes:vals', {})
   const q1Ici = (x: string) => ` — Ici : ${x}.`
   return (
     <>

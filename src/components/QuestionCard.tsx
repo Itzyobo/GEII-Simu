@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { isCorrect, parseAnswer } from '../lib/grading'
-import { expectedTextOf, useExam } from '../lib/exam'
+import { expectedTextOf, useExam, usePersisted } from '../lib/exam'
 import { useQuestionFocus } from '../lib/focus'
 import { recordAttempt } from '../lib/progress'
 import UnverifiedBadge from './UnverifiedBadge'
@@ -43,9 +43,18 @@ export default function QuestionCard(props: QuestionCardProps) {
   const inputId = useId()
   const exam = useExam()
   const { ref, focused } = useQuestionFocus<HTMLFormElement>(qid)
-  const [input, setInput] = useState('')
-  const [picked, setPicked] = useState<number | null>(null)
-  const [result, setResult] = useState<'ok' | 'ko' | 'nan' | null>(null)
+  const [input, setInput] = usePersisted(`${qid}:input`, '')
+  const [picked, setPicked] = usePersisted<number | null>(`${qid}:picked`, null)
+  // Ordre des choix mélangé une fois par montage : la bonne réponse n'est pas toujours au même rang
+  const [order] = useState(() => {
+    const o = props.kind === 'choix' ? props.choices.map((_, i) => i) : []
+    for (let i = o.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[o[i], o[j]] = [o[j], o[i]]
+    }
+    return o
+  })
+  const [result, setResult] = usePersisted<'ok' | 'ko' | 'nan' | null>(`${qid}:result`, null)
   const saved = exam.active ? exam.answerOf(qid) : undefined
 
   const expectedText = expectedTextOf(props)
@@ -96,14 +105,14 @@ export default function QuestionCard(props: QuestionCardProps) {
             <UnverifiedBadge id={qid} extra={props.unverified} />
           </legend>
           <div className="mt-3 grid gap-1.5">
-            {props.choices.map((c, i) => (
+            {order.map((i) => props.choices[i]).map((c, k) => (
               <label key={c} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-card-2">
                 <input
                   type="radio"
                   name={inputId}
-                  checked={picked === i}
+                  checked={picked === order[k]}
                   onChange={() => {
-                    setPicked(i)
+                    setPicked(order[k])
                     reset()
                   }}
                   className="h-4 w-4 accent-[var(--color-accent)]"

@@ -6,7 +6,7 @@ import Knob from '../components/Knob'
 import Toggle from '../components/Toggle'
 import Multimeter from '../components/Multimeter'
 import QuestionCard from '../components/QuestionCard'
-import { metaOf, tableMeta, type AnswerSpec, type QuestionMeta } from '../lib/exam'
+import { metaOf, usePersisted, tableMeta, type AnswerSpec, type QuestionMeta } from '../lib/exam'
 import { BRUIT, FLYBACK } from '../data/reference'
 import { acquire, measure, type Signal } from '../lib/scope'
 import type { Pair } from '../lib/wiring'
@@ -150,10 +150,10 @@ function specs(): Record<string, AnswerSpec> {
     'alim2-q1-iso': {
       kind: 'choix',
       choices: [
-        'Aucune liaison conductrice entre entrée et sortie : l’énergie passe par le champ magnétique du transformateur, les masses PGND et GND0 sont séparées',
-        'La sortie est protégée contre les courts-circuits',
-        'L’entrée et la sortie partagent la même masse',
-        'Le convertisseur ne produit pas de perturbations électromagnétiques',
+        'Aucune liaison conductrice entre entrée et sortie : les masses PGND et GND0 sont séparées',
+        'La sortie est protégée contre les courts-circuits par une limitation de courant interne',
+        'L’entrée et la sortie partagent la même masse, reliée à la terre du secteur',
+        'Le convertisseur ne renvoie aucune perturbation électromagnétique vers le réseau',
       ],
       correct: 0,
       explanation:
@@ -170,10 +170,10 @@ function specs(): Record<string, AnswerSpec> {
     'alim2-dcm-mode': {
       kind: 'choix',
       choices: [
-        'Conduction discontinue : après la démagnétisation, V2 retombe sur un palier oscillant amorti autour de 0 avant la conduction suivante',
+        'Conduction discontinue : V2 retombe sur un palier oscillant autour de 0 avant la conduction suivante',
         'Conduction continue : V2 passe directement de −m·Ve à Vs + Vd, sans palier',
-        'Le découpage s’arrête : V2 reste à 0',
-        'La fréquence de découpage double',
+        'Le découpage s’arrête : V2 reste à 0 tant que la charge ne réclame pas d’énergie',
+        'La fréquence de découpage double pour compenser la baisse du courant de sortie',
       ],
       correct: a.idleLow > 0.05 && a.idleHigh < 0.03 ? 0 : 1,
       explanation: `À faible charge, l’énergie demandée par période ne suffit plus à maintenir le flux : le transformateur se démagnétise complètement avant la conduction suivante, d’où le palier oscillant autour de 0 sur V2 (≈ ${fr(a.idleLow * 100, 2)} % de la période à ${FLYBACK.isMin} A, ≈ 0 % à ${FLYBACK.isMax} A). Le rapport cyclique diminue alors avec Is.`,
@@ -253,7 +253,7 @@ type ReleveRow = { bench?: ReleveBench; linear?: boolean; vals: Record<string, s
  * (valeurs figées au moment du relevé), Pin, Pout et η à ±3 % des mesures saisies.
  */
 function ReleveSheet({ bench, powered, linear }: { bench: ReleveBench; powered: boolean; linear: boolean }) {
-  const [rows, setRows] = useState<ReleveRow[]>(() => Array.from({ length: 5 }, () => ({ vals: {} })))
+  const [rows, setRows] = usePersisted<ReleveRow[]>('alim2-releves:rows', () => Array.from({ length: 5 }, () => ({ vals: {} })))
   const g = useTableGrading('alim2-releves', RELEVES_EXPLANATION)
   const input = (r: ReleveRow) => Object.fromEntries(RELEVE_COLS.map((c) => [c.key, num(r.vals[c.key])])) as unknown as ReleveInput
   const checksOf = (r: ReleveRow) => (r.bench ? releveChecks(r.bench, input(r)) : null)

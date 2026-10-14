@@ -157,7 +157,7 @@ function specs(): Record<string, AnswerSpec> {
     },
     'alim1-q6': {
       kind: 'choix',
-      choices: ['Diminuer la fréquence des impulsions', 'Augmenter la fréquence des impulsions ou la capacité C', 'Diminuer la capacité C', 'Diminuer la tension E'],
+      choices: ['Diminuer la fréquence des impulsions pour laisser C se recharger', 'Augmenter la fréquence des impulsions ou la capacité C', 'Diminuer la capacité C pour qu’elle se recharge plus vite', 'Diminuer la tension E pour réduire l’amplitude des impulsions'],
       correct: a.q6 ? 1 : 0,
       explanation: `Entre deux impulsions, C se décharge dans Rs avec τ = Rs·C = ${fr(ALIM.rCharge * ALIM.c * 1e3)} ms : ΔV ≈ Vs·(T − t_imp)/τ. On diminue ΔV en raccourcissant T (fréquence plus élevée) ou en augmentant τ (capacité plus grande).`,
     },

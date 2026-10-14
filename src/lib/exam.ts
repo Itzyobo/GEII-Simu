@@ -1,5 +1,5 @@
 /** Mode examen : réponses enregistrées sans verdict, pénalités, barème sur 20. */
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 
 export interface ExamAnswer {
   id: string
@@ -49,6 +49,8 @@ export interface ExamApi {
   answerOf: (id: string) => ExamAnswer | undefined
   register: (id: string, meta: QuestionMeta) => void
   penalize: (kind: PenaltyKind, what: string) => void
+  /** Préfixe des saisies sauvegardées (TP + entraînement / n° d'examen) ; vide = pas de sauvegarde */
+  scope?: string
 }
 
 export const ExamContext = createContext<ExamApi>({
@@ -60,6 +62,47 @@ export const ExamContext = createContext<ExamApi>({
 })
 
 export const useExam = () => useContext(ExamContext)
+
+const STATE_PREFIX = 'tp-sim:state:'
+
+/**
+ * useState sauvegardé dans localStorage (portée : contexte d'examen + `name`) : les saisies survivent
+ * aux rechargements et à la fermeture du navigateur ; seul l'effacement des données du site les supprime.
+ * Sans `name` ni portée (démo), simple état en mémoire.
+ */
+export function usePersisted<T>(name: string | undefined, init: T | (() => T)) {
+  const { scope } = useExam()
+  const key = scope && name ? `${STATE_PREFIX}${scope}:${name}` : null
+  const [v, setV] = useState<T>(() => {
+    try {
+      const raw = key ? localStorage.getItem(key) : null
+      if (raw !== null) return JSON.parse(raw) as T
+    } catch {
+      /* stockage indisponible ou valeur illisible : valeur initiale */
+    }
+    return typeof init === 'function' ? (init as () => T)() : init
+  })
+  useEffect(() => {
+    try {
+      if (key) localStorage.setItem(key, JSON.stringify(v))
+    } catch {
+      /* stockage plein ou bloqué */
+    }
+  }, [key, v])
+  return [v, setV] as const
+}
+
+/** Efface les saisies sauvegardées dont la portée commence par `scope` (nouvel examen). */
+export function clearPersisted(scope: string) {
+  try {
+    const full = STATE_PREFIX + scope
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(full))
+      .forEach((k) => localStorage.removeItem(k))
+  } catch {
+    /* rien à effacer */
+  }
+}
 
 /** Pénalités : −0,5 par vérification de câblage échouée (au plus −3), −1 par modification tentée sous tension. */
 export function penaltyPoints(penalties: Penalty[]): number {

@@ -1,4 +1,4 @@
-/** Sauvegarde de l'examen en cours dans sessionStorage : chrono et réponses survivent à un rechargement. */
+/** Sauvegarde de l'examen en cours dans localStorage : chrono et réponses survivent à un rechargement ou à la fermeture du navigateur. */
 import type { ExamAnswer, Penalty, QuestionMeta } from './exam'
 
 export interface ExamSession {
@@ -17,7 +17,7 @@ export interface ExamSession {
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 const session = (): StorageLike | null => {
   try {
-    return globalThis.sessionStorage ?? null
+    return globalThis.localStorage ?? null
   } catch {
     return null
   }

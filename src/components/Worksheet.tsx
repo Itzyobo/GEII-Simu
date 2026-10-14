@@ -1,6 +1,6 @@
 /** Briques communes des feuilles de calcul notées (tableaux de relevés, sections de calcul). */
-import { useEffect, useState, type ReactNode } from 'react'
-import { useExam } from '../lib/exam'
+import { useEffect, type ReactNode } from 'react'
+import { useExam, usePersisted } from '../lib/exam'
 import { useQuestionFocus } from '../lib/focus'
 import { isCorrect, parseAnswer } from '../lib/grading'
 import { recordAttempt } from '../lib/progress'
@@ -24,7 +24,7 @@ export const cellOk = (value: string | undefined, c: Check) => Number.isFinite(c
  */
 export function useTableGrading(id: string, explanation: string) {
   const exam = useExam()
-  const [checked, setChecked] = useState(false)
+  const [checked, setChecked] = usePersisted(`${id}:checked`, false)
   const { active, register } = exam
   useEffect(() => {
     if (active) register(id, { expected: 'toutes les cases justes', explanation })

@@ -15,6 +15,7 @@ import { BRUIT, MAS } from '../data/reference'
 import type { Pair } from '../lib/wiring'
 import { analyzeMasWiring, MAS_LABELS, type Objectif } from '../lib/masWiring'
 import { useSpin } from '../lib/useSpin'
+import { usePersisted } from '../lib/exam'
 import { inverterVoltage, motorState, ohmmeter, readings, wattmeterPhases, type Barrettes, type OhmPair, type Source } from '../models/asyncMotor'
 
 /** Bornes câblables du banc (vue de face). Libellés : MAS_LABELS (bornes du variateur selon MAS.bornesVariateur). */
@@ -248,8 +249,8 @@ function NamePlate() {
 /** TP machine asynchrone : réseau ou variateur, wattmètre 3 phases, charge active, boîte à bornes, ohmmètre. */
 export default function AsyncPage({ tp }: { tp: Tp }) {
   const [powered, setPowered] = useState(false)
-  const [barrettes, setBarrettes] = useState<Barrettes>('aucune')
-  const [objectif, setObjectif] = useState<Objectif>('reseau')
+  const [barrettes, setBarrettes] = usePersisted<Barrettes>('mas:barrettes', 'aucune')
+  const [objectif, setObjectif] = usePersisted<Objectif>('mas:objectif', 'reseau')
   const [wires, setWires] = useState<Pair[]>([])
   const { guard, alert: liveAlert } = useLiveGuard(powered)
   const [f, setF] = useState(50)

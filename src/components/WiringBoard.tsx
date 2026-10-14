@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
-import { useExam, wiringAnswer } from '../lib/exam'
+import { useExam, usePersisted, wiringAnswer } from '../lib/exam'
 import { recordAttempt } from '../lib/progress'
 import PowerSwitch from './PowerSwitch'
 import { nextTick } from '../lib/scope'
@@ -87,10 +87,14 @@ function wirePath(p: Terminal, q: Terminal): string {
 
 /** Platine de câblage par clic + « Faire vérifier » + interrupteur de mise sous tension. */
 export default function WiringBoard({ terminals, expected = [], assess, width, height, children, onPowerChange, optional, onWiresChange, validate, revision, progressId }: WiringBoardProps) {
-  const [wires, setWires] = useState<Wire[]>([])
+  const [wires, setWires] = usePersisted<Wire[]>(progressId && `${progressId}:wires`, [])
   const [selected, setSelected] = useState<string | null>(null)
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
-  const [verdict, setVerdict] = useState<(WiringResult & { faulty?: boolean }) | null>(null)
+  const [verdict, setVerdict] = usePersisted<(WiringResult & { faulty?: boolean }) | null>(progressId && `${progressId}:verdict`, null)
+  // Câblage restauré après rechargement : la page parente le reçoit comme une modification
+  useEffect(() => {
+    if (wires.length) onWiresChange?.(wires.map((w) => [w.a, w.b] as const))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [powered, setPowered] = useState(false)
   // Courant dans les fils : décalage des tirets piloté à 30 images/s (une animation CSS ferait tourner
   // tout le rendu du navigateur à la fréquence de l'écran). Même vitesse : 24 px en 0,9 s.

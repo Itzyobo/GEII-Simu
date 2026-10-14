@@ -46,14 +46,14 @@ function specs(mode: ModePas): Record<string, AnswerSpec> {
     },
     'pap-q7': {
       kind: 'choix',
-      choices: ['Mode courant : le hacheur maintient le courant entre 0,9 et 1 A', 'Mode tension : la tension ±15 V est appliquée en permanence et le courant n’atteint plus la consigne'],
+      choices: ['Mode courant : le hacheur découpe et maintient le courant entre 0,9 et 1 A', 'Mode tension : ±15 V appliqués en permanence, le courant n’atteint plus la consigne'],
       correct: voltage7 ? 1 : 0,
       explanation: `Justification : montée Δt ≈ L·Δi/(E − e) = ${fr(PAP.lReelle * 1e3)} mH × 1,8 A / (15 − ${fr(e7, 2)}) V ≈ ${fr(rise7 * 1e3, 2)} ms, alors que T/2 = 2/f = ${fr((2 / f7) * 1e3, 2)} ms. ${voltage7 ? 'La montée est plus longue que la demi-période : le courant ne plafonne plus, c’est le mode tension (courant triangulaire).' : 'La montée tient dans la demi-période : mode courant.'}`,
     },
     'pap-q8': { expected: phi, unit: '°', explanation: `Δφ = 360° × Δt / T. I_B est en avance d'un quart de période : Δt = T/4, donc Δφ = 360/4 = ${fr(phi, 2)}°.` },
     'pap-q9': {
       kind: 'choix',
-      choices: ['Rien ne change', 'Le signe du déphasage s’inverse : I_B passe en retard de T/4, le moteur tourne dans l’autre sens', 'Le déphasage passe à 180°', 'La fréquence des courants double'],
+      choices: ['Rien ne change : DIR n’agit que sur l’affichage du driver', 'Le signe du déphasage s’inverse : I_B passe en retard de T/4', 'Le déphasage passe à 180° et le moteur reste bloqué', 'La fréquence des courants double, le moteur tourne deux fois plus vite'],
       correct: Math.sign(phiInv) === -Math.sign(phi) ? 1 : 0,
       explanation: "DIR fait parcourir la séquence des consignes dans l'autre sens : Δφ = 360° × Δt/T passe de +90° à −90°, I_B est en retard de T/4 et le sens de rotation s'inverse.",
     },
