@@ -20,8 +20,8 @@ export default function TpLayout({ title, schematic, instruments, questions, tab
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <header className="mb-5 flex flex-wrap items-baseline gap-4">
-        <Link to="/" className="text-sm text-muted hover:text-accent">
-          ← Accueil
+        <Link to="/ener" className="text-sm text-muted hover:text-accent">
+          ← ENER3
         </Link>
         <h1 className="text-2xl font-bold">{title}</h1>
         {tabs}

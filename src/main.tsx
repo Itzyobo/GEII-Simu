@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import './index.css'
 import Home from './pages/Home'
+import Dashboard from './pages/Dashboard'
 import Demo from './pages/Demo'
 import ExamShell from './components/ExamShell'
 import { loadExamSession } from './lib/examSession'
@@ -14,6 +15,7 @@ const PAGES = {
   'alim-decoupage': lazy(() => import('./pages/AlimPage')),
   'machine-asynchrone': lazy(() => import('./pages/AsyncPage')),
 }
+const ModbusApp = lazy(() => import('./modbus/App'))
 const renderTp = (tp: { slug: Tp['slug'] }) => {
   const full = TPS.find((t) => t.slug === tp.slug)!
   const Page = PAGES[full.slug]
@@ -35,13 +37,15 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Suspense fallback={<p className="p-8 text-sm text-muted">Chargement…</p>}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/ener" element={<Home />} />
           {TPS.map((tp) => (
             <Route key={tp.slug} path={`/tp/${tp.slug}`} element={<ExamShell tps={[tp]} minutes={30} kind={tp.slug} render={renderTp} />} />
           ))}
           <Route path="/examen-blanc" element={<MockExam />} />
           <Route path="/demo" element={<Demo />} />
-          <Route path="*" element={<Home />} />
+          <Route path="/modbus/*" element={<ModbusApp />} />
+          <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

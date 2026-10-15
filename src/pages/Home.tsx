@@ -15,7 +15,8 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12">
-      <p className="text-xs font-semibold tracking-[0.2em] text-accent">ENER3 · SIMULATEUR DE TP</p>
+      <Link to="/" className="text-sm text-muted hover:text-accent">← Tous les simulateurs</Link>
+      <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-accent">ENER3 · SIMULATEUR DE TP</p>
       <h1 className="mt-2 text-3xl font-bold">TP-Sim</h1>
       <p className="mt-2 max-w-2xl text-muted">
         Réglez, câblez, mesurez, puis répondez aux questions de l’énoncé. Les valeurs simulées sont calées sur les comptes rendus.

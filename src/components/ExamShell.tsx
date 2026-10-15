@@ -212,7 +212,7 @@ export default function ExamShell({ tps, minutes, kind, autoStart, render }: Exa
               Retour à l’entraînement
             </button>
           ) : null}
-          <Link to="/" onClick={leave} className={`${btn} inline-flex items-center bg-accent text-on-accent`}>
+          <Link to="/ener" onClick={leave} className={`${btn} inline-flex items-center bg-accent text-on-accent`}>
             Accueil
           </Link>
         </div>
