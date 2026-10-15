@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { REF } from '../data/reference'
 import { toHex } from './crc'
-import { busSimulate, frameDuration, lireLigne, parcoursComplet, rs485Lines, type BusFrame, type Emetteur } from './bus'
+import { busSimulate, frameDuration, lireLigne, parasites, parcoursComplet, rs485Lines, type BusFrame, type Emetteur } from './bus'
 import { scopeView, valueAt, type ProbeInput, type ScopeSettings } from './scope'
 import { analyzerDecode, crcOk, pupitreInitial, slaveRespond } from './slaves'
 
@@ -11,6 +11,7 @@ const maitre = (o: Partial<Emetteur> = {}): Emetteur => ({ card: 'c1', connected
 const PARCOURS = busSimulate([maitre()], 0, 256 * I)
 const requetes = PARCOURS.filter((f) => f.type === 'MAITRE')
 const reponses = PARCOURS.filter((f) => f.type === 'ESCLAVE')
+const slot = (adr: number, frames: BusFrame[] = PARCOURS, opts = {}) => rs485Lines(frames, 'c1', adr * I, (adr + 1) * I, opts)
 
 describe('parcours réseau', () => {
   it('exactement 256 requêtes [adr] 07 [CRC] de 00 à FF', () => {
@@ -36,7 +37,6 @@ describe('parcours réseau', () => {
 })
 
 describe('signaux RS485', () => {
-  const slot = (adr: number, frames: BusFrame[] = PARCOURS, opts = {}) => rs485Lines(frames, 'c1', adr * I, (adr + 1) * I, opts)
   it('TX_EN à 1 sans interruption du start du 1er octet au stop du 4e, à 0 en dehors (H33)', () => {
     const { txen } = slot(0x17)
     const req = requetes[0x17]!
@@ -135,6 +135,29 @@ describe('erreurs de manip', () => {
   })
   it('carte non branchée au pupitre : aucune réponse', () => {
     expect(busSimulate([maitre({ connected: false })], 0, 256 * I).filter((x) => x.type === 'ESCLAVE')).toHaveLength(0)
+  })
+})
+
+describe('démonstrations de cours', () => {
+  it('polarisation absente : au moins 1 caractère parasite sur 1 s de silence (H50) ; déterministe', () => {
+    const p = parasites([], 0, 1, 42)
+    expect(p.length).toBeGreaterThanOrEqual(1)
+    expect(p.every((f) => f.bruit && !f.crcOk)).toBe(true)
+    expect(parasites([], 0, 1, 42)).toEqual(p)
+  })
+  it('polarisation présente : le récepteur ne lit aucun caractère pendant 1 s de silence', () => {
+    expect(lireLigne(rs485Lines([], 'c1', 0, 1))).toEqual([])
+  })
+  it('terminaison absente (H49) : dépassement après les fronts, valeur finale inchangée', () => {
+    const avec = slot(0x17)
+    const sans = slot(0x17, PARCOURS, { terminaison: false })
+    const max = (w: typeof avec.txp) => Math.max(...w.samples.map((s) => s.v))
+    expect(max(sans.txp)).toBeGreaterThan(max(avec.txp) + 0.5)
+    // Fronts descendants aussi : creux sous le niveau bas
+    const min = (w: typeof avec.txp) => Math.min(...w.samples.map((s) => s.v))
+    expect(min(sans.txp)).toBeLessThan(min(avec.txp) - 0.5)
+    const fin = requetes[0x17]!.t1 - 0x17 * I - 1 / 76800
+    expect(valueAt(sans.txp, fin)).toBe(valueAt(avec.txp, fin))
   })
 })
 

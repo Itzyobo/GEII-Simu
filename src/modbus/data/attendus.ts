@@ -5,15 +5,10 @@ export const ATTENDUS = [
   { id: 'parite', text: 'Bit de parité', origine: 'notes partiel', couvertPar: '2.1, 2.2, générateur' },
   { id: 'impedance', text: 'Impédance', origine: 'notes partiel', couvertPar: '3.1 haute impédance, quiz de cours (terminaison, polarisation)' },
   { id: 'longueur', text: 'Longueur de câble', origine: 'notes partiel', couvertPar: 'quiz de cours RS232 / RS485' },
-  { id: 'autre', text: 'Autre chose', origine: 'notes partiel (non précisé)', couvertPar: 'Modbus : trame, CRC, exception' },
+  { id: 'autre', text: 'Autre chose', origine: 'notes partiel (non précisé)', couvertPar: 'Modbus : trame, CRC, exception ; quiz RS232 / RS485' },
   { id: 'q2', text: 'Questions 2.1 à 2.4', origine: 'énoncé TP-10, TP-11', couvertPar: 'partie A' },
   { id: 'q31', text: 'Questions 3.1', origine: 'énoncé TP-13', couvertPar: 'partie B' },
   { id: 'q32', text: 'Questions 3.2 a à d', origine: 'énoncé TP-14, TP-15', couvertPar: 'partie C' },
 ] as const
 
 export type AttenduId = (typeof ATTENDUS)[number]['id']
-
-/** Ce qui manque encore à un attendu couvert : il s'affiche « partiellement couvert ». */
-export const RESTE: Partial<Record<AttenduId, string>> = {
-  impedance: 'terminaison et polarisation : quiz de cours, étape 5',
-}

@@ -5,6 +5,8 @@ import UnverifiedBadge from '../components/UnverifiedBadge'
 import { checkDebit, checkExact, PARITE_LABEL, parseParite, type Verdict } from '../models/answers'
 import { exerciseGenerate, type Difficulte } from '../models/exercise'
 import { frameBits } from '../models/uart'
+import { enPartiel, useStore } from '../lib/store'
+import { PartielEnCours } from './Questions'
 
 const nouvelleGraine = () => Math.floor(Math.random() * 2 ** 31)
 const VIDE = { debit: '', bits: '', parite: '', message: '' }
@@ -14,6 +16,9 @@ export default function Exercices() {
   const [graine, setGraine] = useState(nouvelleGraine)
   const [rep, setRep] = useState(VIDE)
   const [corrige, setCorrige] = useState(false)
+  // Pendant un partiel : ni verdict, ni message de piège, ni correction
+  const partiel = enPartiel(useStore())
+  const montrer = corrige && !partiel
   const ex = exerciseGenerate(graine, difficulte)
   const { liaison, corrige: c } = ex
 
@@ -64,17 +69,17 @@ export default function Exercices() {
           setCorrige(true)
         }}
       >
-        <Field label="Débit (bauds) ou durée d’un bit" verdict={corrige ? verdicts.debit : null}>
+        <Field label="Débit (bauds) ou durée d’un bit" verdict={montrer ? verdicts.debit : null}>
           <input {...champ('debit')} className={`${input} font-mono`} placeholder="ex. 9600 ou 104 µs" />
         </Field>
-        <Field label="Bits de données" verdict={corrige ? verdicts.bits : null}>
+        <Field label="Bits de données" verdict={montrer ? verdicts.bits : null}>
           <select {...champ('bits')} className={input}>
             <option value="">—</option>
             <option>7</option>
             <option>8</option>
           </select>
         </Field>
-        <Field label="Parité" verdict={corrige ? verdicts.parite : null}>
+        <Field label="Parité" verdict={montrer ? verdicts.parite : null}>
           <select {...champ('parite')} className={input}>
             <option value="">—</option>
             {Object.values(PARITE_LABEL).map((p) => (
@@ -82,7 +87,7 @@ export default function Exercices() {
             ))}
           </select>
         </Field>
-        <Field label="Message (ASCII)" verdict={corrige ? verdicts.message : null}>
+        <Field label="Message (ASCII)" verdict={montrer ? verdicts.message : null}>
           <input {...champ('message')} className={`${input} font-mono`} />
         </Field>
         <div className="sm:col-span-2">
@@ -92,7 +97,8 @@ export default function Exercices() {
         </div>
       </form>
 
-      {corrige && (
+      {partiel && <PartielEnCours />}
+      {montrer && (
         <section className="mt-6" aria-label="Correction détaillée">
           <h2 className="font-semibold">Correction bit par bit</h2>
           <p className="mt-1 text-sm text-muted">

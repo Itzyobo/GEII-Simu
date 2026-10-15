@@ -6,11 +6,11 @@ import { useSyncExternalStore } from 'react'
 import { REF } from '../data/reference'
 import { realtermDefaut, type CableSerie, type RealtermSettings } from '../models/serie'
 import type { Liaison } from '../models/uart'
-import { busRun, parcoursComplet, type BusFrame, type Emetteur, type Memorisee, type Parcours } from '../models/bus'
+import { busRun, parasites, parcoursComplet, type BusFrame, type Emetteur, type Memorisee, type Parcours } from '../models/bus'
 import { pupitreInitial, type PupitreState } from '../models/slaves'
 
 export const STORAGE_KEY = 'tp2sim:v1'
-const VERSION = 4
+const VERSION = 5
 /** Trames gardées dans le journal du bus : au moins un parcours complet et ses réponses */
 const JOURNAL_MAX = 2 * REF.parcoursAdresses.value + 100
 
@@ -73,7 +73,9 @@ export interface State {
   /** Horloge de simulation du bus Modbus : t (s), vitesse, heure murale (ms) correspondant à t = 0 */
   sim: { t: number; speed: 1 | 10; wall0: number | null }
   /** Réglages du pupitre ; « polarisation absente » (H9) prévue pour l'étape 5 */
-  reglages: { polarisation: boolean }
+  reglages: { polarisation: boolean; terminaison: boolean }
+  /** Partiel en cours ou rendu (null : aucun) ; le sujet se recalcule depuis la graine */
+  partiel: Partiel | null
   /** État des modules du pupitre, modifié par les trames et par les interrupteurs et potentiomètres */
   pupitre: PupitreState
   /** Trames passées sur le bus (ou sur les broches d'une carte non branchée), dans l'ordre, les plus récentes */
@@ -106,7 +108,8 @@ export const initialState = (): State => ({
   software: { c1: logicielVide(), c2: logicielVide() },
   parcours: { c1: null, c2: null },
   sim: { t: 0, speed: 1, wall0: null },
-  reglages: { polarisation: true },
+  reglages: { polarisation: true, terminaison: true },
+  partiel: null,
   pupitre: pupitreInitial(),
   journal: [],
   octets: { serie1: 0x55, serie2: 0x55 },
@@ -140,7 +143,31 @@ export type Action =
   | { type: 'serie2Reel'; reel: Liaison | null }
   | { type: 'realterm'; patch: Partial<RealtermSettings> }
   | { type: 'answer'; key: string; value: string; points: number }
+  | { type: 'reglage'; patch: Partial<State['reglages']> }
+  | { type: 'partielDebut'; graine: number; duree: number; manip: boolean; maintenant: number }
+  | { type: 'partielReponse'; id: string; value: string }
+  | { type: 'partielRendre'; maintenant: number }
+  | { type: 'partielQuitter' }
   | { type: 'reset' }
+
+/** Partiel : graine du sujet, heure de début (ms), durée (s), réponses, essais de câblage et pénalités */
+export interface Partiel {
+  graine: number
+  debut: number
+  duree: number
+  manip: boolean
+  reponses: Record<string, string>
+  rendu: boolean
+  renduA: number | null
+  /** « Faire vérifier » depuis le début du partiel, et rang du premier réussi */
+  verifs: number
+  cablageEssai: number | null
+  /** Manipulations tentées pendant qu'un maître ou un programme émettait (H52) */
+  penalites: number
+}
+
+/** Partiel en cours (commencé, pas encore rendu) */
+export const enPartiel = (s: State) => s.partiel !== null && !s.partiel.rendu
 
 const POINT_LABEL: Record<TestPoint, string> = { TXD_TTL: 'TXD TTL', TXD_RS232: 'TXD RS232', 'TX+': 'TX+', 'TX-': 'TX−', TX_EN: 'TX_EN' }
 export const pointLabel = (p: ProbePoint) => {
@@ -173,10 +200,12 @@ export function checkWiring(w: Wiring, activity: Activity): string[] {
   return errors
 }
 
+/** Manipulation refusée pendant une émission : incident enregistré et, en partiel, une pénalité (H52). */
 const incident = (s: State, kind: Incident['kind'], detail: string): State => ({
   ...s,
   incidents: [...s.incidents, { at: new Date().toISOString(), kind, detail }],
   notice: `Refusé : ${detail}. Arrêtez l'émission avant de toucher au câblage.`,
+  partiel: enPartiel(s) ? { ...s.partiel!, penalites: s.partiel!.penalites + 1 } : s.partiel,
 })
 
 /** Câblage modifié : la vérification précédente ne vaut plus. */
@@ -223,7 +252,11 @@ export function reduce(s: State, a: Action): State {
     case 'verify': {
       const errors = checkWiring(w, s.session.activity)
       const n = (s.verifyAttempts[s.session.activity] ?? 0) + 1
-      return { ...s, check: { ok: errors.length === 0, errors }, verifyAttempts: { ...s.verifyAttempts, [s.session.activity]: n }, notice: null }
+      const ok = errors.length === 0
+      // En partiel : on retient le rang du premier essai réussi (câblage noté, H52)
+      const p = s.partiel
+      const partiel = p && enPartiel(s) ? { ...p, verifs: p.verifs + 1, cablageEssai: p.cablageEssai ?? (ok ? p.verifs + 1 : null) } : p
+      return { ...s, check: { ok, errors }, verifyAttempts: { ...s.verifyAttempts, [s.session.activity]: n }, notice: null, partiel }
     }
     case 'startEmission':
       if (!s.check) return { ...s, notice: 'Refusé : faites vérifier le câblage avant de lancer une émission.' }
@@ -258,7 +291,8 @@ export function reduce(s: State, a: Action): State {
       // Accélération interdite en mode partiel
       return s.session.mode === 'examen' ? s : { ...s, sim: { ...s.sim, speed: a.speed } }
     case 'tick': {
-      if (!anyMaster(s)) return s
+      // Sans polarisation, l'horloge tourne aussi pour que l'analyseur lise les parasites des silences (H50)
+      if (!anyMaster(s) && s.reglages.polarisation) return s
       const t = s.sim.t + a.dt * s.sim.speed
       // Trames qui commencent pendant ce pas : exécutées par les esclaves (l'état du pupitre suit) et journalisées.
       // La fenêtre déborde d'une marge pour voir les chevauchements avec les pas voisins.
@@ -266,7 +300,9 @@ export function reduce(s: State, a: Action): State {
       const run = busRun(emetteurs(s), s.sim.t - M, t + M, s.pupitre, [s.sim.t, t])
       // Parcours qui se termine pendant ce pas
       const fin = (c: CardId) => parcoursEnCours(s, c) && t >= s.parcours[c]!.fin
-      let r: State = { ...s, sim: { ...s.sim, t }, pupitre: run.etat, journal: [...s.journal, ...run.frames].slice(-JOURNAL_MAX) }
+      const bruit = s.reglages.polarisation ? [] : parasites(run.frames, s.sim.t, t, Math.round(s.sim.t * 1000))
+      const journal = [...s.journal, ...run.frames, ...bruit].sort((x, y) => x.t0 - y.t0).slice(-JOURNAL_MAX)
+      let r: State = { ...s, sim: { ...s.sim, t }, pupitre: run.etat, journal }
       for (const c of ['c1', 'c2'] as const) if (fin(c)) r = soft(r, c, { messages: [...r.software[c].messages, 'Parcours réseau terminé'].slice(-50) })
       return r
     }
@@ -299,6 +335,20 @@ export function reduce(s: State, a: Action): State {
     case 'resetPupitre':
       // Remise sous tension : adresses, configuration et sorties d'origine ; les inverseurs restent où ils sont
       return { ...s, pupitre: { ...pupitreInitial(), otb: { ...pupitreInitial().otb, entrees: s.pupitre.otb.entrees, pots: s.pupitre.otb.pots } } }
+    case 'reglage':
+      // Démonstrations de cours : entraînement seulement
+      return enPartiel(s) ? s : { ...s, reglages: { ...s.reglages, ...a.patch } }
+    case 'partielDebut': {
+      const partiel: Partiel = { graine: a.graine, debut: a.maintenant, duree: a.duree, manip: a.manip, reponses: {}, rendu: false, renduA: null, verifs: 0, cablageEssai: null, penalites: 0 }
+      // Pas d'indice ni d'accélération ; démonstrations remises à l'état normal
+      return { ...s, partiel, session: { ...s.session, mode: 'examen', startedAt: new Date(a.maintenant).toISOString() }, sim: { ...s.sim, speed: 1 }, reglages: initialState().reglages, check: null }
+    }
+    case 'partielReponse':
+      return enPartiel(s) ? { ...s, partiel: { ...s.partiel!, reponses: { ...s.partiel!.reponses, [a.id]: a.value } } } : s
+    case 'partielRendre':
+      return enPartiel(s) ? { ...s, partiel: { ...s.partiel!, rendu: true, renduA: a.maintenant }, session: { ...s.session, mode: 'entrainement' } } : s
+    case 'partielQuitter':
+      return { ...s, partiel: null, session: { ...s.session, mode: 'entrainement', startedAt: null } }
     case 'reset':
       return initialState()
   }
@@ -364,4 +414,10 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l)
 }
 
-export const useStore = () => useSyncExternalStore(subscribe, () => current)
+export const useStore = () => useSyncExternalStore(subscribe, () => current, () => current)
+
+/** Remplace l'état courant (tests de rendu) */
+export function setState(s: State) {
+  current = s
+  listeners.forEach((l) => l())
+}

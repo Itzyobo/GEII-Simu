@@ -4,6 +4,8 @@ Site React 100 % front qui reproduit trois TP d'électrotechnique : moteur pas �
 Chaque page comporte un câblage simplifié, des instruments et les questions de l'énoncé, corrigées et notées.
 Les valeurs simulées sont calées sur les comptes rendus (CR). Toutes les constantes vivent dans `src/data/reference.ts`.
 
+Le TP2 (liaison série / MODBUS, sous `/modbus`) a son propre README : [docs/modbus/README.md](docs/modbus/README.md).
+
 ## Lancement
 
 ```bash

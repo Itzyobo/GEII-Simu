@@ -62,6 +62,8 @@ export interface BusFrame {
   crcOk: boolean
   /** Sur la paire du pupitre (false : carte non branchée, la trame reste sur ses propres broches) */
   onBus: boolean
+  /** Caractère parasite lu sur une ligne flottante (polarisation absente, H50) */
+  bruit?: boolean
 }
 
 /** Requête 07 du parcours vers l'adresse `adr` */
@@ -232,7 +234,7 @@ export function rs485Lines(
   card: CardId,
   w0: number,
   w1: number,
-  { parasite = false, connected = true, polarisation = true } = {},
+  { parasite = false, connected = true, polarisation = true, terminaison = true } = {},
 ): Lines {
   const seen = frames.filter((f) => (connected && f.onBus) || f.drivers.includes(card))
   // Chaque driver actif de t0 − avance à t1 + retard (H33) ; dans une collision, chacun garde ses propres bits
@@ -270,11 +272,56 @@ export function rs485Lines(
     if (samples[0]?.t !== 0) samples.unshift({ t: 0, v: f(w0) })
     return { samples, period: w1 - w0 }
   }
+  const fils = (k: 0 | 1) => wave((t) => niveaux(etatLigne(info, t))[k] + pv(t))
   return {
-    txp: wave((t) => niveaux(etatLigne(info, t))[0] + pv(t)),
-    txm: wave((t) => niveaux(etatLigne(info, t))[1] + pv(t)),
+    txp: terminaison ? fils(0) : avecRebonds(fils(0)),
+    txm: terminaison ? fils(1) : avecRebonds(fils(1)),
     txen: wave((t) => (txenAt(t) ? REF.ttlHigh.value : REF.ttlLow.value)),
   }
+}
+
+/**
+ * Sans terminaison (H49) : chaque front piloté rebondit, en paliers d'une demi-pseudo-période, avec une amplitude
+ * qui décroît jusqu'à s'éteindre en quelques oscillations. Illustration qualitative.
+ */
+function avecRebonds(w: Waveform): Waveform {
+  const { amplitude, periode, oscillations } = REF.terminaisonRebond.value
+  const seuil = (REF.rs485High.value - REF.rs485Low.value) / 2
+  const n = 2 * oscillations
+  const out: Waveform['samples'] = []
+  w.samples.forEach((s, i) => {
+    // Signal périodique : le premier échantillon succède au dernier
+    const delta = s.v - (w.samples[i - 1] ?? w.samples.at(-1)!).v
+    if (Math.abs(delta) < seuil) return void out.push(s)
+    const next = w.samples[i + 1]?.t ?? w.period
+    // Dépassement au front, puis creux et bosses de plus en plus faibles ; le dernier palier rend la valeur finale
+    for (let k = 0; k <= n; k++) {
+      const t = s.t + (k * periode) / 2
+      if (k && t >= next) break
+      out.push({ t, v: s.v + (k === n ? 0 : amplitude * delta * (k % 2 ? -1 : 1) * (1 - k / n)) })
+    }
+  })
+  return { samples: out, period: w.period }
+}
+
+/**
+ * Polarisation absente (H50) : pendant les silences de [a, b), la ligne flotte et change d'état au hasard ;
+ * un récepteur y lit des caractères parasites (graine fixée). Renvoie ces caractères comme trames de bruit.
+ */
+export function parasites(frames: readonly BusFrame[], a: number, b: number, seed: number): BusFrame[] {
+  const rnd = mulberry32(seed)
+  const pas = REF.bruitSansPolarisation.value
+  const occupe = frames.filter((f) => f.onBus).map((f) => driveWindow(f.t0, f.t1))
+  const volts = (bit: boolean) => (bit ? REF.ttlHigh.value : REF.ttlLow.value)
+  const samples: Waveform['samples'] = [{ t: 0, v: volts(true) }]
+  for (let t = a; t < b; t += pas) {
+    const libre = !occupe.some(([d, f]) => t + pas > d && t < f)
+    samples.push({ t: t - a, v: volts(libre ? rnd() < 0.5 : true) })
+  }
+  return uartDecode({ samples, period: b - a }, MODBUS).map((r) => {
+    const t0 = a + r.t
+    return { t0, t1: t0 + CHAR, bytes: [r.byte], drivers: [], type: 'MAITRE', collision: false, crcOk: false, onBus: true, bruit: true }
+  })
 }
 
 /**

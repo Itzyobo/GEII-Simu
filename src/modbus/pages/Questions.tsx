@@ -6,7 +6,7 @@ import { champsPartieA, type Champ } from '../lib/partieA'
 import { champsPartieB } from '../lib/partieB'
 import { champsPartieC } from '../lib/partieC'
 import { points } from '../models/answers'
-import { dispatch, useStore } from '../lib/store'
+import { dispatch, enPartiel, useStore } from '../lib/store'
 import TraceClic from '../components/TraceClic'
 import UnverifiedBadge from '../components/UnverifiedBadge'
 
@@ -23,6 +23,7 @@ export default function Questions() {
     <main className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-2xl font-bold">Questions de l’énoncé</h1>
       <p className="mt-2 text-sm text-muted">Intitulés recopiés mot pour mot de l’énoncé (TP-11 à TP-15). Faites la manip sur le banc, puis répondez.</p>
+      {enPartiel(s) && <PartielEnCours />}
       {SECTIONS.map((sec) => (
         <section key={sec} className="mt-8">
           <h2 className="text-sm font-semibold tracking-wide text-muted">SECTION {sec}</h2>
@@ -40,6 +41,7 @@ export default function Questions() {
                   <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${q.statut === 'implémentée' ? 'bg-ok/15 text-ok' : 'bg-card-2 text-muted'}`}>{q.statut}</span>
                 </div>
                 {q.id in champs &&
+                  !enPartiel(s) &&
                   (champs[q.id] ? (
                     <Reponses qid={q.id} champs={champs[q.id]!} answers={s.answers} />
                   ) : (
@@ -56,7 +58,21 @@ export default function Questions() {
   )
 }
 
-function Reponses({ qid, champs, answers }: { qid: string; champs: Champ[]; answers: ReturnType<typeof useStore>['answers'] }) {
+/** Bandeau des pages d'entraînement pendant un partiel : aucune correction avant le rendu. */
+export function PartielEnCours() {
+  return (
+    <p className="mt-3 rounded-lg bg-warn/10 p-3 text-sm text-warn ring-1 ring-warn/30" role="note">
+      Partiel en cours : les corrections de cette page sont masquées jusqu’au rendu. Répondez dans la page{' '}
+      <Link to="/modbus/partiel" className="underline">
+        Mode partiel
+      </Link>
+      .
+    </p>
+  )
+}
+
+/** Champs de réponse d'une question, avec « Corriger » et le verdict de chaque champ. */
+export function Reponses({ qid, champs, answers }: { qid: string; champs: Champ[]; answers: ReturnType<typeof useStore>['answers'] }) {
   const key = (c: Champ) => `${qid}.${c.key}`
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(champs.map((c) => [c.key, answers[key(c)]?.value ?? ''])))
   const corriger = () => champs.forEach((c) => dispatch({ type: 'answer', key: key(c), value: values[c.key] ?? '', points: points(c.check(values[c.key] ?? '')) }))

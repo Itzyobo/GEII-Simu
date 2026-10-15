@@ -162,7 +162,7 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 6. H6 — Calibre TTL de SERIE\_1 : 2 V/div, front descendant, mode Normal. La base de temps de 500 µs/div est lue sur les photos.
 7. H7 — Base de temps de la capture Modbus lue sur une photo floue.
 8. H8 — Niveaux bas et haut de TX+ et TX− non mesurés.
-9. H9 — Polarisation du bus, non mesurée : en haute impédance TX+ ≈ 2,65 V et TX− ≈ 2,35 V, soit +0,30 V lu comme un 1 logique. Réglage « polarisation absente » (étape 5) : les deux fils à 2,5 V, caractères parasites à l'analyseur.
+9. H9 — Polarisation du bus, non mesurée : en haute impédance TX+ ≈ 2,65 V et TX− ≈ 2,35 V, soit +0,30 V lu comme un 1 logique. Réglage « polarisation absente » : les deux fils à 2,5 V, différentiel nul.
 10. H10 — Exception du TDS recalculée avec le code 01 : la photo est floue.
 11. H11 — Entier affiché sur le TDS non noté.
 12. H12 — THT : 00F0H choisi car cohérent avec le TQS, mais 00E0H n'est pas exclu.
@@ -172,36 +172,40 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 16. H16 — Écriture à un registre absent : exception 02.
 17. H17 — Les boîtes « Décimal / Hexadécimal » du logiciel sont des boutons qui basculent la base du champ. Valeurs par défaut lues sur les photos : esclave en décimal, adresse en hexadécimal, nombre en décimal, valeur en hexadécimal.
 18. H18 — Commutateur hors « contrôle de flux » : aucune émission.
-19. H19 — Bruit de l'oscilloscope : gain de chaque acquisition gaussien d'écart type 1 %, tronqué à ± 1,5 % ; bruit visuel point par point d'écart type 0,3 %, hors mesures.
-20. H20 — Pince de masse absente : trace décalée jusqu'à ± 1,5 V et bruit gaussien de 0,4 V (effet qualitatif).
-21. H21 — Champs des fonctions 2, 5, 15 et 16 du logiciel non photographiés : intitulés reconstitués ; valeurs de F15/F16 séparées par des espaces.
-22. H22 — SERIE\_1 : chaque caractère est suivi d'un repos ; période de répétition 100 ms.
-23. H23 — Niveau de déclenchement TTL par défaut : 2,5 V (mi-hauteur).
-24. H24 — Configuration Maître s'ouvre sur la fonction 1, première de la liste.
-25. H25 — Réglages initiaux de l'écran : déclenchement 4 div à gauche du centre, curseurs X à 2 et 4 div.
+19. H19 — Bruit de l'oscilloscope : gain de chaque acquisition tiré selon une gaussienne d'écart type 1 %, tronquée à ± 1,5 % ; bruit visuel point par point d'écart type 0,3 %, hors mesures (paramètres de simulation, pas une mesure).
+20. H20 — Pince de masse absente : trace décalée jusqu'à ±1,5 V et bruit gaussien de 0,4 V (valeurs inventées, effet qualitatif).
+21. H21 — Champs des fonctions 2, 5, 15 et 16 du logiciel non photographiés : intitulés reconstitués sur le modèle de F1/F3/F6 ; valeurs de F15/F16 saisies séparées par des espaces.
+22. H22 — SERIE\_1 : chaque caractère est suivi d'un repos ; période de répétition 100 ms (durée non relevée).
+23. H23 — Niveau de déclenchement TTL par défaut : 2,5 V, mi-hauteur entre 0 V et 5 V (réglage non noté).
+24. H24 — Configuration Maître s'ouvre sur la fonction 1, première de la liste (valeur par défaut non photographiée).
+25. H25 — Réglages initiaux de l'écran : déclenchement 4 div à gauche du centre, curseurs X à 2 et 4 div du bord gauche.
 26. H26 — Une acquisition affichée toutes les 150 ms ; en Auto sans déclenchement, la trace avance de 0,17 écran par acquisition.
 27. H27 — Supprimée : niveaux TTL 0 V / 5 V sourcés par le CR (« Vcc = 5 V » et tableau du binôme « TTL : 5 V »).
-28. H28 — SERIE\_2 demande l'octet à émettre comme SERIE\_1 (« Réaliser les mêmes opérations que précédemment »).
+28. H28 — SERIE\_2 demande l'octet à émettre comme SERIE\_1 : l'énoncé dit « Réaliser les mêmes opérations que précédemment ».
 29. H29 — Générateur « message codé » : 1 200 à 19 200 bauds, 7 ou 8 bits, sans parité / paire / impaire, 1 stop ; 3 à 8 caractères (lettres, chiffres, espace) ; RS232 une fois sur deux à partir du niveau 2 ; 2 V/div en TTL, 5 V/div en RS232 ; un bit couvre au moins 1,5 div.
-30. H30 — Correction : la bonne réponse de débit est le débit standard exact (1 200, 2 400, 4 800, 9 600, 19 200, 38 400) ; une valeur à ± 10 % du bon débit sans être un standard vaut la moitié des points (« Valeur mesurée correcte, mais il faut l'arrondir au débit standard le plus proche. ») ; tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d'un bit.
-31. H31 — RealTerm réduit : ports COM1 et COM2 (seul COM1 relié), débits 1 200 à 19 200 bauds, ouverture en 9 600 bauds 8N1.
-32. H32 — Délai de réponse d'un esclave : 3 ms entre la fin de la requête et le start de la réponse (la norme impose au moins 1,75 ms).
-33. H33 — TX_EN monte 50 µs avant le premier start et redescend 50 µs après le dernier stop ; même règle pour le driver d'un esclave.
+30. H30 — Correction : la bonne réponse de débit est le débit standard exact (1 200, 2 400, 4 800, 9 600, 19 200, 38 400) ; une valeur à ± 10 % du bon débit sans être un standard vaut la moitié des points ; tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d'un bit.
+31. H31 — RealTerm réduit : ports COM1 et COM2 proposés (seul COM1 relié à la carte) ; débits 1 200 à 19 200 bauds ; s'ouvre en 9 600 bauds, 8 bits, sans parité, 1 stop.
+32. H32 — Délai de réponse d'un esclave : 3 ms entre la fin de la requête et le start de la réponse (non mesuré ; la norme impose au moins 1,75 ms).
+33. H33 — TX_EN monte 50 µs avant le premier start et redescend 50 µs après le dernier stop (non mesuré) ; le driver d'un esclave suit la même règle.
 34. H34 — Convention RS485 : 1 logique (et repos piloté) ⇔ TX+ > TX−.
 35. H35 — Parasite de mode commun de démonstration : sinus de 1 V crête à 1 kHz ajouté aux deux fils.
-36. H36 — Libellés de l'analyseur pour les codes d'exception 02 à 04 (seul 01 « Code fonction inconnu » est lu sur la photo).
-37. H37 — Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux à 0,5 ms près. Simplification affichée : en réalité, deux maîtres décalés ne se percutent que par moments.
-38. H38 — Pendant un parcours, les trames mémorisées partent au milieu d'un créneau de 201,4 ms, à la période d'interrogation.
-39. H39 — Conflit de drivers RS485 : un bit identique sur les deux émetteurs passe normalement ; des bits opposés donnent un différentiel de 0,05 V (|V| < 200 mV) et le récepteur lit un bit tiré par le générateur à graine.
+36. H36 — Libellés de l'analyseur pour les codes d'exception 02 à 04 non photographiés (seul 01 « Code fonction inconnu » est lu).
+37. H37 — Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux, décalé de 0,5 ms (les deux PC lancés ensemble). Simplification : en réalité, deux maîtres décalés ne se percutent que par moments.
+38. H38 — Pendant un parcours, le logiciel envoie les trames mémorisées au milieu d'un créneau de 201,4 ms, à la période d'interrogation.
+39. H39 — Conflit de drivers RS485 : un bit identique sur les deux émetteurs passe normalement ; des bits opposés donnent un différentiel de 0,05 V (sous le seuil de 200 mV), et le récepteur lit un bit au hasard (générateur à graine).
 40. H40 — OTB : entrées analogiques IN0 et IN1 réglées par les 2 potentiomètres, IN2 et IN3 non câblées (0) ; entrées et sorties analogiques sur 12 bits (0 à 4 095) ; potentiomètres à 50 % et 25 % au départ.
 41. H41 — OTB : l'octet fort écrit dans le registre 100 est ignoré ; écrire en 06 ou 16 un registre d'entrée (0 à 4) ou un code d'identification → exception 02.
 42. H42 — Valeur hors plage (entier > 9 999, luminosité > 4, caractère hors a…z / 0…9 / espace, nombre de mots hors 1…125) → exception 03.
 43. H43 — Registres de configuration 1 à 3 écrits en 06 : écho, puis effet immédiat ; nouvelle adresse (1 à 247) prise aussitôt. Codes de parité : 0 aucune, 1 paire (annexe), 2 impaire.
 44. H44 — TDS : entier aligné à droite sans zéros non significatifs ; le dernier registre écrit (texte ou entier) fixe le mode d'affichage ; au départ luminosité 4 et affichage vide.
-45. H45 — Trames mémorisées envoyées tour à tour, une par créneau de 201,4 ms ; le cycle se répète à la plus longue période saisie.
-46. H46 — Libellés du « Détail Trame » pour les requêtes et les réponses 06 et 16 reconstitués sur le modèle de la photo.
-47. H47 — OTB : les fonctions 06 et 16 n'acceptent que les registres 100 à 102 ; tout autre registre → exception 02.
-48. H48 — Vitesse (≠ 0008) ou parité (≠ 0001) réécrite dans un module : écho, puis le module reste muet jusqu'à « Réinitialiser le pupitre ».
+45. H45 — Trames mémorisées : envoyées tour à tour, une par créneau de 201,4 ms ; le cycle se répète à la plus longue période saisie (au moins le temps d'envoyer toutes les trames).
+46. H46 — Libellés du « Détail Trame » pour les requêtes et les réponses 06 et 16 reconstitués sur le modèle de la photo (réponse 03/04 et exception lues sur les photos).
+47. H47 — OTB : les fonctions 06 et 16 n'acceptent que les registres 100 à 102 (sorties TOR et analogiques) ; tout autre registre → exception 02.
+48. H48 — Vitesse (≠ 0008) ou parité (≠ 0001) réécrite dans un module : écho, puis le module ne comprend plus le bus et reste muet jusqu'à « Réinitialiser le pupitre ».
+49. H49 — Terminaison absente : rebond après chaque front de TX+ et TX−, 30 % de l'excursion, pseudo-période 2 µs, amorti en 3 oscillations (illustration qualitative, non mesurée).
+50. H50 — Polarisation absente : la ligne flottante change d'état au hasard toutes les 20 ms en moyenne ; le récepteur y lit des caractères parasites.
+51. H51 — Mode partiel : 30 minutes par défaut (réglable).
+52. H52 — Barème du partiel : 1 point par question ; câblage 1 point au 1er « Faire vérifier » réussi, ½ au 2e, 0 ensuite ; −0,5 point par manipulation pendant une émission.
 
 ## 4. Modèles de simulation
 

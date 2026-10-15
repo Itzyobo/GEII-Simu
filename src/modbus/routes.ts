@@ -5,5 +5,8 @@ export const MODBUS_PAGES = [
   ['logiciel', 'Logiciel MODBUS'],
   ['questions', 'Questions'],
   ['exercices', 'Message codé'],
+  ['cours', 'Cours'],
+  ['partiel', 'Partiel'],
+  ['hypotheses', 'Hypothèses'],
   ['reglages', 'Réglages'],
 ] as const

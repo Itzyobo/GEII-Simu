@@ -161,7 +161,10 @@ export default function ServeurModbus({ card }: { card: CardId }) {
         <Pane title="Détail Trame">
           {sel ? (
             <ul className="font-mono text-[11px]">
-              {analyzerDecode(sel.bytes, sel.collision ? undefined : sel.type).map((l) => (
+              {(sel.bruit
+                ? [`Caractère isolé : ${toHex(sel.bytes)}`, 'aucun maître ni esclave n’émet : caractère parasite (ligne sans polarisation)']
+                : analyzerDecode(sel.bytes, sel.collision ? undefined : sel.type)
+              ).map((l) => (
                 <li key={l} className="break-words">
                   {l}
                 </li>
@@ -211,7 +214,7 @@ export default function ServeurModbus({ card }: { card: CardId }) {
 }
 
 /** Fenêtre « Esclaves détectés sur le bus » (reconstituée) : grille 00 à FF et progression du parcours. */
-function Parcours({ card, onClose }: { card: CardId; onClose: () => void }) {
+export function Parcours({ card, onClose }: { card: CardId; onClose: () => void }) {
   const s = useStore()
   const p = s.parcours[card]
   const enCours = parcoursEnCours(s, card)
@@ -242,7 +245,7 @@ function Parcours({ card, onClose }: { card: CardId; onClose: () => void }) {
         {enCours ? `Adresse ${(k - 1).toString(16).toUpperCase().padStart(2, '0')}H — ${k} / ${N}` : k === N ? 'Parcours terminé' : `Parcours arrêté à ${k} / ${N}`} · détectés :{' '}
         {[...trouves].sort((a, b) => a - b).join(', ') || 'aucun'}
       </p>
-      {deuxMaitres && (
+      {deuxMaitres && !examen && (
         <p className="mt-1 bg-[#ffffe1] p-1 text-[11px] ring-1 ring-[#808080]" role="note">
           Deux maîtres sur le bus : collisions.
           <br />
@@ -251,10 +254,13 @@ function Parcours({ card, onClose }: { card: CardId; onClose: () => void }) {
         </p>
       )}
       <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-        <label className="mr-auto flex items-center gap-1" title={examen ? 'Désactivé en mode partiel' : 'Simulation accélérée'}>
-          <input type="checkbox" disabled={examen} checked={s.sim.speed === 10} onChange={(e) => dispatch({ type: 'speed', speed: e.target.checked ? 10 : 1 })} />
-          Accélérer ×10
-        </label>
+        {/* Pas d'accélération en mode partiel : le bouton n'existe pas */}
+        {!examen && (
+          <label className="mr-auto flex items-center gap-1" title="Simulation accélérée">
+            <input type="checkbox" checked={s.sim.speed === 10} onChange={(e) => dispatch({ type: 'speed', speed: e.target.checked ? 10 : 1 })} />
+            Accélérer ×10
+          </label>
+        )}
         {enCours && (
           <button type="button" onClick={() => dispatch({ type: 'parcours', card, on: false, wall: maintenant() })} className={`bg-[#c0c0c0] px-3 py-1 ${raised}`}>
             Arrêter

@@ -73,8 +73,10 @@ export default function Banc() {
   const [ecran, setEcran] = useState<Record<CardId, 'programme' | 'modbus'>>({ c1: 'programme', c2: 'programme' })
   const w = s.wiring
   const partieB = s.session.activity === 'reseau'
+  // Partiel : aucune démonstration, aucune annotation, aucun détail de vérification
+  const entrainement = s.session.mode === 'entrainement'
   const maitre = masterEmitting(s, 'c1') || masterEmitting(s, 'c2')
-  const r = reseau(s, parasite)
+  const r = reseau(s, parasite && entrainement)
 
   const inputs = (['ch1', 'ch2'] as const).map(
     (c): ProbeInput => ({
@@ -97,7 +99,7 @@ export default function Banc() {
   // Annotations (entraînement) : zones vues depuis la carte où est posée la sonde Ch1
   const annotCard: CardId = w.probes.ch1.tip?.startsWith('c2') ? 'c2' : 'c1'
   const annotations: Annotation[] =
-    partieB && annoter && s.session.mode === 'entrainement' ? r.zones[annotCard].map((z) => ({ ...z, period: r.window[1] - r.window[0] })) : []
+    partieB && annoter && entrainement ? r.zones[annotCard].map((z) => ({ ...z, period: r.window[1] - r.window[0] })) : []
   const toggle = 'min-h-10 rounded-lg px-3 ring-1'
   const on = (b: boolean) => (b ? 'bg-white text-black ring-white' : 'ring-white/20 hover:bg-white/10')
 
@@ -113,17 +115,33 @@ export default function Banc() {
           <button type="button" role="radio" aria-checked={partieB} onClick={() => partieB || dispatch({ type: 'activity', activity: 'reseau' })} className={`${toggle} ${on(partieB)}`}>
             Partie B — réseau Modbus
           </button>
-          {partieB && (
+          {partieB && entrainement && (
             <>
               <button type="button" aria-pressed={parasite} onClick={() => setParasite(!parasite)} className={`${toggle} ${on(parasite)}`}>
                 Parasite de mode commun
               </button>
-              {s.session.mode === 'entrainement' && (
-                <button type="button" aria-pressed={annoter} onClick={() => setAnnoter(!annoter)} className={`${toggle} ${on(annoter)}`}>
-                  Annotations
-                </button>
-              )}
+              <button type="button" aria-pressed={annoter} onClick={() => setAnnoter(!annoter)} className={`${toggle} ${on(annoter)}`}>
+                Annotations
+              </button>
+              <button
+                type="button"
+                aria-pressed={!s.reglages.polarisation}
+                onClick={() => dispatch({ type: 'reglage', patch: { polarisation: !s.reglages.polarisation } })}
+                className={`${toggle} ${on(!s.reglages.polarisation)}`}
+              >
+                Polarisation absente
+              </button>
+              <button
+                type="button"
+                aria-pressed={!s.reglages.terminaison}
+                onClick={() => dispatch({ type: 'reglage', patch: { terminaison: !s.reglages.terminaison } })}
+                className={`${toggle} ${on(!s.reglages.terminaison)}`}
+              >
+                Terminaison absente
+              </button>
               {parasite && <UnverifiedBadge deps={['parasiteAmplitude']} />}
+              {!s.reglages.polarisation && <UnverifiedBadge deps={['bruitSansPolarisation', 'rs485SansPolarisation']} />}
+              {!s.reglages.terminaison && <UnverifiedBadge deps={['terminaisonRebond']} />}
             </>
           )}
         </div>
@@ -174,7 +192,8 @@ export default function Banc() {
           )}
           {s.notice && <p className="text-red-300">{s.notice}</p>}
           {s.check?.ok && !s.bus.active && <p className="text-emerald-300">Câblage vérifié : lancez le programme depuis la console du PC n°1.</p>}
-          {s.check && !s.check.ok && (
+          {s.check && !s.check.ok && !entrainement && <p className="text-amber-300">Câblage non conforme.</p>}
+          {s.check && !s.check.ok && entrainement && (
             <ul className="list-inside list-disc text-amber-300">
               {s.check.errors.map((e) => (
                 <li key={e}>{e}</li>

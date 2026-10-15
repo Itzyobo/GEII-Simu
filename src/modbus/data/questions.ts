@@ -5,8 +5,10 @@
  */
 import { HYPOTHESES, REF, type Hyp, type RefKey } from './reference'
 import type { AttenduId } from './attendus'
+import { COURS } from './cours'
 
-export type Section = '2.1' | '2.2' | '2.3' | '2.4' | '3.1' | '3.2 a' | '3.2 b' | '3.2 c' | '3.2 d'
+/** Sections de l'énoncé, plus « cours » pour le quiz (hors énoncé) */
+export type Section = '2.1' | '2.2' | '2.3' | '2.4' | '3.1' | '3.2 a' | '3.2 b' | '3.2 c' | '3.2 d' | 'cours'
 
 export interface Question {
   id: string
@@ -149,6 +151,9 @@ export const QUESTIONS: Question[] = DEFS.map(([id, section, intitule, attendus,
 
 export const SECTIONS: Section[] = ['2.1', '2.2', '2.3', '2.4', '3.1', '3.2 a', '3.2 b', '3.2 c', '3.2 d']
 
+/** Quiz de cours vu comme des questions, pour la couverture des attendus (impédance, longueur de câble) */
+export const QUESTIONS_COURS: Question[] = COURS.map((c) => ({ id: c.id, section: 'cours', intitule: c.enonce, attendus: [c.attendu], deps: c.deps, statut: 'implémentée' }))
+
 /** Hypothèses dont dépend la réponse : non vide → badge « valeur non vérifiée ». */
 export function unverifiedOf(deps: readonly RefKey[]): { hyp: Hyp; text: string }[] {
   const hyps = new Set<Hyp>()
@@ -162,7 +167,7 @@ export function unverifiedOf(deps: readonly RefKey[]): { hyp: Hyp; text: string 
 export const hasUnverified = (q: Pick<Question, 'deps'>) => unverifiedOf(q.deps).length > 0
 
 /** Couverture d'un attendu : questions reliées, et s'il en existe au moins une implémentée. */
-export function coverage(attendu: AttenduId, questions: readonly Question[] = QUESTIONS) {
+export function coverage(attendu: AttenduId, questions: readonly Question[] = [...QUESTIONS, ...QUESTIONS_COURS]) {
   const linked = questions.filter((q) => q.attendus.includes(attendu))
   return { linked, covered: linked.some((q) => q.statut === 'implémentée') }
 }

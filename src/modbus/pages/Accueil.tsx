@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { ATTENDUS, RESTE } from '../data/attendus'
+import { ATTENDUS } from '../data/attendus'
 import { coverage } from '../data/questions'
 
 /** Accueil : les attendus du partiel (PRD §1), reliés aux questions qui les couvrent. */
@@ -25,7 +25,6 @@ export default function Accueil() {
           <tbody>
             {ATTENDUS.map((a) => {
               const { linked, covered } = coverage(a.id)
-              const partiel = covered ? RESTE[a.id] : undefined
               return (
                 <tr key={a.id} className="border-t border-line align-top">
                   <td className="px-3 py-2 font-medium">{a.text}</td>
@@ -37,10 +36,11 @@ export default function Accueil() {
                         {linked.length} question{linked.length > 1 ? 's' : ''} :{' '}
                         {[...new Set(linked.map((q) => q.section))].map((sec, k) => {
                           const qs = linked.filter((q) => q.section === sec)
+                          const page = sec === 'cours' ? 'cours' : 'questions'
                           return (
                             <span key={sec}>
                               {k > 0 && ', '}
-                              <Link to={`/modbus/questions#${qs[0]?.id}`} className="underline-offset-2 hover:underline">
+                              <Link to={`/modbus/${page}#${qs[0]?.id}`} className="underline-offset-2 hover:underline">
                                 {sec}
                               </Link>
                               {qs.length > 1 && ` (${qs.length})`}
@@ -51,13 +51,7 @@ export default function Accueil() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <span
-                      title={partiel}
-                      className={`rounded-md px-2 py-0.5 text-xs font-semibold ${partiel ? 'bg-warn/15 text-warn' : covered ? 'bg-ok/15 text-ok' : 'bg-err/10 text-err'}`}
-                    >
-                      {partiel ? 'partiellement couvert' : covered ? 'couvert' : 'non couvert'}
-                    </span>
-                    {partiel && <p className="mt-1 text-xs text-muted">reste : {partiel}</p>}
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${covered ? 'bg-ok/15 text-ok' : 'bg-err/10 text-err'}`}>{covered ? 'couvert' : 'non couvert'}</span>
                   </td>
                 </tr>
               )
@@ -66,12 +60,14 @@ export default function Accueil() {
         </table>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[
-          ['/modbus/banc', 'Banc', 'Oscilloscope, cartes d’interface, PC avec SERIE_1 à SERIE_3 et RealTerm. Posez les sondes, faites vérifier, lancez le programme.'],
-          ['/modbus/logiciel', 'Logiciel MODBUS', 'SERVEUR JBUS/MODBUS : menus, Configuration Maître, trames mémorisées.'],
-          ['/modbus/questions', 'Questions', 'Toutes les questions de l’énoncé, par section ; 2.1 à 2.4 corrigées.'],
+          ['/modbus/banc', 'Banc', 'Oscilloscope, cartes d’interface, pupitre, PC avec SERIE_1 à SERIE_3, RealTerm et le logiciel MODBUS.'],
+          ['/modbus/logiciel', 'Logiciel MODBUS', 'SERVEUR JBUS/MODBUS des deux PC : Analyseur, Maître, Parcours Réseau.'],
+          ['/modbus/questions', 'Questions', 'Toutes les questions de l’énoncé (2.1 à 3.2 d), corrigées par les modèles.'],
           ['/modbus/exercices', 'Message codé', 'Chronogrammes tirés au sort à décoder : débit, format, message. Correction bit par bit.'],
+          ['/modbus/cours', 'Cours', 'Quiz : haute impédance, terminaison, polarisation, RS232 contre RS485, longueur de câble.'],
+          ['/modbus/partiel', 'Mode partiel', 'Sujet tiré au sort, chronométré, sans indice ; note par attendu et correction complète.'],
         ].map(([to, title, text]) => (
           <Link key={to} to={to!} className="group rounded-card bg-card p-5 ring-1 ring-line transition hover:ring-accent">
             <h2 className="font-semibold group-hover:text-accent">{title}</h2>

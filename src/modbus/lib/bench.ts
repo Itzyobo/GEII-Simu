@@ -24,11 +24,14 @@ export function programmeOf(s: State): Programme | null {
 
 const I = REF.parcoursIntervalle.value
 
+/** Avance de la fenêtre sur le créneau : la prise de ligne (H33) qui précède la requête reste à l'écran */
+const AVANT_CRENEAU = 1e-3
+
 /** Créneau de 201,4 ms en cours, calé sur le premier maître : c'est ce que l'oscilloscope affiche en boucle. */
 export function fenetre(s: State): [number, number] {
   const e = emetteurs(s)[0]
   const phase = e ? (e.parcours?.debut ?? e.memStart) : 0
-  const w0 = phase + Math.floor((s.sim.t - phase) / I) * I
+  const w0 = phase + Math.floor((s.sim.t - phase) / I) * I - AVANT_CRENEAU
   return [w0, w0 + I]
 }
 
@@ -48,7 +51,7 @@ export function reseau(s: State, parasite = false): Reseau {
   return {
     frames,
     window: [w0, w1],
-    lines: per((c) => rs485Lines(frames, c, w0, w1, { parasite, connected: s.wiring.db9[c], polarisation: s.reglages.polarisation })),
+    lines: per((c) => rs485Lines(frames, c, w0, w1, { parasite, connected: s.wiring.db9[c], ...s.reglages })),
     zones: per((c) => busZones(frames, c, w0, w1, s.wiring.db9[c])),
   }
 }

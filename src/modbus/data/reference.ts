@@ -129,6 +129,35 @@ export const REF = {
   rs485SansPolarisation: ref({ value: 2.5, unit: 'V', source: 'hypothèse', hyp: 'H9', note: 'réglage « polarisation absente » : les deux fils au même potentiel' }),
   rs485Seuil: ref({ value: 0.2, unit: 'V', source: 'cours', note: 'EIA-485 : sensibilité du récepteur ± 200 mV ; en deçà, bit indéterminé' }),
   rs485Conflit: ref({ value: 0.05, unit: 'V', source: 'hypothèse', hyp: 'H39', note: 'différentiel quand deux drivers imposent des bits opposés (|V| < 200 mV)' }),
+  terminaisonRebond: ref({
+    value: { amplitude: 0.3, periode: 2e-6, oscillations: 3 },
+    source: 'hypothèse',
+    hyp: 'H49',
+    note: 'sans terminaison : rebond après chaque front, 30 % de l’excursion, pseudo-période 2 µs, amorti en 3 oscillations (illustration qualitative)',
+  }),
+  bruitSansPolarisation: ref({ value: 20e-3, unit: 's', source: 'hypothèse', hyp: 'H50', note: 'sans polarisation, la ligne flottante change d’état au hasard toutes les 20 ms en moyenne' }),
+
+  /* ───────────────────────────── Cours : normes RS232 et RS485 ───────────────────────────── */
+
+  rs232Longueur: ref({ value: 15, unit: 'm', source: 'cours', note: 'RS232 (EIA/TIA-232) : longueur usuelle maximale' }),
+  rs232Capacite: ref({ value: 2500e-12, unit: 'F', source: 'cours', note: 'RS232 : capacité de câble maximale, qui fixe la longueur' }),
+  rs232Liaison: ref({ value: 'point à point, référencée à la masse, full duplex', source: 'cours', note: 'RS232 : TXD et RXD séparés, une masse commune' }),
+  rs485Longueur: ref({ value: 1200, unit: 'm', source: 'cours', note: 'RS485 (EIA-485) : longueur maximale à bas débit' }),
+  rs485DebitLongueurMax: ref({ value: 100e3, unit: 'bit/s', source: 'cours', note: 'RS485 : 1 200 m jusqu’à 100 kbit/s ; au-delà, la longueur admissible baisse quand le débit monte' }),
+  rs485Charges: ref({ value: 32, source: 'cours', note: 'RS485 : 32 charges unitaires sur une paire' }),
+  rs485Liaison: ref({ value: 'différentielle, multipoint, half duplex sur 2 fils (d’où TX_EN)', source: 'cours', note: 'RS485 à 2 fils' }),
+  terminaisonOhms: ref({ value: 120, unit: 'Ω', source: 'cours', note: 'résistance à chaque extrémité de la paire, égale à son impédance caractéristique : supprime les réflexions' }),
+  polarisationRole: ref({ value: 'fixe un état de repos stable (1) quand aucun driver ne pilote', source: 'cours', note: 'polarisation, ou failsafe, de la paire RS485' }),
+
+  /* ───────────────────────────── Mode partiel ───────────────────────────── */
+
+  partielDuree: ref({ value: 30 * 60, unit: 's', source: 'hypothèse', hyp: 'H51', note: 'durée par défaut, réglable' }),
+  partielBareme: ref({
+    value: { question: 1, cablage: 1, penalite: 0.5 },
+    source: 'hypothèse',
+    hyp: 'H52',
+    note: '1 point par question ; câblage : 1 point au 1er essai, ½ au 2e, 0 ensuite ; −0,5 point par manipulation pendant une émission',
+  }),
   rs485Convention: ref({ value: 'TX+ > TX− ⇔ 1 logique', source: 'hypothèse', hyp: 'H34', note: 'repos (1) : TX+ haut, TX− bas' }),
   parcoursIntervalle: ref({
     value: 0.2014,
@@ -269,6 +298,7 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H24: { text: 'Configuration Maître s’ouvre sur la fonction 1, première de la liste (valeur par défaut non photographiée).' },
   H25: { text: 'Réglages initiaux de l’écran : déclenchement 4 div à gauche du centre, curseurs X à 2 et 4 div du bord gauche.' },
   H26: { text: 'Une acquisition affichée toutes les 150 ms ; en Auto sans déclenchement, la trace avance de 0,17 écran par acquisition.' },
+  H27: { text: 'Supprimée : niveaux TTL 0 V / 5 V sourcés par le CR (« Vcc = 5 V » et tableau du binôme « TTL : 5 V »).', resolue: true },
   H28: { text: 'SERIE_2 demande l’octet à émettre comme SERIE_1 : l’énoncé dit « Réaliser les mêmes opérations que précédemment ».' },
   H29: {
     text: 'Générateur « message codé » : 1 200 à 19 200 bauds, 7 ou 8 bits, sans parité / paire / impaire, 1 stop ; 3 à 8 caractères (lettres, chiffres, espace) ; RS232 une fois sur deux à partir du niveau 2 ; 2 V/div en TTL, 5 V/div en RS232 ; un bit couvre au moins 1,5 div.',
@@ -300,4 +330,8 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H46: { text: 'Libellés du « Détail Trame » pour les requêtes et les réponses 06 et 16 reconstitués sur le modèle de la photo (réponse 03/04 et exception lues sur les photos).' },
   H47: { text: 'OTB : les fonctions 06 et 16 n’acceptent que les registres 100 à 102 (sorties TOR et analogiques) ; tout autre registre → exception 02.' },
   H48: { text: 'Vitesse (≠ 0008) ou parité (≠ 0001) réécrite dans un module : écho, puis le module ne comprend plus le bus et reste muet jusqu’à « Réinitialiser le pupitre ».' },
+  H49: { text: 'Terminaison absente : rebond après chaque front de TX+ et TX−, 30 % de l’excursion, pseudo-période 2 µs, amorti en 3 oscillations (illustration qualitative, non mesurée).' },
+  H50: { text: 'Polarisation absente : la ligne flottante change d’état au hasard toutes les 20 ms en moyenne ; le récepteur y lit des caractères parasites.' },
+  H51: { text: 'Mode partiel : 30 minutes par défaut (réglable).' },
+  H52: { text: 'Barème du partiel : 1 point par question ; câblage 1 point au 1er « Faire vérifier » réussi, ½ au 2e, 0 ensuite ; −0,5 point par manipulation pendant une émission.' },
 }
