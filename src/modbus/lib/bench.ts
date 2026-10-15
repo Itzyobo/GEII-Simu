@@ -1,28 +1,34 @@
-/** Ce que voit chaque point de test du banc, selon l'état du store (étape 1 : signal de démonstration seul). */
+/** Ce que voit chaque point de test du banc, selon le programme lancé sur le PC n°1. */
 import { REF } from '../data/reference'
-import { constant, uartFrame, uartWaveform, type Level, type Waveform } from '../models/uart'
+import { programmeWave, serie1, serie2, serie3, type Programme } from '../models/serie'
+import { constant, type Waveform } from '../models/uart'
 import type { ProbePoint, State } from './store'
 
-const SERIE1 = { dataBits: REF.serie1DataBits.value, parity: REF.serie1Parity.value, stopBits: REF.serie1StopBits.value }
-
-/** Octet du signal de démonstration (SERIE_1, relevé 2.1). */
-export const DEMO_BYTE = 0x55
-
-/** 55H en 8O1 au débit de SERIE_1, suivi de repos jusqu'à sa répétition (H22). */
-export function demoWave(level: Level): Waveform {
-  const bits = uartFrame(DEMO_BYTE, SERIE1)
-  return uartWaveform(bits, { baud: REF.serie1Baud.value, level }, 0, REF.serie1Repetition.value - bits.length / REF.serie1Baud.value)
+/** Programme de l'activité (lancé ou non) ; null si SERIE_2 n'a pas encore de format de session. */
+export function programmeOf(s: State): Programme | null {
+  switch (s.session.activity) {
+    case 'serie1':
+      return serie1(s.octets.serie1)
+    case 'serie2':
+      return s.serie2.graine === null ? null : serie2(s.serie2.graine, s.octets.serie2, s.serie2.reel)
+    case 'serie3':
+    case 'realterm':
+      return serie3()
+  }
 }
 
-/** Signal au point de test ; la carte 1 n'émet que si une émission est lancée et le commutateur sur « contrôle de flux » (H18). */
+/** Programme qui émet réellement : lancé, et commutateur de la carte 1 sur « contrôle de flux » (H18). */
+export const emitting = (s: State): Programme | null => (s.bus.active && s.wiring.flow.c1 ? programmeOf(s) : null)
+
+/** Signal au point de test ; seule la carte 1 (PC n°1) émet. */
 export function signalAt(p: ProbePoint, s: State): Waveform {
   const [card, tp] = p.split('.')
-  const emits = s.bus.active && card === 'c1' && s.wiring.flow.c1
+  const prog = card === 'c1' ? emitting(s) : null
   switch (tp) {
     case 'TXD_TTL':
-      return emits ? demoWave('TTL') : constant(REF.ttlHigh.value)
+      return prog ? programmeWave(prog, 'TTL') : constant(REF.ttlHigh.value)
     case 'TXD_RS232':
-      return emits ? demoWave('RS232') : constant(REF.rs232Low.value)
+      return prog ? programmeWave(prog, 'RS232') : constant(REF.rs232Low.value)
     case 'TX+':
     case 'TX-':
       return constant(REF.rs485Idle.value)

@@ -176,6 +176,10 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 25. H25 — Réglages initiaux de l'écran : déclenchement 4 div à gauche du centre, curseurs X à 2 et 4 div.
 26. H26 — Une acquisition affichée toutes les 150 ms ; en Auto sans déclenchement, la trace avance de 0,17 écran par acquisition.
 27. H27 — Niveaux TTL 0 V / 5 V : ni écrits dans l'énoncé, ni mesurés.
+28. H28 — SERIE\_2 demande l'octet à émettre comme SERIE\_1 (« Réaliser les mêmes opérations que précédemment »).
+29. H29 — Générateur « message codé » : 1 200 à 19 200 bauds, 7 ou 8 bits, sans parité / paire / impaire, 1 stop ; 3 à 8 caractères (lettres, chiffres, espace) ; RS232 une fois sur deux à partir du niveau 2 ; 2 V/div en TTL, 5 V/div en RS232 ; un bit couvre au moins 1,5 div.
+30. H30 — Correction : débit accepté à ± 10 %, tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d'un bit.
+31. H31 — RealTerm réduit : ports COM1 et COM2 (seul COM1 relié), débits 1 200 à 19 200 bauds, ouverture en 9 600 bauds 8N1.
 
 ## 4. Modèles de simulation
 

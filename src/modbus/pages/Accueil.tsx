@@ -59,11 +59,12 @@ export default function Accueil() {
         </table>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ['/modbus/banc', 'Banc', 'Oscilloscope, cartes d’interface et pupitre. Posez les sondes, faites vérifier, lancez l’émission.'],
+          ['/modbus/banc', 'Banc', 'Oscilloscope, cartes d’interface, PC avec SERIE_1 à SERIE_3 et RealTerm. Posez les sondes, faites vérifier, lancez le programme.'],
           ['/modbus/logiciel', 'Logiciel MODBUS', 'SERVEUR JBUS/MODBUS : menus, Configuration Maître, trames mémorisées.'],
-          ['/modbus/questions', 'Questions', 'Toutes les questions de l’énoncé, par section.'],
+          ['/modbus/questions', 'Questions', 'Toutes les questions de l’énoncé, par section ; 2.1 à 2.4 corrigées.'],
+          ['/modbus/exercices', 'Message codé', 'Chronogrammes tirés au sort à décoder : débit, format, message. Correction bit par bit.'],
         ].map(([to, title, text]) => (
           <Link key={to} to={to!} className="group rounded-card bg-card p-5 ring-1 ring-line transition hover:ring-accent">
             <h2 className="font-semibold group-hover:text-accent">{title}</h2>

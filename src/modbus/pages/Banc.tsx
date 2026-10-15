@@ -5,8 +5,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { REF } from '../data/reference'
-import { DEMO_BYTE, signalAt } from '../lib/bench'
-import { dispatch, pointLabel, useStore, type CardId, type ChId, type TestPoint } from '../lib/store'
+import { signalAt } from '../lib/bench'
+import { ACTIVITY_LABEL, dispatch, pointLabel, useStore, type CardId, type ChId, type TestPoint } from '../lib/store'
+import type { CableSerie } from '../models/serie'
+import ConsoleSerie from '../components/ConsoleSerie'
+import RealTerm from '../components/RealTerm'
 import type { ProbeInput, ScopeSettings } from '../models/scope'
 import InterfaceCard from '../components/InterfaceCard'
 import Oscilloscope from '../components/Oscilloscope'
@@ -42,7 +45,8 @@ const ZONES = [
 ] as const
 type Zone = (typeof ZONES)[number][0]
 
-const hex2 = (b: number) => b.toString(16).toUpperCase().padStart(2, '0')
+/** Clic sur le DB9 « vers autre carte » : aucun câble → croisé → droit → aucun */
+const NEXT_CABLE: Record<'aucun' | CableSerie, CableSerie | null> = { aucun: 'croisé', croisé: 'droit', droit: null }
 
 export default function Banc() {
   const s = useStore()
@@ -104,24 +108,15 @@ export default function Banc() {
           ))}
           <span className="flex-1" />
           <button type="button" onClick={() => dispatch({ type: 'verify' })} disabled={s.bus.active} className="min-h-10 rounded-lg bg-sky-600 px-4 font-semibold disabled:opacity-40">
-            Faire vérifier
+            Faire vérifier ({ACTIVITY_LABEL[s.session.activity]})
           </button>
-          {s.bus.active ? (
-            <button type="button" onClick={() => dispatch({ type: 'stopEmission' })} className="min-h-10 rounded-lg bg-red-600 px-4 font-semibold">
-              Arrêter l’émission
-            </button>
-          ) : (
-            <button type="button" onClick={() => dispatch({ type: 'startEmission' })} className="min-h-10 rounded-lg bg-emerald-600 px-4 font-semibold">
-              Lancer l’émission ({hex2(DEMO_BYTE)}H)
-            </button>
-          )}
         </div>
 
         {/* Retour de vérification, refus, incidents */}
         <div className="mt-2 space-y-1 text-sm" aria-live="polite">
-          {s.bus.active && <p className="text-emerald-300">● Bus actif : carte 1 émet {hex2(DEMO_BYTE)}H en boucle. Ne débranchez rien.</p>}
+          {s.bus.active && <p className="text-emerald-300">● {ACTIVITY_LABEL[s.session.activity]} tourne sur le PC n°1. Ne débranchez rien.</p>}
           {s.notice && <p className="text-red-300">{s.notice}</p>}
-          {s.check?.ok && !s.bus.active && <p className="text-emerald-300">Câblage vérifié : vous pouvez lancer l’émission.</p>}
+          {s.check?.ok && !s.bus.active && <p className="text-emerald-300">Câblage vérifié : lancez le programme depuis la console du PC n°1.</p>}
           {s.check && !s.check.ok && (
             <ul className="list-inside list-disc text-amber-300">
               {s.check.errors.map((e) => (
@@ -133,7 +128,7 @@ export default function Banc() {
           <p className="text-neutral-400">
             Ch1 : {w.probes.ch1.tip ? pointLabel(w.probes.ch1.tip) : 'en l’air'}
             {w.probes.ch1.ground ? ', masse reliée' : ''} · Ch2 : {w.probes.ch2.tip ? pointLabel(w.probes.ch2.tip) : 'en l’air'}
-            {w.probes.ch2.ground ? ', masse reliée' : ''} · incidents : {s.incidents.length}
+            {w.probes.ch2.ground ? ', masse reliée' : ''} · câble série : {w.serialCable ?? 'aucun'} · incidents : {s.incidents.length}
           </p>
         </div>
 
@@ -147,23 +142,21 @@ export default function Banc() {
         </div>
 
         <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,1.1fr)]">
-          {/* PC + écran */}
-          <section className={`${hidden('pc')} md:col-span-2 xl:col-span-1`} aria-label="PC">
+          {/* PC n°1 (console SERIE) et PC n°2 (RealTerm, 2.4) */}
+          <section className={`${hidden('pc')} space-y-3 md:col-span-2 xl:col-span-1`} aria-label="PC">
             <div className="rounded-xl bg-[#1b1d20] p-3 ring-1 ring-white/10">
-              <div className="rounded-md border-8 border-[#111] bg-[#008080] p-3">
-                <div className="rounded-sm bg-[#c0c0c0] p-2 text-[12px] text-black">
-                  <p className="bg-gradient-to-r from-[#000080] to-[#1084d0] px-1 font-bold text-white">SERVEUR JBUS/MODBUS</p>
-                  <p className="mt-2">
-                    Rôle : {s.software.role} · {s.software.memorized.length} trame(s) mémorisée(s)
-                  </p>
-                  <Link to="/modbus/logiciel" className="mt-2 inline-block border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] px-3 py-1">
-                    Ouvrir le logiciel
-                  </Link>
-                </div>
-              </div>
-              <div className="mx-auto h-4 w-20 bg-[#111]" />
-              <div className="mx-auto h-2 w-36 rounded-t bg-[#111]" />
-              <p className="mt-2 text-xs text-neutral-400">PC 1 relié à la carte 1 (COM1). RealTerm arrive à l’étape 2.</p>
+              <p className="mb-2 text-xs font-semibold text-neutral-300">PC n°1 · COM1 → carte 1</p>
+              <ConsoleSerie />
+              <p className="mt-2 text-xs text-neutral-400">
+                SERVEUR JBUS/MODBUS : rôle {s.software.role}, {s.software.memorized.length} trame(s) mémorisée(s) ·{' '}
+                <Link to="/modbus/logiciel" className="underline">
+                  ouvrir le logiciel
+                </Link>
+              </p>
+            </div>
+            <div className="rounded-xl bg-[#1b1d20] p-3 ring-1 ring-white/10">
+              <p className="mb-2 text-xs font-semibold text-neutral-300">PC n°2 · COM1 → carte 2</p>
+              <RealTerm />
             </div>
           </section>
 
@@ -182,7 +175,7 @@ export default function Banc() {
                   onPoint={onPoint(card)}
                   onGround={onGround(card)}
                   onFlow={() => dispatch({ type: 'flow', card, on: !w.flow[card] })}
-                  onSerial={() => dispatch({ type: 'serialCable', on: !w.serialCable })}
+                  onSerial={() => dispatch({ type: 'serialCable', cable: NEXT_CABLE[w.serialCable ?? 'aucun'] })}
                   onDb9={() => dispatch({ type: 'db9', card, on: !w.db9[card] })}
                 />
               </div>

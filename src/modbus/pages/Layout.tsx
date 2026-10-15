@@ -5,6 +5,8 @@ const NAV = [
   ['/modbus/banc', 'Banc'],
   ['/modbus/logiciel', 'Logiciel MODBUS'],
   ['/modbus/questions', 'Questions'],
+  ['/modbus/exercices', 'Message codé'],
+  ['/modbus/reglages', 'Réglages'],
 ] as const
 
 export default function Layout() {

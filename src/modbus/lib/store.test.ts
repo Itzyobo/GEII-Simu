@@ -30,7 +30,7 @@ describe('verrouillage « bus actif »', () => {
   })
   it('modifier le câblage annule la vérification ; les essais sont comptés', () => {
     const s = run(...WIRED, { type: 'verify' }, { type: 'probe', ch: 'ch2', tip: 'c1.TX_EN' }, { type: 'verify' })
-    expect(s.verifyAttempts.demo).toBe(2)
+    expect(s.verifyAttempts.serie1).toBe(2)
     expect(reduce(s, { type: 'probe', ch: 'ch2', tip: null }).check).toBeNull()
   })
 })
@@ -48,5 +48,20 @@ describe('persistance', () => {
     }
     expect(() => save(s, { getItem: fail, setItem: fail })).not.toThrow()
     expect(load({ getItem: fail, setItem: fail })).toEqual(initialState())
+  })
+})
+
+describe('partie A', () => {
+  it('graine de SERIE_2 fixée pour la session ; changement de programme refusé pendant une émission', () => {
+    let s = run({ type: 'activity', activity: 'serie2' }, { type: 'serie2Graine', graine: 1 }, { type: 'serie2Graine', graine: 2 })
+    expect(s.serie2.graine).toBe(1)
+    s = [...WIRED, { type: 'verify' } as Action, { type: 'startEmission' } as Action, { type: 'activity', activity: 'serie3' } as Action].reduce(reduce, s)
+    expect(s.bus.active).toBe(true)
+    expect(s.session.activity).toBe('serie2')
+  })
+  it('2.4 : câble requis, mais un câble droit passe la vérification (erreur à constater dans RealTerm)', () => {
+    const base: Action[] = [{ type: 'activity', activity: 'realterm' }, { type: 'flow', card: 'c1', on: true }, { type: 'flow', card: 'c2', on: true }]
+    expect(run(...base, { type: 'verify' }).check?.ok).toBe(false)
+    expect(run(...base, { type: 'serialCable', cable: 'droit' }, { type: 'verify' }).check?.ok).toBe(true)
   })
 })

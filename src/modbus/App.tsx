@@ -4,6 +4,8 @@ import Accueil from './pages/Accueil'
 import Banc from './pages/Banc'
 import Logiciel from './pages/Logiciel'
 import Questions from './pages/Questions'
+import Exercices from './pages/Exercices'
+import Reglages from './pages/Reglages'
 
 /** Simulateur TP2, monté sur /modbus/* (chargé à la demande depuis main.tsx). */
 export default function ModbusApp() {
@@ -14,6 +16,8 @@ export default function ModbusApp() {
         <Route path="banc" element={<Banc />} />
         <Route path="logiciel" element={<Logiciel />} />
         <Route path="questions" element={<Questions />} />
+        <Route path="exercices" element={<Exercices />} />
+        <Route path="reglages" element={<Reglages />} />
         <Route path="*" element={<Accueil />} />
       </Route>
     </Routes>

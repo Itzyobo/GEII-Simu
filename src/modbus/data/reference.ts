@@ -40,9 +40,16 @@ export const REF = {
     note: 'mesure Freq : 1,1899 kHz sur le signal alterné, soit 420 µs par bit (H2 résolue) ; modèle 416,7 µs par bit',
   }),
   serie1FreqMesuree: ref({ value: 1189.9, unit: 'Hz', source: 'CR', note: 'fréquencemètre de l’oscilloscope, signal alterné de 55H' }),
-  serie1Repetition: ref({ value: 100e-3, unit: 's', source: 'hypothèse', hyp: 'H22', note: 'caractère suivi de repos jusqu’à sa répétition' }),
+  serie1Repetition: ref({ value: 100e-3, unit: 's', source: 'hypothèse', hyp: 'H22', note: 'SERIE_1 et SERIE_2 : caractère suivi de repos jusqu’à sa répétition' }),
   serie1Duree11Bits: ref({ value: 4.84e-3, unit: 's', source: 'CR', note: '= 11 × 440 µs, pas une mesure indépendante (modèle : 4,58 ms)' }),
   serie2Format: ref({ value: 'inconnu', source: 'hypothèse', hyp: 'H3' }),
+  serie2Candidats: ref({
+    value: { bauds: [1200, 2400, 4800, 9600], dataBits: [7, 8] as const, parities: ['none', 'even', 'odd'] as Parity[], stopBits: 1 as const },
+    source: 'hypothèse',
+    hyp: 'H3',
+    note: 'format tiré au sort une fois par session',
+  }),
+  serie2SaisieOctet: ref({ value: true, source: 'hypothèse', hyp: 'H28', note: 'SERIE_2 demande l’octet comme SERIE_1 (« mêmes opérations que précédemment »)' }),
   serie3Baud: ref({ value: 4800, unit: 'baud', source: 'CR', note: 'confirmé par RealTerm' }),
   serie3DataBits: ref({ value: 7 as const, source: 'CR', note: 'confirmé par RealTerm' }),
   serie3Parity: ref({ value: 'odd' as Parity, source: 'CR', note: 'confirmé par RealTerm' }),
@@ -53,6 +60,15 @@ export const REF = {
     note: 'RealTerm + notes du binôme : 6C 79 6F 6E 20 31, avec une espace ; le CR écrivait « lyon1 »',
   }),
   serie3Repetition: ref({ value: 111e-3, unit: 's', source: 'CR', note: 'période de répétition du message entier, silence compris' }),
+  realtermPort: ref({ value: 'COM1', source: 'énoncé', note: '2.4 : « COM1, cadence de transfert, nombre de bits, parité, … »' }),
+  realtermPorts: ref({ value: ['COM1', 'COM2'], source: 'hypothèse', hyp: 'H31', note: 'ports proposés ; seul COM1 est relié à la carte' }),
+  realtermReglagesDefaut: ref({
+    value: { baud: 9600, dataBits: 8 as 7 | 8, parity: 'none' as Parity, stopBits: 1 as 1 | 2 },
+    source: 'hypothèse',
+    hyp: 'H31',
+    note: 'réglages de réception à l’ouverture de RealTerm',
+  }),
+  realtermBauds: ref({ value: [1200, 2400, 4800, 9600, 19200], source: 'hypothèse', hyp: 'H31', note: 'débits proposés dans RealTerm réduit' }),
   ttlLow: ref({ value: 0, unit: 'V', source: 'hypothèse', hyp: 'H27', note: 'repos haut' }),
   ttlHigh: ref({ value: 5, unit: 'V', source: 'hypothèse', hyp: 'H27' }),
   rs232High: ref({ value: 11.5, unit: 'V', source: 'CR', hyp: 'H5', note: 'Max mesuré 11,5 V (H5 résolue) ; niveau du 0 logique' }),
@@ -69,6 +85,23 @@ export const REF = {
   scopeCurseursInitiaux: ref({ value: { x1: 2, x2: 4 }, unit: 'div', source: 'hypothèse', hyp: 'H25', note: 'depuis le bord gauche' }),
   scopeRafraichissement: ref({ value: 0.15, unit: 's', source: 'hypothèse', hyp: 'H26', note: 'intervalle entre deux acquisitions affichées' }),
   scopeDefilement: ref({ value: 0.17, unit: 'écran', source: 'hypothèse', hyp: 'H26', note: 'avance de la trace par acquisition en Auto sans déclenchement' }),
+
+  /* ───────────────────────────── Générateur « message codé » et correction ───────────────────────────── */
+
+  exerciceFormats: ref({
+    value: { bauds: [1200, 2400, 4800, 9600, 19200], dataBits: [7, 8] as const, parities: ['none', 'even', 'odd'] as Parity[], stopBits: 1 as const },
+    source: 'hypothèse',
+    hyp: 'H29',
+  }),
+  exerciceLongueur: ref({ value: { 1: [3, 4], 2: [4, 6], 3: [6, 8] } as Record<1 | 2 | 3, [number, number]>, unit: 'caractères', source: 'hypothèse', hyp: 'H29' }),
+  exerciceRs232Des: ref({ value: 2 as const, source: 'hypothèse', hyp: 'H29', note: 'difficulté à partir de laquelle le niveau peut être RS232' }),
+  exerciceAlphabet: ref({ value: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', source: 'hypothèse', hyp: 'H29', note: 'lettres, chiffres, espace (pas en tête ni en fin)' }),
+  exerciceRepos: ref({ value: 2, unit: 'bits', source: 'hypothèse', hyp: 'H29', note: 'repos avant et après le message' }),
+  exerciceVoltDiv: ref({ value: { TTL: 2, RS232: 5 }, unit: 'V/div', source: 'hypothèse', hyp: 'H29' }),
+  exerciceBitMinDiv: ref({ value: 1.5, unit: 'div', source: 'hypothèse', hyp: 'H29', note: 'base de temps = plus grand calibre 1-2-5 tel qu’un bit couvre au moins 1,5 div' }),
+  toleranceDebit: ref({ value: 0.1, source: 'hypothèse', hyp: 'H30', note: 'écart relatif accepté sur le débit répondu' }),
+  toleranceTension: ref({ value: 0.05, source: 'hypothèse', hyp: 'H30', note: 'écart relatif accepté sur une tension répondue' }),
+  toleranceBaseDeTemps: ref({ value: 0.01, source: 'hypothèse', hyp: 'H30', note: 'réponse reconnue comme la base de temps de l’écran' }),
 
   /* ───────────────────────────── Modbus : liaison et oscilloscope ───────────────────────────── */
 
@@ -187,4 +220,10 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H25: { text: 'Réglages initiaux de l’écran : déclenchement 4 div à gauche du centre, curseurs X à 2 et 4 div du bord gauche.' },
   H26: { text: 'Une acquisition affichée toutes les 150 ms ; en Auto sans déclenchement, la trace avance de 0,17 écran par acquisition.' },
   H27: { text: 'Niveaux TTL 0 V / 5 V : ni écrits dans l’énoncé, ni mesurés au TP.' },
+  H28: { text: 'SERIE_2 demande l’octet à émettre comme SERIE_1 : l’énoncé dit « Réaliser les mêmes opérations que précédemment ».' },
+  H29: {
+    text: 'Générateur « message codé » : 1 200 à 19 200 bauds, 7 ou 8 bits, sans parité / paire / impaire, 1 stop ; 3 à 8 caractères (lettres, chiffres, espace) ; RS232 une fois sur deux à partir du niveau 2 ; 2 V/div en TTL, 5 V/div en RS232 ; un bit couvre au moins 1,5 div.',
+  },
+  H30: { text: 'Correction : débit accepté à ± 10 %, tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d’un bit.' },
+  H31: { text: 'RealTerm réduit : ports COM1 et COM2 proposés (seul COM1 relié à la carte) ; débits 1 200 à 19 200 bauds ; s’ouvre en 9 600 bauds, 8 bits, sans parité, 1 stop.' },
 }

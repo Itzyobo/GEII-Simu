@@ -73,8 +73,8 @@ export default function InterfaceCard({ card, wiring, onPoint, onGround, onFlow,
       </g>
 
       {/* DB9 vers l'autre carte */}
-      <g role="button" tabIndex={0} aria-label={`DB9 vers l'autre carte : ${wiring.serialCable ? 'câble branché' : 'débranché'}`} onClick={onSerial} onKeyDown={(e) => e.key === 'Enter' && onSerial()} className="cursor-pointer">
-        <Db9 x={170} y={200} label="vers autre carte" active={wiring.serialCable} />
+      <g role="button" tabIndex={0} aria-label={`DB9 vers l'autre carte : ${wiring.serialCable ? `câble ${wiring.serialCable} branché` : 'débranché'} (cliquer pour changer)`} onClick={onSerial} onKeyDown={(e) => e.key === 'Enter' && onSerial()} className="cursor-pointer">
+        <Db9 x={170} y={200} label={wiring.serialCable ? `câble ${wiring.serialCable}` : 'vers autre carte'} active={wiring.serialCable !== null} />
       </g>
 
       {/* Commutateur « contrôle de flux » (H18) */}

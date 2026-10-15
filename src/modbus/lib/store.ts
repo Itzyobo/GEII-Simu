@@ -4,9 +4,11 @@
  */
 import { useSyncExternalStore } from 'react'
 import { REF } from '../data/reference'
+import { realtermDefaut, type CableSerie, type RealtermSettings } from '../models/serie'
+import type { Liaison } from '../models/uart'
 
 export const STORAGE_KEY = 'tp2sim:v1'
-const VERSION = 1
+const VERSION = 2
 
 export type CardId = 'c1' | 'c2'
 export type TestPoint = 'TXD_TTL' | 'TXD_RS232' | 'TX+' | 'TX-' | 'TX_EN'
@@ -20,8 +22,8 @@ export interface Wiring {
   attenuation: Record<ChId, 1 | 10>
   /** Commutateur « contrôle de flux » de chaque carte */
   flow: Record<CardId, boolean>
-  /** Câble série entre les deux cartes (2.4) */
-  serialCable: boolean
+  /** Câble série entre les deux cartes (2.4) : null = débranché */
+  serialCable: CableSerie | null
   /** Câble DB9/bleu-vert de chaque carte vers le pupitre (partie 3) */
   db9: Record<CardId, boolean>
 }
@@ -33,8 +35,9 @@ export interface Incident {
   detail: string
 }
 
-/** Activité en cours : fixe le câblage attendu par « Faire vérifier ». */
-export type Activity = 'demo'
+/** Activité en cours : programme lancé sur le PC n°1, et câblage attendu par « Faire vérifier ». */
+export type Activity = 'serie1' | 'serie2' | 'serie3' | 'realterm'
+export const ACTIVITY_LABEL: Record<Activity, string> = { serie1: 'SERIE_1', serie2: 'SERIE_2', serie3: 'SERIE_3', realterm: 'SERIE_3 → RealTerm' }
 
 export interface State {
   version: typeof VERSION
@@ -50,16 +53,21 @@ export interface State {
   notice: string | null
   answers: Record<string, { value: string; attempts: number; correct: boolean }>
   software: { role: Role; memorized: number[][]; messages: string[] }
+  /** Octet saisi dans la console de SERIE_1 et SERIE_2 (H28) */
+  octets: { serie1: number; serie2: number }
+  /** Graine du format de SERIE_2, tirée au premier lancement et fixée pour la session (H3) ; vrai format saisi dans Réglages */
+  serie2: { graine: number | null; reel: Liaison | null }
+  realterm: RealtermSettings
 }
 
 export const initialState = (): State => ({
   version: VERSION,
-  session: { mode: 'entrainement', startedAt: null, activity: 'demo' },
+  session: { mode: 'entrainement', startedAt: null, activity: 'serie1' },
   wiring: {
     probes: { ch1: { tip: null, ground: null }, ch2: { tip: null, ground: null } },
     attenuation: { ch1: REF.scopeSerie1Probe.value, ch2: REF.scopeSerie1Probe.value },
     flow: { c1: false, c2: false },
-    serialCable: false,
+    serialCable: null,
     db9: { c1: false, c2: false },
   },
   check: null,
@@ -69,6 +77,9 @@ export const initialState = (): State => ({
   notice: null,
   answers: {},
   software: { role: 'Aucun', memorized: [], messages: [] },
+  octets: { serie1: 0x55, serie2: 0x55 },
+  serie2: { graine: null, reel: null },
+  realterm: realtermDefaut(),
 })
 
 export type Action =
@@ -76,7 +87,7 @@ export type Action =
   | { type: 'ground'; ch: ChId; card: CardId | null }
   | { type: 'attenuation'; ch: ChId; value: 1 | 10 }
   | { type: 'flow'; card: CardId; on: boolean }
-  | { type: 'serialCable'; on: boolean }
+  | { type: 'serialCable'; cable: CableSerie | null }
   | { type: 'db9'; card: CardId; on: boolean }
   | { type: 'verify' }
   | { type: 'startEmission' }
@@ -85,6 +96,12 @@ export type Action =
   | { type: 'memorize'; bytes: number[] }
   | { type: 'clearMemorized' }
   | { type: 'message'; text: string }
+  | { type: 'activity'; activity: Activity }
+  | { type: 'octet'; programme: 'serie1' | 'serie2'; value: number }
+  | { type: 'serie2Graine'; graine: number }
+  | { type: 'serie2Reel'; reel: Liaison | null }
+  | { type: 'realterm'; patch: Partial<RealtermSettings> }
+  | { type: 'answer'; key: string; value: string; correct: boolean }
   | { type: 'reset' }
 
 const POINT_LABEL: Record<TestPoint, string> = { TXD_TTL: 'TXD TTL', TXD_RS232: 'TXD RS232', 'TX+': 'TX+', 'TX-': 'TX−', TX_EN: 'TX_EN' }
@@ -96,13 +113,17 @@ export const pointLabel = (p: ProbePoint) => {
 /** Erreurs de câblage pour l'activité ; liste vide = câblage correct. */
 export function checkWiring(w: Wiring, activity: Activity): string[] {
   const errors: string[] = []
-  if (activity === 'demo') {
+  if (activity === 'realterm') {
+    // Le type de câble n'est pas contrôlé : un câble droit est une erreur de manip à constater dans RealTerm
+    if (!w.serialCable) errors.push('Aucun câble série entre les deux cartes.')
+    if (!w.flow.c2) errors.push('Commutateur de la carte 2 hors « contrôle de flux » (l’énoncé le demande sur les deux cartes).')
+  } else {
     const chans = (['ch1', 'ch2'] as const).filter((c) => w.probes[c].tip === 'c1.TXD_TTL' || w.probes[c].tip === 'c1.TXD_RS232')
     if (chans.length === 0) errors.push('Aucune sonde sur TXD TTL ou TXD RS232 de la carte 1.')
     for (const c of chans)
       if (w.probes[c].ground !== 'c1') errors.push(`Pince de masse de ${c === 'ch1' ? 'Ch1' : 'Ch2'} non reliée à la masse de la carte 1.`)
-    if (REF.controleFluxRequis.value && !w.flow.c1) errors.push('Commutateur de la carte 1 hors « contrôle de flux » : aucune émission (H18).')
   }
+  if (REF.controleFluxRequis.value && !w.flow.c1) errors.push('Commutateur de la carte 1 hors « contrôle de flux » : aucune émission (H18).')
   return errors
 }
 
@@ -136,8 +157,8 @@ export function reduce(s: State, a: Action): State {
       if (live) return incident(s, 'manip-bus-actif', 'commutateur « contrôle de flux » manœuvré pendant une émission')
       return rewire(s, { ...w, flow: { ...w.flow, [a.card]: a.on } })
     case 'serialCable':
-      if (live && !a.on) return incident(s, 'retrait-db9', 'câble série débranché pendant une émission')
-      return rewire(s, { ...w, serialCable: a.on })
+      if (live && w.serialCable && a.cable !== w.serialCable) return incident(s, 'retrait-db9', 'câble série débranché pendant une émission')
+      return rewire(s, { ...w, serialCable: a.cable })
     case 'db9':
       if (live && !a.on) return incident(s, 'retrait-db9', `DB9 de la carte ${a.card === 'c1' ? 1 : 2} débranché pendant une émission`)
       return rewire(s, { ...w, db9: { ...w.db9, [a.card]: a.on } })
@@ -149,6 +170,7 @@ export function reduce(s: State, a: Action): State {
     case 'startEmission':
       if (!s.check) return { ...s, notice: 'Refusé : faites vérifier le câblage avant de lancer une émission.' }
       if (!s.check.ok) return { ...s, notice: 'Refusé : le câblage vérifié comporte des erreurs.' }
+      if (s.session.activity === 'serie2' && s.serie2.graine === null) return { ...s, notice: 'Refusé : SERIE_2 n’a pas de format de session.' }
       return { ...s, bus: { active: true }, notice: null }
     case 'stopEmission':
       return { ...s, bus: { active: false }, notice: null }
@@ -160,6 +182,22 @@ export function reduce(s: State, a: Action): State {
       return { ...s, software: { ...s.software, memorized: [] } }
     case 'message':
       return { ...s, software: { ...s.software, messages: [...s.software.messages, a.text].slice(-50) } }
+    case 'activity':
+      if (live) return { ...s, notice: 'Refusé : arrêtez le programme en cours avant d’en lancer un autre.' }
+      return { ...s, session: { ...s.session, activity: a.activity }, check: null, notice: null }
+    case 'octet':
+      return { ...s, octets: { ...s.octets, [a.programme]: a.value & 0xff } }
+    case 'serie2Graine':
+      // Fixée pour la session : un second tirage n'écrase pas le premier
+      return s.serie2.graine === null ? { ...s, serie2: { ...s.serie2, graine: a.graine } } : s
+    case 'serie2Reel':
+      return { ...s, serie2: { ...s.serie2, reel: a.reel } }
+    case 'realterm':
+      return { ...s, realterm: { ...s.realterm, ...a.patch } }
+    case 'answer': {
+      const prev = s.answers[a.key]
+      return { ...s, answers: { ...s.answers, [a.key]: { value: a.value, attempts: (prev?.attempts ?? 0) + 1, correct: a.correct } } }
+    }
     case 'reset':
       return initialState()
   }
