@@ -11,7 +11,8 @@ export type Theme = 'impedance' | 'longueur' | 'rs'
 export interface QuestionCours {
   id: string
   theme: Theme
-  attendu: AttenduId
+  /** Ligne de la note du partiel : RS232 / RS485 comptent dans « Longueur de câble » */
+  attendu: Extract<AttenduId, 'impedance' | 'longueur'>
   enonce: string
   /** QCM : options ; sinon réponse numérique dans `unite` */
   options?: string[]
@@ -55,8 +56,8 @@ export const COURS: QuestionCours[] = [
     enonce: 'Valeur de la résistance de terminaison placée à chaque extrémité d’une paire RS485',
     unite: 'Ω',
     bonne: REF.terminaisonOhms.value,
-    justification: `${fr(REF.terminaisonOhms.value)} Ω, l’impédance caractéristique de la paire torsadée : l’onde arrivée en bout de ligne est absorbée au lieu d’être réfléchie.`,
-    deps: ['terminaisonOhms'],
+    justification: `${fr(REF.terminaisonOhms.value)} Ω, l’impédance caractéristique de la paire torsadée : l’onde arrivée en bout de ligne est absorbée au lieu d’être réfléchie. Chaque réflexion revient après un aller-retour, 2 × L × ${fr(REF.propagation.value * 1e9)} ns/m : négligeable au banc (≈ 20 ns pour quelques mètres, contre 26 µs par bit à 38 400 bauds), elle déforme les bits quand le câble est long.`,
+    deps: ['terminaisonOhms', 'propagation'],
   },
   {
     id: 'c-terminaison-place',
@@ -137,7 +138,7 @@ export const COURS: QuestionCours[] = [
   {
     id: 'c-charges',
     theme: 'rs',
-    attendu: 'autre',
+    attendu: 'longueur',
     enonce: 'Nombre de charges unitaires sur une même paire RS485',
     unite: 'charges',
     bonne: REF.rs485Charges.value,
@@ -147,7 +148,7 @@ export const COURS: QuestionCours[] = [
   {
     id: 'c-masse',
     theme: 'rs',
-    attendu: 'autre',
+    attendu: 'longueur',
     enonce: 'Quelle liaison transmet un niveau référencé à la masse ?',
     options: ['RS485', 'RS232'],
     bonne: 'RS232',
@@ -157,7 +158,7 @@ export const COURS: QuestionCours[] = [
   {
     id: 'c-multipoint',
     theme: 'rs',
-    attendu: 'autre',
+    attendu: 'longueur',
     enonce: 'Laquelle permet de relier plusieurs esclaves sur la même paire ?',
     options: ['RS232', 'RS485'],
     bonne: 'RS485',
@@ -167,7 +168,7 @@ export const COURS: QuestionCours[] = [
   {
     id: 'c-duplex',
     theme: 'rs',
-    attendu: 'autre',
+    attendu: 'longueur',
     enonce: 'Pourquoi la carte a-t-elle besoin de TX_EN en RS485 à 2 fils ?',
     options: ['pour alimenter le driver', 'pour choisir le débit', 'la même paire sert à émettre et à recevoir : half duplex'],
     bonne: 'la même paire sert à émettre et à recevoir : half duplex',
@@ -177,7 +178,7 @@ export const COURS: QuestionCours[] = [
   {
     id: 'c-differentiel',
     theme: 'rs',
-    attendu: 'autre',
+    attendu: 'longueur',
     enonce: 'Pourquoi RS485 résiste-t-il mieux aux parasites que RS232 ?',
     options: ['ses tensions sont plus élevées', 'le récepteur lit une différence : un parasite commun aux deux fils s’annule', 'son câble est plus court'],
     bonne: 'le récepteur lit une différence : un parasite commun aux deux fils s’annule',

@@ -141,7 +141,26 @@ export default function Banc() {
               </button>
               {parasite && <UnverifiedBadge deps={['parasiteAmplitude']} />}
               {!s.reglages.polarisation && <UnverifiedBadge deps={['bruitSansPolarisation', 'rs485SansPolarisation']} />}
-              {!s.reglages.terminaison && <UnverifiedBadge deps={['terminaisonRebond']} />}
+              {!s.reglages.terminaison && (
+                <>
+                  <UnverifiedBadge deps={['terminaisonRebond', 'busLongueur']} />
+                  <label className="flex items-center gap-2">
+                    Longueur du bus
+                    <input
+                      type="range"
+                      min={REF.busLongueur.value}
+                      max={REF.rs485Longueur.value}
+                      value={s.reglages.longueur}
+                      onChange={(e) => dispatch({ type: 'reglage', patch: { longueur: Number(e.target.value) } })}
+                    />
+                    <span className="tabular-nums">{s.reglages.longueur.toLocaleString('fr-FR')} m</span>
+                  </label>
+                  <p className="basis-full text-sm text-neutral-300">
+                    Au banc (quelques mètres), la terminaison ne change rien de visible à 38 400 bauds : l’aller-retour dure environ 20 ns pour un bit de 26 µs. Elle devient indispensable
+                    quand le câble est long.
+                  </p>
+                </>
+              )}
             </>
           )}
         </div>

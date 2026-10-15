@@ -73,7 +73,7 @@ export interface State {
   /** Horloge de simulation du bus Modbus : t (s), vitesse, heure murale (ms) correspondant à t = 0 */
   sim: { t: number; speed: 1 | 10; wall0: number | null }
   /** Réglages du pupitre ; « polarisation absente » (H9) prévue pour l'étape 5 */
-  reglages: { polarisation: boolean; terminaison: boolean }
+  reglages: { polarisation: boolean; terminaison: boolean; longueur: number }
   /** Partiel en cours ou rendu (null : aucun) ; le sujet se recalcule depuis la graine */
   partiel: Partiel | null
   /** État des modules du pupitre, modifié par les trames et par les interrupteurs et potentiomètres */
@@ -108,7 +108,7 @@ export const initialState = (): State => ({
   software: { c1: logicielVide(), c2: logicielVide() },
   parcours: { c1: null, c2: null },
   sim: { t: 0, speed: 1, wall0: null },
-  reglages: { polarisation: true, terminaison: true },
+  reglages: { polarisation: true, terminaison: true, longueur: REF.busLongueur.value },
   partiel: null,
   pupitre: pupitreInitial(),
   journal: [],
@@ -376,7 +376,9 @@ export function load(storage: StorageLike | null = defaultStorage()): State {
     const raw = storage?.getItem(STORAGE_KEY)
     if (!raw) return initialState()
     const s = JSON.parse(raw) as State
-    return s?.version === VERSION ? { ...initialState(), ...s } : initialState()
+    if (s?.version !== VERSION) return initialState()
+    const init = initialState()
+    return { ...init, ...s, reglages: { ...init.reglages, ...s.reglages } }
   } catch {
     return initialState()
   }

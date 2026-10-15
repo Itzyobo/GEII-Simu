@@ -135,6 +135,11 @@ function stepsIn(w: Waveform, t0: number, t1: number, scale: (v: number) => numb
   return { start: scale(valueAt(w, t0)), changes }
 }
 
+/** Acquisition (H54) : un palier plus court qu'un point d'acquisition `dt` n'apparaît pas. */
+function acquire(s: Steps, dt: number): Steps {
+  return { start: s.start, changes: s.changes.filter((c, k) => (s.changes[k + 1]?.t ?? Infinity) - c.t >= dt) }
+}
+
 /** Différence de deux escaliers (Math). */
 function subtract(a: Steps, b: Steps): Steps {
   const all = [...a.changes.map((c) => ({ ...c, from: 'a' })), ...b.changes.map((c) => ({ ...c, from: 'b' }))].sort((x, y) => x.t - y.t)
@@ -231,7 +236,7 @@ export function scopeView(inputs: [ProbeInput, ProbeInput], st: ScopeSettings, {
   const floating: [boolean, boolean] = [chans[0].floating, chans[1].floating]
   if (status === 'Attente') return { status, t0, traces: [null, null, null], measures: [null, null, null], cursors, floating }
 
-  const steps = chans.map((c) => stepsIn(c.w, t0, t1, c.scale)) as [Steps, Steps]
+  const steps = chans.map((c) => acquire(stepsIn(c.w, t0, t1, c.scale), span / REF.scopePoints.value)) as [Steps, Steps]
   const traces: ScopeView['traces'] = [null, null, null]
   const measures: ScopeView['measures'] = [null, null, null]
 

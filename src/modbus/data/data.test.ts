@@ -52,7 +52,7 @@ describe('sources', () => {
   it('« cours » est réservé aux normes publiées (Modbus, EIA-485, RS232)', () => {
     const NORMES = [
       ...['modbusSilence', 'modbusEsclaveMax', 'modbusMotMax', 'modbusMotsParRequete', 'modbusBitsParRequete', 'crcPolynome', 'crcInit'],
-      ...['rs485Seuil', 'rs485Longueur', 'rs485DebitLongueurMax', 'rs485Charges', 'rs485Liaison', 'terminaisonOhms', 'polarisationRole'],
+      ...['rs485Seuil', 'rs485Longueur', 'rs485DebitLongueurMax', 'rs485Charges', 'rs485Liaison', 'terminaisonOhms', 'polarisationRole', 'propagation'],
       ...['rs232Longueur', 'rs232Capacite', 'rs232Liaison'],
     ]
     const cours = Object.entries(REF).filter(([, r]) => r.source === 'cours').map(([k]) => k)

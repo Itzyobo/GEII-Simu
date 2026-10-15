@@ -173,6 +173,8 @@ export interface Note {
   lignes: { id: LigneNote; label: string; points: number; max: number }[]
   total: number
   max: number
+  /** Note globale ramenée sur 20, bornée à [0, 20] */
+  sur20: number
   details: { item: ItemPartiel; reponse: string; traite: boolean; verdict: Verdict; points: number }[]
 }
 
@@ -192,7 +194,9 @@ export function noter(sujet: Sujet, reponses: Record<string, string>, { cablageE
     const max = ds.length * q + (id === 'manip' && sujet.manip ? REF.partielBareme.value.cablage : 0)
     return { id, label, points: pts, max }
   }).filter((li) => li.max > 0 || li.points !== 0)
-  return { lignes, total: lignes.reduce((s, li) => s + li.points, 0), max: lignes.reduce((s, li) => s + li.max, 0), details }
+  const total = lignes.reduce((s, li) => s + li.points, 0)
+  const max = lignes.reduce((s, li) => s + li.max, 0)
+  return { lignes, total, max, sur20: max ? Math.min(20, Math.max(0, (20 * total) / max)) : 0, details }
 }
 
 /** Temps restant (s), calculé depuis l'heure de début enregistrée : ni pause ni remise à zéro. */

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { COURS } from '../data/cours'
 import { REF } from '../data/reference'
 import { genererSujet, noter, pointsCablage, tempsRestant } from './partiel'
 import { initialState, load, reduce, save, type Action, type State } from './store'
@@ -53,6 +54,21 @@ describe('notation', () => {
     expect(note.lignes.reduce((s, l) => s + l.max, 0)).toBeCloseTo(note.max, 9)
     // 2 questions justes, câblage au 2e essai (½), 1 pénalité (−½)
     expect(note.total).toBeCloseTo(2 + 0.5 - REF.partielBareme.value.penalite, 9)
+    expect(note.sur20).toBeCloseTo((20 * note.total) / note.max, 9)
+  })
+  it('note sur 20 : tout juste → 20, rien → 0', () => {
+    const sujet = genererSujet(9)
+    const toutJuste = { ...sujet, items: sujet.items.map((i) => ({ ...i, check: () => ({ ok: true, message: '' }) })) }
+    const reponses = Object.fromEntries(sujet.items.map((i) => [i.id, 'x']))
+    expect(noter(sujet, {}, { cablageEssai: null, penalites: 0 }).sur20).toBe(0)
+    expect(noter(toutJuste, reponses, { cablageEssai: null, penalites: 0 }).sur20).toBe(20)
+  })
+  it('questions de cours : RS232 / RS485 dans « Longueur de câble », impédance dans « Impédance », aucune dans « Autre chose »', () => {
+    const lignes = (theme: string) => new Set(COURS.filter((q) => q.theme === theme).map((q) => q.attendu))
+    expect(lignes('rs')).toEqual(new Set(['longueur']))
+    expect(lignes('longueur')).toEqual(new Set(['longueur']))
+    expect(lignes('impedance')).toEqual(new Set(['impedance']))
+    for (let g = 1; g <= 30; g++) expect(genererSujet(g).items.filter((i) => i.bloc === 'cours' && i.ligne === 'autre')).toEqual([])
   })
   it('CRC faux dans la trame à écrire : moitié des points', () => {
     const sujet = genererSujet(5)

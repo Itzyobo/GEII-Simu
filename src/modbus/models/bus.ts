@@ -234,7 +234,7 @@ export function rs485Lines(
   card: CardId,
   w0: number,
   w1: number,
-  { parasite = false, connected = true, polarisation = true, terminaison = true } = {},
+  { parasite = false, connected = true, polarisation = true, terminaison = true, longueur = REF.busLongueur.value } = {},
 ): Lines {
   const seen = frames.filter((f) => (connected && f.onBus) || f.drivers.includes(card))
   // Chaque driver actif de t0 − avance à t1 + retard (H33) ; dans une collision, chacun garde ses propres bits
@@ -274,18 +274,24 @@ export function rs485Lines(
   }
   const fils = (k: 0 | 1) => wave((t) => niveaux(etatLigne(info, t))[k] + pv(t))
   return {
-    txp: terminaison ? fils(0) : avecRebonds(fils(0)),
-    txm: terminaison ? fils(1) : avecRebonds(fils(1)),
+    txp: terminaison ? fils(0) : avecRebonds(fils(0), longueur),
+    txm: terminaison ? fils(1) : avecRebonds(fils(1), longueur),
     txen: wave((t) => (txenAt(t) ? REF.ttlHigh.value : REF.ttlLow.value)),
   }
 }
 
 /**
- * Sans terminaison (H49) : chaque front piloté rebondit, en paliers d'une demi-pseudo-période, avec une amplitude
- * qui décroît jusqu'à s'éteindre en quelques oscillations. Illustration qualitative.
+ * Retard d'un rebond : aller-retour de l'onde sur un bus de `longueur` mètres.
  */
-function avecRebonds(w: Waveform): Waveform {
-  const { amplitude, periode, oscillations } = REF.terminaisonRebond.value
+export const retardRebond = (longueur: number) => 2 * longueur * REF.propagation.value
+
+/**
+ * Sans terminaison (H49) : chaque front piloté rebondit, un palier par aller-retour sur le câble, avec une amplitude
+ * qui décroît jusqu'à s'éteindre en quelques oscillations.
+ */
+function avecRebonds(w: Waveform, longueur: number): Waveform {
+  const { amplitude, oscillations } = REF.terminaisonRebond.value
+  const retard = retardRebond(longueur)
   const seuil = (REF.rs485High.value - REF.rs485Low.value) / 2
   const n = 2 * oscillations
   const out: Waveform['samples'] = []
@@ -296,7 +302,7 @@ function avecRebonds(w: Waveform): Waveform {
     const next = w.samples[i + 1]?.t ?? w.period
     // Dépassement au front, puis creux et bosses de plus en plus faibles ; le dernier palier rend la valeur finale
     for (let k = 0; k <= n; k++) {
-      const t = s.t + (k * periode) / 2
+      const t = s.t + k * retard
       if (k && t >= next) break
       out.push({ t, v: s.v + (k === n ? 0 : amplitude * delta * (k % 2 ? -1 : 1) * (1 - k / n)) })
     }

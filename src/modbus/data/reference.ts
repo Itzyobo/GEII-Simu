@@ -130,11 +130,14 @@ export const REF = {
   rs485Seuil: ref({ value: 0.2, unit: 'V', source: 'cours', note: 'EIA-485 : sensibilité du récepteur ± 200 mV ; en deçà, bit indéterminé' }),
   rs485Conflit: ref({ value: 0.05, unit: 'V', source: 'hypothèse', hyp: 'H39', note: 'différentiel quand deux drivers imposent des bits opposés (|V| < 200 mV)' }),
   terminaisonRebond: ref({
-    value: { amplitude: 0.3, periode: 2e-6, oscillations: 3 },
+    value: { amplitude: 0.3, oscillations: 3 },
     source: 'hypothèse',
     hyp: 'H49',
-    note: 'sans terminaison : rebond après chaque front, 30 % de l’excursion, pseudo-période 2 µs, amorti en 3 oscillations (illustration qualitative)',
+    note: 'sans terminaison : une réflexion par aller-retour sur le câble, 30 % de l’excursion, amortie en 3 oscillations (amplitude non mesurée)',
   }),
+  propagation: ref({ value: 5e-9, unit: 's/m', source: 'cours', note: 'paire torsadée : ≈ 0,66 c, soit ≈ 5 ns/m ; retard d’un rebond = 2 × L × 5 ns/m' }),
+  busLongueur: ref({ value: 2, unit: 'm', source: 'hypothèse', hyp: 'H53', note: 'longueur du bus au banc du TP ; curseur de démonstration jusqu’à 1 200 m' }),
+  scopePoints: ref({ value: 2500, source: 'hypothèse', hyp: 'H54', note: 'points d’acquisition par écran : un palier plus court qu’un point n’apparaît pas' }),
   bruitSansPolarisation: ref({ value: 20e-3, unit: 's', source: 'hypothèse', hyp: 'H50', note: 'sans polarisation, la ligne flottante change d’état au hasard toutes les 20 ms en moyenne' }),
 
   /* ───────────────────────────── Cours : normes RS232 et RS485 ───────────────────────────── */
@@ -330,8 +333,12 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H46: { text: 'Libellés du « Détail Trame » pour les requêtes et les réponses 06 et 16 reconstitués sur le modèle de la photo (réponse 03/04 et exception lues sur les photos).' },
   H47: { text: 'OTB : les fonctions 06 et 16 n’acceptent que les registres 100 à 102 (sorties TOR et analogiques) ; tout autre registre → exception 02.' },
   H48: { text: 'Vitesse (≠ 0008) ou parité (≠ 0001) réécrite dans un module : écho, puis le module ne comprend plus le bus et reste muet jusqu’à « Réinitialiser le pupitre ».' },
-  H49: { text: 'Terminaison absente : rebond après chaque front de TX+ et TX−, 30 % de l’excursion, pseudo-période 2 µs, amorti en 3 oscillations (illustration qualitative, non mesurée).' },
+  H49: {
+    text: 'Terminaison absente : après chaque front de TX+ et TX−, une réflexion par aller-retour sur le câble (retard 2 × L × 5 ns/m), d’amplitude 30 % de l’excursion, amortie en 3 oscillations ; l’amplitude n’est pas mesurée.',
+  },
   H50: { text: 'Polarisation absente : la ligne flottante change d’état au hasard toutes les 20 ms en moyenne ; le récepteur y lit des caractères parasites.' },
   H51: { text: 'Mode partiel : 30 minutes par défaut (réglable).' },
   H52: { text: 'Barème du partiel : 1 point par question ; câblage 1 point au 1er « Faire vérifier » réussi, ½ au 2e, 0 ensuite ; −0,5 point par manipulation pendant une émission.' },
+  H53: { text: 'Longueur du bus au banc du TP : 2 m (quelques mètres de câble entre les cartes et le pupitre), non mesurée.' },
+  H54: { text: 'Oscilloscope : 2 500 points d’acquisition par écran ; un palier plus court qu’un point n’apparaît ni sur la trace ni dans les mesures.' },
 }

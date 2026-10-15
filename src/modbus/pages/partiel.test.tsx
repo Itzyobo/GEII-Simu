@@ -8,6 +8,10 @@ import { PIEGE_BASE_DE_TEMPS } from '../models/answers'
 import { Parcours } from '../components/ServeurModbus'
 import Banc from './Banc'
 import PagePartiel from './Partiel'
+import Cours from './Cours'
+import Exercices from './Exercices'
+import Questions from './Questions'
+import { COURS } from '../data/cours'
 
 const BANC_B: Action[] = [
   { type: 'activity', activity: 'reseau' },
@@ -53,5 +57,35 @@ describe('rendu en mode partiel', () => {
     const rendu = rendre(reduce(avecPiege, { type: 'partielRendre', maintenant: Date.now() }), <PagePartiel />)
     expect(rendu).toContain('Correction :')
     expect(rendu).toContain(PIEGE_BASE_DE_TEMPS)
+  })
+})
+
+describe('pages d’entraînement : correction hors partiel, masquée pendant un partiel', () => {
+  const q = COURS.find((c) => c.id === 'c-hz')!
+  const avecReponse = (s: State) => reduce(s, { type: 'answer', key: `${q.id}.r`, value: q.bonne as string, points: 1 })
+  const BANDEAU = 'Partiel en cours'
+  it('Cours : justification affichée hors partiel ; bandeau et lien vers le partiel pendant', () => {
+    const hors = rendre(avecReponse(etat(false)), <Cours />)
+    expect(hors).toContain(q.justification.slice(0, 40))
+    expect(hors).not.toContain(BANDEAU)
+    const pendant = rendre(avecReponse(etat(true)), <Cours />)
+    expect(pendant).not.toContain(q.justification.slice(0, 40))
+    expect(pendant).toContain(BANDEAU)
+    expect(pendant).toContain('href="/modbus/partiel"')
+  })
+  it('Questions : formulaires de correction hors partiel ; masqués pendant', () => {
+    const hors = rendre(etat(false), <Questions />)
+    expect(hors).toContain('Corriger')
+    expect(hors).not.toContain(BANDEAU)
+    const pendant = rendre(etat(true), <Questions />)
+    expect(pendant).not.toContain('Corriger')
+    expect(pendant).toContain(BANDEAU)
+    expect(pendant).toContain('href="/modbus/partiel"')
+  })
+  it('Message codé : pas de bandeau hors partiel ; bandeau et lien vers le partiel pendant', () => {
+    expect(rendre(etat(false), <Exercices />)).not.toContain(BANDEAU)
+    const pendant = rendre(etat(true), <Exercices />)
+    expect(pendant).toContain(BANDEAU)
+    expect(pendant).toContain('href="/modbus/partiel"')
   })
 })

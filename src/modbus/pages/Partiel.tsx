@@ -202,6 +202,10 @@ function Correction({ p }: { p: Partiel }) {
                 {fr(note.total)} / {fr(note.max)}
               </td>
             </tr>
+            <tr className="border-t border-line font-semibold">
+              <td className="px-3 py-2">Note sur 20</td>
+              <td className="px-3 py-2 text-right font-mono">{fr(note.sur20)} / 20</td>
+            </tr>
           </tbody>
         </table>
       </section>

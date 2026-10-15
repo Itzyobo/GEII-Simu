@@ -159,6 +159,48 @@ describe('démonstrations de cours', () => {
     const fin = requetes[0x17]!.t1 - 0x17 * I - 1 / 76800
     expect(valueAt(sans.txp, fin)).toBe(valueAt(avec.txp, fin))
   })
+
+  // Retard mesuré sur la forme d'onde : écart entre le front et le palier suivant
+  const retardMesure = (longueur: number) => {
+    const s = slot(0x17, PARCOURS, { terminaison: false, longueur }).txp.samples
+    const seuil = (REF.rs485High.value - REF.rs485Low.value) / 2
+    const k = s.findIndex((p, i) => i > 0 && Math.abs(p.v - s[i - 1]!.v) > seuil)
+    return s[k + 1]!.t - s[k]!.t
+  }
+  const near = (x: number, cible: number) => expect(Math.abs(x / cible - 1)).toBeLessThanOrEqual(0.02)
+  it('L = 2 m → retard d’un rebond = 20 ns (± 2 %), invisible à 10 µs/div', () => {
+    expect(REF.busLongueur.value).toBe(2)
+    near(retardMesure(2), 20e-9)
+    const tdiv = 10e-6
+    const st: ScopeSettings = {
+      ch: [
+        { on: true, vdiv: 1, offset: 0, probe: 1 },
+        { on: false, vdiv: 1, offset: 0, probe: 1 },
+      ],
+      tdiv,
+      position: 0,
+      trigger: { source: 0, slope: 'rising', level: REF.captureTriggerLevel.value },
+      mode: 'normal',
+      math: { on: false, src1: 0, src2: 1, vdiv: 1, offset: 0 },
+      cursors: { on: false, x1: 0, x2: 0, y1: 0, y2: 0 },
+    }
+    const ecran = (terminaison: boolean) => {
+      const inp: [ProbeInput, ProbeInput] = [
+        { signal: slot(0x17, PARCOURS, { terminaison, longueur: 2 }).txp, probe: 1, ground: true },
+        { signal: null, probe: 1, ground: true },
+      ]
+      return scopeView(inp, st, { seed: 7, phase: 0 })
+    }
+    const [avec, sans] = [ecran(true), ecran(false)]
+    expect(sans.measures[0]!.max).toBeCloseTo(avec.measures[0]!.max, 9)
+    expect(sans.measures[0]!.min).toBeCloseTo(avec.measures[0]!.min, 9)
+    // À 300 m, le même réglage montre le rebond
+    const loin = scopeView([{ signal: slot(0x17, PARCOURS, { terminaison: false, longueur: 300 }).txp, probe: 1, ground: true }, { signal: null, probe: 1, ground: true }], st, { seed: 7, phase: 0 })
+    expect(loin.measures[0]!.max).toBeGreaterThan(avec.measures[0]!.max + 0.5)
+  })
+  it('L = 300 m → retard d’un rebond = 3,0 µs (± 2 %)', () => {
+    near(retardMesure(300), 3e-6)
+  })
 })
 
 describe('analyzerDecode', () => {
