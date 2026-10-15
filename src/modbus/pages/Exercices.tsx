@@ -137,7 +137,7 @@ function Field({ label, verdict, children }: { label: string; verdict: Verdict |
       {label}
       <div className="mt-1">{children}</div>
       {verdict && (
-        <p role="status" className={`mt-1 ${verdict.ok ? 'text-ok' : 'text-err'}`}>
+        <p role="status" className={`mt-1 ${verdict.ok ? 'text-ok' : verdict.partiel ? 'text-warn' : 'text-err'}`}>
           {verdict.message}
         </p>
       )}

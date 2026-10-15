@@ -93,7 +93,7 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 | SERIE\_3 bits de stop | 1 | hypothèse H4 |
 | SERIE\_3 message | « lyon 1 » avec une espace (6C 79 6F 6E 20 31) ; le CR écrivait « lyon1 » | RealTerm + notes du binôme |
 | SERIE\_3 période de répétition | ≈ 111 ms | CR |
-| Niveaux TTL | 0 V / 5 V, repos haut | hypothèse H27 |
+| Niveaux TTL | 0 V / 5 V, repos haut | CR (« Vcc = 5 V », tableau du binôme « TTL : 5 V ») |
 | Niveaux RS232 | Max 11,5 V, crête à crête 23,3 V (≈ +11,5 V / −11,8 V), repos bas | CR (mesure oscilloscope) |
 | Réglages oscilloscope de SERIE\_1 | 500 µs/div ; RS232 à 10 V/div ; sonde 1:1 ; calibre TTL illisible | photos + hypothèse H6 |
 
@@ -175,10 +175,10 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 24. H24 — Configuration Maître s'ouvre sur la fonction 1, première de la liste.
 25. H25 — Réglages initiaux de l'écran : déclenchement 4 div à gauche du centre, curseurs X à 2 et 4 div.
 26. H26 — Une acquisition affichée toutes les 150 ms ; en Auto sans déclenchement, la trace avance de 0,17 écran par acquisition.
-27. H27 — Niveaux TTL 0 V / 5 V : ni écrits dans l'énoncé, ni mesurés.
+27. H27 — Supprimée : niveaux TTL 0 V / 5 V sourcés par le CR (« Vcc = 5 V » et tableau du binôme « TTL : 5 V »).
 28. H28 — SERIE\_2 demande l'octet à émettre comme SERIE\_1 (« Réaliser les mêmes opérations que précédemment »).
 29. H29 — Générateur « message codé » : 1 200 à 19 200 bauds, 7 ou 8 bits, sans parité / paire / impaire, 1 stop ; 3 à 8 caractères (lettres, chiffres, espace) ; RS232 une fois sur deux à partir du niveau 2 ; 2 V/div en TTL, 5 V/div en RS232 ; un bit couvre au moins 1,5 div.
-30. H30 — Correction : débit accepté à ± 10 %, tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d'un bit.
+30. H30 — Correction : la bonne réponse de débit est le débit standard exact (1 200, 2 400, 4 800, 9 600, 19 200, 38 400) ; une valeur à ± 10 % du bon débit sans être un standard vaut la moitié des points (« Valeur mesurée correcte, mais il faut l'arrondir au débit standard le plus proche. ») ; tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d'un bit.
 31. H31 — RealTerm réduit : ports COM1 et COM2 (seul COM1 relié), débits 1 200 à 19 200 bauds, ouverture en 9 600 bauds 8N1.
 
 ## 4. Modèles de simulation

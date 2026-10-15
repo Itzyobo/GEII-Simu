@@ -1,13 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router'
+import { MODBUS_PAGES } from '../routes'
 
-const NAV = [
-  ['/modbus', 'Accueil'],
-  ['/modbus/banc', 'Banc'],
-  ['/modbus/logiciel', 'Logiciel MODBUS'],
-  ['/modbus/questions', 'Questions'],
-  ['/modbus/exercices', 'Message codé'],
-  ['/modbus/reglages', 'Réglages'],
-] as const
+const NAV = MODBUS_PAGES.map(([path, label]) => [path ? `/modbus/${path}` : '/modbus', label] as const)
 
 export default function Layout() {
   return (

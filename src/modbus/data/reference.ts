@@ -69,8 +69,8 @@ export const REF = {
     note: 'réglages de réception à l’ouverture de RealTerm',
   }),
   realtermBauds: ref({ value: [1200, 2400, 4800, 9600, 19200], source: 'hypothèse', hyp: 'H31', note: 'débits proposés dans RealTerm réduit' }),
-  ttlLow: ref({ value: 0, unit: 'V', source: 'hypothèse', hyp: 'H27', note: 'repos haut' }),
-  ttlHigh: ref({ value: 5, unit: 'V', source: 'hypothèse', hyp: 'H27' }),
+  ttlLow: ref({ value: 0, unit: 'V', source: 'CR', note: 'Vcc = 5 V (CR) et tableau du binôme « TTL : 5 V » ; repos haut' }),
+  ttlHigh: ref({ value: 5, unit: 'V', source: 'CR', note: 'Vcc = 5 V (CR) et tableau du binôme « TTL : 5 V »' }),
   rs232High: ref({ value: 11.5, unit: 'V', source: 'CR', hyp: 'H5', note: 'Max mesuré 11,5 V (H5 résolue) ; niveau du 0 logique' }),
   rs232CreteACrete: ref({ value: 23.3, unit: 'V', source: 'CR', hyp: 'H5', note: 'crête à crête mesuré (H5 résolue)' }),
   rs232Low: ref({ value: 11.5 - 23.3, unit: 'V', source: 'calcul', note: '≈ −11,8 V = Max − crête à crête ; repos bas (1 logique)' }),
@@ -99,7 +99,8 @@ export const REF = {
   exerciceRepos: ref({ value: 2, unit: 'bits', source: 'hypothèse', hyp: 'H29', note: 'repos avant et après le message' }),
   exerciceVoltDiv: ref({ value: { TTL: 2, RS232: 5 }, unit: 'V/div', source: 'hypothèse', hyp: 'H29' }),
   exerciceBitMinDiv: ref({ value: 1.5, unit: 'div', source: 'hypothèse', hyp: 'H29', note: 'base de temps = plus grand calibre 1-2-5 tel qu’un bit couvre au moins 1,5 div' }),
-  toleranceDebit: ref({ value: 0.1, source: 'hypothèse', hyp: 'H30', note: 'écart relatif accepté sur le débit répondu' }),
+  debitsStandards: ref({ value: [1200, 2400, 4800, 9600, 19200, 38400], unit: 'baud', source: 'hypothèse', hyp: 'H30', note: 'seules réponses de débit notées juste' }),
+  toleranceDebit: ref({ value: 0.1, source: 'hypothèse', hyp: 'H30', note: 'mesure à ± 10 % du bon débit standard sans l’arrondir : moitié des points' }),
   toleranceTension: ref({ value: 0.05, source: 'hypothèse', hyp: 'H30', note: 'écart relatif accepté sur une tension répondue' }),
   toleranceBaseDeTemps: ref({ value: 0.01, source: 'hypothèse', hyp: 'H30', note: 'réponse reconnue comme la base de temps de l’écran' }),
 
@@ -219,11 +220,12 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H24: { text: 'Configuration Maître s’ouvre sur la fonction 1, première de la liste (valeur par défaut non photographiée).' },
   H25: { text: 'Réglages initiaux de l’écran : déclenchement 4 div à gauche du centre, curseurs X à 2 et 4 div du bord gauche.' },
   H26: { text: 'Une acquisition affichée toutes les 150 ms ; en Auto sans déclenchement, la trace avance de 0,17 écran par acquisition.' },
-  H27: { text: 'Niveaux TTL 0 V / 5 V : ni écrits dans l’énoncé, ni mesurés au TP.' },
   H28: { text: 'SERIE_2 demande l’octet à émettre comme SERIE_1 : l’énoncé dit « Réaliser les mêmes opérations que précédemment ».' },
   H29: {
     text: 'Générateur « message codé » : 1 200 à 19 200 bauds, 7 ou 8 bits, sans parité / paire / impaire, 1 stop ; 3 à 8 caractères (lettres, chiffres, espace) ; RS232 une fois sur deux à partir du niveau 2 ; 2 V/div en TTL, 5 V/div en RS232 ; un bit couvre au moins 1,5 div.',
   },
-  H30: { text: 'Correction : débit accepté à ± 10 %, tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d’un bit.' },
+  H30: {
+    text: 'Correction : la bonne réponse de débit est le débit standard exact (1 200, 2 400, 4 800, 9 600, 19 200, 38 400) ; une valeur à ± 10 % du bon débit sans être un standard vaut la moitié des points ; tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d’un bit.',
+  },
   H31: { text: 'RealTerm réduit : ports COM1 et COM2 proposés (seul COM1 relié à la carte) ; débits 1 200 à 19 200 bauds ; s’ouvre en 9 600 bauds, 8 bits, sans parité, 1 stop.' },
 }

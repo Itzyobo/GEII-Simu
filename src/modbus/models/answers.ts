@@ -2,6 +2,7 @@
 import { REF, type Parity } from '../data/reference'
 
 export const PIEGE_BASE_DE_TEMPS = 'C’est la base de temps de l’écran, pas la durée d’un bit.'
+export const ARRONDIR_DEBIT = 'Valeur mesurée correcte, mais il faut l’arrondir au débit standard le plus proche.'
 
 const TIME: Record<string, number> = { s: 1, ms: 1e-3, µs: 1e-6, us: 1e-6, μs: 1e-6, ns: 1e-9 }
 const RATE: Record<string, number> = { '': 1, k: 1e3 }
@@ -27,20 +28,28 @@ const near = (a: number, b: number, tol: number) => Math.abs(a / b - 1) <= tol
 export interface Verdict {
   ok: boolean
   message: string
+  /** Réponse fausse qui vaut tout de même la moitié des points */
+  partiel?: boolean
 }
 
+/** Points d'une réponse : 1, ½ ou 0. */
+export const points = (v: Verdict) => (v.ok ? 1 : v.partiel ? 0.5 : 0)
+
 /**
- * Débit répondu, en bauds ou en durée de bit. Si la réponse est la base de temps de l'écran (ou son inverse),
- * on le dit explicitement (H30).
+ * Débit répondu, en bauds ou en durée de bit (H30). Juste : le débit standard exact (arrondi au baud près, pour
+ * accepter 416,7 µs). Moitié des points : une mesure à ± 10 % du bon débit qui n'est pas un standard.
+ * Si la réponse est la base de temps de l'écran (ou son inverse), on le dit explicitement.
  */
 export function checkDebit(text: string, baud: number, tdiv: number): Verdict {
   const q = parseQuantite(text)
   if (!q) return { ok: false, message: 'Réponse illisible : donnez un débit (ex. 9600 bauds) ou une durée de bit (ex. 104 µs).' }
   const tol = REF.toleranceBaseDeTemps.value
   if ((q.kind === 'time' && near(q.value, tdiv, tol)) || (q.kind === 'rate' && near(q.value * tdiv, 1, tol))) return { ok: false, message: PIEGE_BASE_DE_TEMPS }
-  const debit = q.kind === 'time' ? 1 / q.value : q.value
-  if (near(debit, baud, REF.toleranceDebit.value)) return { ok: true, message: `Juste : ${baud} bauds, soit ${(1e6 / baud).toFixed(1).replace('.', ',')} µs par bit.` }
-  return { ok: false, message: `Faux : ${Math.round(debit)} bauds. Mesurez la durée d’un bit (le plus court palier), puis D = 1 / T_bit.` }
+  const debit = Math.round(q.kind === 'time' ? 1 / q.value : q.value)
+  const standard = REF.debitsStandards.value.includes(debit)
+  if (debit === baud) return { ok: true, message: `Juste : ${baud} bauds, soit ${(1e6 / baud).toFixed(1).replace('.', ',')} µs par bit.` }
+  if (!standard && near(debit, baud, REF.toleranceDebit.value)) return { ok: false, partiel: true, message: ARRONDIR_DEBIT }
+  return { ok: false, message: `Faux : ${debit} bauds. Mesurez la durée d’un bit (le plus court palier), puis D = 1 / T_bit.` }
 }
 
 export function checkTension(text: string, attendu: number): Verdict {

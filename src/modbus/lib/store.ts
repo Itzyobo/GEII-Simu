@@ -51,7 +51,7 @@ export interface State {
   incidents: Incident[]
   /** Dernier refus, affiché à l'étudiant */
   notice: string | null
-  answers: Record<string, { value: string; attempts: number; correct: boolean }>
+  answers: Record<string, { value: string; attempts: number; /** 1, ½ ou 0 */ points: number }>
   software: { role: Role; memorized: number[][]; messages: string[] }
   /** Octet saisi dans la console de SERIE_1 et SERIE_2 (H28) */
   octets: { serie1: number; serie2: number }
@@ -101,7 +101,7 @@ export type Action =
   | { type: 'serie2Graine'; graine: number }
   | { type: 'serie2Reel'; reel: Liaison | null }
   | { type: 'realterm'; patch: Partial<RealtermSettings> }
-  | { type: 'answer'; key: string; value: string; correct: boolean }
+  | { type: 'answer'; key: string; value: string; points: number }
   | { type: 'reset' }
 
 const POINT_LABEL: Record<TestPoint, string> = { TXD_TTL: 'TXD TTL', TXD_RS232: 'TXD RS232', 'TX+': 'TX+', 'TX-': 'TX−', TX_EN: 'TX_EN' }
@@ -196,7 +196,7 @@ export function reduce(s: State, a: Action): State {
       return { ...s, realterm: { ...s.realterm, ...a.patch } }
     case 'answer': {
       const prev = s.answers[a.key]
-      return { ...s, answers: { ...s.answers, [a.key]: { value: a.value, attempts: (prev?.attempts ?? 0) + 1, correct: a.correct } } }
+      return { ...s, answers: { ...s.answers, [a.key]: { value: a.value, attempts: (prev?.attempts ?? 0) + 1, points: a.points } } }
     }
     case 'reset':
       return initialState()

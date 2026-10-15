@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { ATTENDUS } from '../data/attendus'
 import { QUESTIONS, SECTIONS, type Question } from '../data/questions'
 import { champsPartieA, type Champ } from '../lib/partieA'
+import { points } from '../models/answers'
 import { dispatch, useStore } from '../lib/store'
 import UnverifiedBadge from '../components/UnverifiedBadge'
 
@@ -54,7 +55,7 @@ export default function Questions() {
 function Reponses({ qid, champs, answers }: { qid: string; champs: Champ[]; answers: ReturnType<typeof useStore>['answers'] }) {
   const key = (c: Champ) => `${qid}.${c.key}`
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(champs.map((c) => [c.key, answers[key(c)]?.value ?? ''])))
-  const corriger = () => champs.forEach((c) => dispatch({ type: 'answer', key: key(c), value: values[c.key] ?? '', correct: c.check(values[c.key] ?? '').ok }))
+  const corriger = () => champs.forEach((c) => dispatch({ type: 'answer', key: key(c), value: values[c.key] ?? '', points: points(c.check(values[c.key] ?? '')) }))
 
   return (
     <form
@@ -85,7 +86,7 @@ function Reponses({ qid, champs, answers }: { qid: string; champs: Champ[]; answ
                 <input id={id} value={values[c.key]} onChange={(e) => setValues((v) => ({ ...v, [c.key]: e.target.value }))} className="min-h-10 w-full rounded-md bg-card px-2 font-mono ring-1 ring-line" />
               )}
               {verdict && a?.value === values[c.key] && (
-                <p role="status" className={`mt-1 text-sm ${verdict.ok ? 'text-ok' : 'text-err'}`}>
+                <p role="status" className={`mt-1 text-sm ${verdict.ok ? 'text-ok' : verdict.partiel ? 'text-warn' : 'text-err'}`}>
                   {verdict.message}
                 </p>
               )}

@@ -3,7 +3,7 @@ import { valueAt } from './scope'
 import { charDuration, formatFrame, uartDecode, uartFrame, uartWaveform, type Liaison } from './uart'
 import { programmeWave, realtermDefaut, realtermReceive, realtermText, serie1, serie2, serie2Format, serie3, type RealtermSettings } from './serie'
 import { exerciseGenerate, type Difficulte } from './exercise'
-import { checkDebit, PIEGE_BASE_DE_TEMPS } from './answers'
+import { ARRONDIR_DEBIT, checkDebit, PIEGE_BASE_DE_TEMPS, points } from './answers'
 
 const near = (x: number, target: number, tol: number) => expect(Math.abs(x / target - 1)).toBeLessThanOrEqual(tol)
 const L8O1: Liaison = { baud: 2400, dataBits: 8, parity: 'odd', stopBits: 1 }
@@ -84,9 +84,9 @@ describe('RealTerm sur SERIE_3', () => {
     expect(realtermText(rx)).toBe('lyon 1lyon 1lyon 1')
     expect(rx.filter((r) => r.framingError || r.parityError)).toEqual([])
   })
-  it('9 600 bauds → au moins 1 erreur de trame sur 6 caractères', () => {
+  it('9 600 bauds → par message : 11 caractères, 1 erreur de trame, 1 erreur de parité', () => {
     const rx = realtermReceive(p, 'croisé', rt({ baud: 9600 }))
-    expect(rx.filter((r) => r.framingError).length).toBeGreaterThanOrEqual(1)
+    expect([rx.length, rx.filter((r) => r.framingError).length, rx.filter((r) => r.parityError).length]).toEqual([11, 1, 1])
   })
   it('parité paire → 6 erreurs de parité sur 6 caractères', () => {
     const rx = realtermReceive(p, 'croisé', rt({ parity: 'even' }))
@@ -133,10 +133,12 @@ describe('correction du débit', () => {
     expect(checkDebit(`${ex.tdiv * 1e6} µs`, ex.liaison.baud, ex.tdiv).message).toBe(PIEGE_BASE_DE_TEMPS)
     expect(checkDebit(String(1 / ex.tdiv), ex.liaison.baud, ex.tdiv).message).toBe(PIEGE_BASE_DE_TEMPS)
   })
-  it('débit ou durée de bit justes acceptés, 440 µs → 2 400 bauds à ± 10 %', () => {
-    expect(checkDebit('2 400 bauds', 2400, 500e-6).ok).toBe(true)
-    expect(checkDebit('440 µs', 2400, 500e-6).ok).toBe(true)
-    expect(checkDebit('0,4167 ms', 2400, 500e-6).ok).toBe(true)
-    expect(checkDebit('4800', 2400, 500e-6).ok).toBe(false)
+  it('SERIE_1 : 2 400 → points complets ; 2 273 → moitié + message ; 4 800 → 0', () => {
+    expect(points(checkDebit('2 400 bauds', 2400, 500e-6))).toBe(1)
+    expect(points(checkDebit('0,4167 ms', 2400, 500e-6))).toBe(1)
+    const v = checkDebit('2273', 2400, 500e-6)
+    expect([points(v), v.message]).toEqual([0.5, ARRONDIR_DEBIT])
+    expect(points(checkDebit('440 µs', 2400, 500e-6))).toBe(0.5)
+    expect(points(checkDebit('4800', 2400, 500e-6))).toBe(0)
   })
 })
