@@ -105,7 +105,8 @@ export function pupitreInitial(): PupitreState {
 }
 
 /** Le module comprend-il encore le bus (38 400 bauds, parité paire) ? */
-export const joignable = (e: PupitreState, m: ModuleId) => m === 'OTB' || (e.config[m].vitesse === REF.regVitesseCode38400.value && e.config[m].parite === 1)
+export const joignable = (e: PupitreState, m: ModuleId) =>
+  m === 'OTB' || !REF.configMuet.value || (e.config[m].vitesse === REF.regVitesseCode38400.value && e.config[m].parite === 1)
 
 /** Module qui répond à l'adresse `adr`, ou null */
 export const moduleAt = (e: PupitreState, adr: number): ModuleId | null => MODULES.find((m) => e.adresses[m] === adr && joignable(e, m)) ?? null
@@ -163,7 +164,8 @@ const horsPlage = { exception: REF.exceptionValeur.value }
 /** Écriture d'un registre en 06 ou 16 */
 function ecrire(e: PupitreState, m: ModuleId, r: number, v: number, t: number): Ecriture {
   if (m === 'OTB') {
-    // Registres d'entrée et codes d'identification : lecture seule (H41)
+    // Seuls les registres 100 à 102 s'écrivent (H47) ; entrées et codes d'identification en lecture seule (H41)
+    if (!REF.otbRegistresEcrits.value.includes(r)) return absent
     if (r === 100) return { ok: { ...e, otb: { ...e.otb, sorties: v & 0xff } } }
     if (r === 101 || r === 102) {
       if (v > N_ANALOG) return horsPlage

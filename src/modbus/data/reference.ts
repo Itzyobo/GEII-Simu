@@ -181,7 +181,14 @@ export const REF = {
   thtPointRosee: ref({ value: 2.1, unit: '°C', source: 'hypothèse', hyp: 'H13' }),
   registre1LuEn03: ref({ value: { TQS: 0x0023, THT: 0x0029 }, source: 'énoncé', note: 'annexe : adresse Modbus du module' }),
   regVitesseDefaut: ref({ value: { code: 3, baud: 1200 }, source: 'énoncé', note: 'registre 2, annexe' }),
-  regVitesseCode38400: ref({ value: 6, source: 'hypothèse', hyp: 'H14', note: 'absent de l’annexe ; 0006 choisi (suite 1 200 = 0003, 2 400, 4 800…)' }),
+  regVitesseCode38400: ref({
+    value: 8,
+    source: 'hypothèse',
+    hyp: 'H14',
+    note: 'absent de l’annexe ; 0003 = 1 200, débit doublé à chaque code : 0004 = 2 400, 0005 = 4 800, 0006 = 9 600, 0007 = 19 200, 0008 = 38 400',
+  }),
+  otbRegistresEcrits: ref({ value: [100, 101, 102], source: 'hypothèse', hyp: 'H47', note: 'seuls registres de l’OTB acceptés en 06 et 16 (sorties TOR et analogiques)' }),
+  configMuet: ref({ value: true, source: 'hypothèse', hyp: 'H48', note: 'vitesse ≠ 0008 ou parité ≠ 0001 réécrite : le module ne comprend plus le bus' }),
   regPariteCode: ref({ value: { 0: 'aucune', 1: 'paire', 2: 'impaire' } as Record<number, string>, source: 'hypothèse', hyp: 'H43', note: '0001 (paire) lu dans l’annexe ; 0 et 2 reconstitués' }),
   exceptionFonction: ref({ value: 0x01, source: 'hypothèse', hyp: 'H15' }),
   exceptionRegistre: ref({ value: 0x02, source: 'hypothèse', hyp: 'H16' }),
@@ -241,7 +248,9 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H11: { text: 'Entier affiché sur le TDS non noté.' },
   H12: { text: 'THT : 00F0H choisi car cohérent avec le TQS, mais 00E0H n’est pas exclu.' },
   H13: { text: 'Point de rosée calculé par la formule de Magnus (b = 17,62, c = 243,12 °C) à partir de H12 et de 23,9 %HR.' },
-  H14: { text: 'Code du registre de vitesse pour 38 400 bauds absent de l’annexe : 0006 choisi.' },
+  H14: {
+    text: 'Code du registre de vitesse pour 38 400 bauds absent de l’annexe : 0008, en prolongeant 0003 = 1 200 bps avec un doublement par code (0004 = 2 400, 0005 = 4 800, 0006 = 9 600, 0007 = 19 200, 0008 = 38 400).',
+  },
   H15: { text: 'Fonctions non implémentées hors 07 : exception 01 pour tous les modules.' },
   H16: { text: 'Écriture à un registre absent : exception 02.' },
   H17: {
@@ -284,9 +293,11 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H41: { text: 'OTB : l’octet fort écrit dans le registre 100 est ignoré ; écrire en 06 ou 16 un registre d’entrée (0 à 4) ou un code d’identification → exception 02.' },
   H42: { text: 'Valeur hors plage (entier > 9 999, luminosité > 4, caractère hors a…z / 0…9 / espace, nombre de mots hors 1…125) → exception 03.' },
   H43: {
-    text: 'Registres de configuration 1 à 3 écrits en 06 : écho, puis effet immédiat. Nouvelle adresse (1 à 247) prise aussitôt ; vitesse ≠ 0006 (H14) ou parité ≠ 0001 (0 aucune, 1 paire, 2 impaire) : le module ne comprend plus le bus jusqu’à « Réinitialiser le pupitre ».',
+    text: 'Registres de configuration 1 à 3 écrits en 06 : écho, puis effet immédiat ; nouvelle adresse (1 à 247) prise aussitôt. Codes de parité : 0 aucune, 1 paire (annexe), 2 impaire.',
   },
   H44: { text: 'TDS : entier aligné à droite sans zéros non significatifs ; le dernier registre écrit (texte ou entier) fixe le mode d’affichage ; au départ luminosité 4 et affichage vide.' },
   H45: { text: 'Trames mémorisées : envoyées tour à tour, une par créneau de 201,4 ms ; le cycle se répète à la plus longue période saisie (au moins le temps d’envoyer toutes les trames).' },
   H46: { text: 'Libellés du « Détail Trame » pour les requêtes et les réponses 06 et 16 reconstitués sur le modèle de la photo (réponse 03/04 et exception lues sur les photos).' },
+  H47: { text: 'OTB : les fonctions 06 et 16 n’acceptent que les registres 100 à 102 (sorties TOR et analogiques) ; tout autre registre → exception 02.' },
+  H48: { text: 'Vitesse (≠ 0008) ou parité (≠ 0001) réécrite dans un module : écho, puis le module ne comprend plus le bus et reste muet jusqu’à « Réinitialiser le pupitre ».' },
 }

@@ -163,10 +163,19 @@ describe('configuration et réinitialisation (H43)', () => {
     expect(moduleAt(etat, 30)).toBeNull()
     expect(moduleAt(pupitreInitial(), 30)).toBe('TDS')
   })
-  it('vitesse modifiée : écho, puis le module ne comprend plus le bus', () => {
-    const ecrire = toHex(withCrc([0x23, 6, 0, 2, 0, 3]))
+  it('vitesse (H14, H48) : registre 2 du TQS lu en 03 → 0008 ; 0006 écrit → écho puis muet ; réinitialisé → répond', () => {
+    expect(une(toHex(withCrc([0x23, 3, 0, 2, 0, 1])))).toBe(toHex(withCrc([0x23, 3, 2, 0x00, 0x08])))
+    const ecrire = toHex(withCrc([0x23, 6, 0, 2, 0, 6]))
     const { reponses } = envoyer([ecrire, '23 04 00 01 00 01 66 88'])
     expect(reponses).toEqual([ecrire, ''])
+    expect(envoyer(['23 04 00 01 00 01 66 88'], pupitreInitial()).reponses).toEqual(['23 04 02 00 F3 01 72'])
+  })
+  it('parité réécrite (≠ 0001) : muet ; 0008 réécrit à l’identique : le module répond toujours', () => {
+    expect(envoyer([toHex(withCrc([0x29, 6, 0, 3, 0, 2])), '29 04 00 01 00 01 66 22']).reponses[1]).toBe('')
+    expect(envoyer([toHex(withCrc([0x29, 6, 0, 2, 0, 8])), '29 04 00 01 00 01 66 22']).reponses[1]).toBe('29 04 02 00 F0 D9 72')
+  })
+  it('OTB : 06 hors des registres 100 à 102 → exception 02 (H47)', () => {
+    expect(fromHex(une(toHex(withCrc([0x17, 6, 0x04, 0x4e, 0, 1])))!).slice(1, 3)).toEqual([0x86, 2])
   })
   it('diffusion (adresse 0) : exécutée, aucune réponse, vue sur le bus', () => {
     const { frames, etat } = busRun([{ card: 'c1', connected: true, parcours: null, memorized: [{ bytes: withCrc([0, 6, 0, 0x64, 0, 0x5a]), periode: 1 }], memStart: 0 }], 0, 0.5)
