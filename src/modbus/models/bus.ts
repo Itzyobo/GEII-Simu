@@ -4,7 +4,7 @@
  */
 import { REF } from '../data/reference'
 import { mulberry32 } from './scope'
-import { PUPITRE, crcOk, slaveRespond, withCrc } from './slaves'
+import { broadcast, crcOk, moduleAt, pupitreInitial, slaveRespond, withCrc, type PupitreState } from './slaves'
 import { uartDecode, uartFrame, type Liaison, type Received, type Waveform } from './uart'
 
 export type CardId = 'c1' | 'c2'
@@ -32,9 +32,15 @@ export interface Emetteur {
   connected: boolean
   /** Parcours réseau (en cours ou passé), ou null */
   parcours: Parcours | null
-  /** Trames mémorisées, émises à la période d'interrogation depuis `memStart` */
-  memorized: number[][]
+  /** Trames mémorisées, émises à leur période d'interrogation depuis `memStart` */
+  memorized: Memorisee[]
   memStart: number
+}
+
+/** Trame mémorisée par la fenêtre Configuration Maître, avec sa « Fréquence interrogation esclave » (s) */
+export interface Memorisee {
+  bytes: number[]
+  periode: number
 }
 
 /** Trame émise par un seul driver */
@@ -71,9 +77,10 @@ function schedule(e: Emetteur, w0: number, w1: number): Part[] {
   if (p !== null)
     for (let k = Math.max(0, Math.floor((w0 - p) / I)); k < n && p + k * I <= w1 && p + k * I < fin; k++) if (p + k * I >= w0) out.push({ t0: p + k * I, bytes: parcoursRequest(k) })
   if (e.memorized.length) {
-    const poll = REF.pollPeriod.value
+    // Tour à tour, une trame par créneau ; le cycle reprend à la plus longue période saisie (H45)
+    const poll = Math.max(...e.memorized.map((m) => m.periode), e.memorized.length * I)
     for (let c = Math.max(0, Math.floor((w0 - e.memStart) / poll) - 1); e.memStart + c * poll <= w1; c++)
-      e.memorized.forEach((bytes, j) => {
+      e.memorized.forEach(({ bytes }, j) => {
         let t = e.memStart + c * poll + j * I
         // Pendant un parcours : au milieu du créneau en cours (H38)
         if (p !== null && t >= p && t < fin) t = p + (Math.floor((t - p) / I) + REF.memoriseesAuMilieuDuCreneau.value) * I
@@ -150,10 +157,19 @@ function resolve(frames: BusFrame[]): BusFrame[] {
 
 /**
  * Chronologie des trames dans [w0, w1] : requêtes des maîtres, réponses des esclaves après leur délai (H32).
- * Diffusion (adresse 0) et esclave absent : pas de réponse (le maître constate un délai dépassé).
+ * L'état du pupitre traverse les requêtes dans l'ordre : une écriture change ce que lit la requête suivante.
+ * Diffusion (adresse 0) : les modules exécutent, aucun ne répond. Esclave absent : pas de réponse (délai dépassé).
  * Trames superposées : octets corrompus (H39), CRC faux, aucun esclave ne répond.
+ * `owned` : seules les requêtes (ou collisions) qui commencent dans [a, b) sont exécutées et rendues, les autres
+ * ne servent qu'à détecter les chevauchements ; c'est ce qui permet d'avancer le bus pas à pas sans double compte.
  */
-export function busSimulate(emetteurs: readonly Emetteur[], w0: number, w1: number): BusFrame[] {
+export function busRun(
+  emetteurs: readonly Emetteur[],
+  w0: number,
+  w1: number,
+  etat0: PupitreState = pupitreInitial(),
+  owned: [number, number] = [-Infinity, Infinity],
+): { frames: BusFrame[]; etat: PupitreState } {
   // Marge : une réponse peut suivre une requête émise juste avant la fenêtre
   const margin = REF.esclaveDelaiReponse.value + frameDuration(260)
   const masterFrames = (connected: boolean) =>
@@ -165,22 +181,36 @@ export function busSimulate(emetteurs: readonly Emetteur[], w0: number, w1: numb
         ),
       )
 
+  const [a, b] = owned
+  const own = (f: BusFrame) => f.t0 >= a && f.t0 < b
   const requests = resolve(masterFrames(true))
-  const answer = (req: BusFrame): BusFrame | null => {
-    const module = PUPITRE.get(req.bytes[0] ?? 0)
-    if (!req.crcOk || req.bytes[0] === 0 || !module) return null
-    const bytes = slaveRespond(module, req.bytes)
-    if (!bytes) return null
+  let etat = etat0
+  const responses: BusFrame[] = []
+  for (const req of requests) {
+    const adr = req.bytes[0] ?? 0
+    if (!own(req) || !req.crcOk) continue
+    if (adr === 0) {
+      etat = broadcast(etat, req.bytes, req.t1)
+      continue
+    }
+    const module = moduleAt(etat, adr)
+    if (!module) continue
+    const r = slaveRespond(etat, module, req.bytes, req.t1)
+    etat = r.etat
+    if (!r.reponse) continue
     const t0 = req.t1 + REF.esclaveDelaiReponse.value
-    return { t0, t1: t0 + frameDuration(bytes.length), bytes, drivers: [req.bytes[0]!], type: 'ESCLAVE', collision: false, crcOk: crcOk(bytes), onBus: true }
+    responses.push({ t0, t1: t0 + frameDuration(r.reponse.length), bytes: r.reponse, drivers: [adr], type: 'ESCLAVE', collision: false, crcOk: crcOk(r.reponse), onBus: true })
   }
-  const responses = requests.map(answer).filter((f): f is BusFrame => f !== null)
   // Une réponse peut chevaucher la requête d'un autre maître : on regroupe tout une seconde fois.
   // ponytail: une seule passe ; une requête corrompue par une réponse garde ici sa propre réponse si elle en avait une
-  const bus = resolve([...requests.filter((r) => !r.collision), ...responses]).concat(requests.filter((r) => r.collision))
-  const local = masterFrames(false)
-  return [...bus, ...local].filter((f) => f.t1 >= w0 && f.t0 <= w1).sort((a, b) => a.t0 - b.t0)
+  const bus = resolve([...requests.filter((r) => !r.collision && own(r)), ...responses]).concat(requests.filter((r) => r.collision && own(r)))
+  const local = masterFrames(false).filter(own)
+  const frames = [...bus, ...local].filter((f) => f.t1 >= w0 && f.t0 <= w1).sort((x, y) => x.t0 - y.t0)
+  return { frames, etat }
 }
+
+/** Chronologie des trames dans [w0, w1], à partir d'un état du pupitre (par défaut : à la mise sous tension). */
+export const busSimulate = (emetteurs: readonly Emetteur[], w0: number, w1: number, etat?: PupitreState): BusFrame[] => busRun(emetteurs, w0, w1, etat).frames
 
 /** Fenêtre d'activation du driver d'une trame (H33) */
 const driveWindow = (t0: number, t1: number) => [t0 - REF.txEnAvance.value, t1 + REF.txEnRetard.value] as const

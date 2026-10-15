@@ -138,7 +138,10 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 | THT humidité | registre 5 en 04 = 00EFH = 23,9 %HR | CR (notes) |
 | THT point de rosée | ≈ 2,1 °C | hypothèse H13 |
 | Registre 1 lu en 03 (TQS, THT) | adresse Modbus : 0023H, 0029H | énoncé (annexe) |
-| Registre 2 de vitesse | 0003 = 1 200 bauds par défaut ; valeur codée pour 38 400 inconnue | énoncé (annexe) + hypothèse H14 |
+| Registre 2 de vitesse | 0003 = 1 200 bauds par défaut ; valeur codée pour 38 400 inconnue, 0006 choisi | énoncé (annexe) + hypothèse H14 |
+| Registre 3 de parité | 0001 = paire ; 0 aucune et 2 impaire reconstitués | énoncé (annexe) + hypothèse H43 |
+| TDS, caractères admis | a…z, 0…9, espace | énoncé (annexe) |
+| OTB, entrées et sorties analogiques | IN0 et IN1 sur les potentiomètres, 12 bits | hypothèse H40 |
 
 ### Valeur apparente ou paramètre du modèle
 
@@ -163,8 +166,8 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 10. H10 — Exception du TDS recalculée avec le code 01 : la photo est floue.
 11. H11 — Entier affiché sur le TDS non noté.
 12. H12 — THT : 00F0H choisi car cohérent avec le TQS, mais 00E0H n'est pas exclu.
-13. H13 — Point de rosée calculé par la formule de Magnus à partir de H12 et de 23,9 %HR.
-14. H14 — Code du registre de vitesse pour 38 400 bauds absent de l'annexe.
+13. H13 — Point de rosée calculé par la formule de Magnus (b = 17,62, c = 243,12 °C) à partir de H12 et de 23,9 %HR.
+14. H14 — Code du registre de vitesse pour 38 400 bauds absent de l'annexe : 0006 choisi.
 15. H15 — Fonctions non implémentées hors 07 : exception 01 pour tous les modules.
 16. H16 — Écriture à un registre absent : exception 02.
 17. H17 — Les boîtes « Décimal / Hexadécimal » du logiciel sont des boutons qui basculent la base du champ. Valeurs par défaut lues sur les photos : esclave en décimal, adresse en hexadécimal, nombre en décimal, valeur en hexadécimal.
@@ -190,6 +193,13 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 37. H37 — Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux à 0,5 ms près. Simplification affichée : en réalité, deux maîtres décalés ne se percutent que par moments.
 38. H38 — Pendant un parcours, les trames mémorisées partent au milieu d'un créneau de 201,4 ms, à la période d'interrogation.
 39. H39 — Conflit de drivers RS485 : un bit identique sur les deux émetteurs passe normalement ; des bits opposés donnent un différentiel de 0,05 V (|V| < 200 mV) et le récepteur lit un bit tiré par le générateur à graine.
+40. H40 — OTB : entrées analogiques IN0 et IN1 réglées par les 2 potentiomètres, IN2 et IN3 non câblées (0) ; entrées et sorties analogiques sur 12 bits (0 à 4 095) ; potentiomètres à 50 % et 25 % au départ.
+41. H41 — OTB : l'octet fort écrit dans le registre 100 est ignoré ; écrire en 06 ou 16 un registre d'entrée (0 à 4) ou un code d'identification → exception 02.
+42. H42 — Valeur hors plage (entier > 9 999, luminosité > 4, caractère hors a…z / 0…9 / espace, nombre de mots hors 1…125) → exception 03.
+43. H43 — Registres de configuration 1 à 3 écrits en 06 : écho, puis effet immédiat. Nouvelle adresse (1 à 247) prise aussitôt ; vitesse ≠ 0006 (H14) ou parité ≠ 0001 : le module ne comprend plus le bus jusqu'à « Réinitialiser le pupitre ».
+44. H44 — TDS : entier aligné à droite sans zéros non significatifs ; le dernier registre écrit (texte ou entier) fixe le mode d'affichage ; au départ luminosité 4 et affichage vide.
+45. H45 — Trames mémorisées envoyées tour à tour, une par créneau de 201,4 ms ; le cycle se répète à la plus longue période saisie.
+46. H46 — Libellés du « Détail Trame » pour les requêtes et les réponses 06 et 16 reconstitués sur le modèle de la photo.
 
 ## 4. Modèles de simulation
 

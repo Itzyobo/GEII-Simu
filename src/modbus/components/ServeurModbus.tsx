@@ -363,9 +363,11 @@ function ConfigMaitre({ card, log, onClose }: { card: CardId; log: (t: string) =
 
   const validate = () => {
     const r = buildRequest({ esclave, fonction: code, champs })
-    if (!r.ok) return setErrors(r.errors)
-    dispatch({ type: 'memorize', card, bytes: r.bytes, wall: maintenant() })
-    log(`Trame mémorisée : ${toHex(r.bytes)}`)
+    const periode = Number(freq.trim().replace(',', '.'))
+    const errs = [...(r.ok ? [] : r.errors), ...(periode > 0 ? [] : ['Fréquence interrogation esclave : nombre de secondes > 0 attendu'])]
+    if (!r.ok || errs.length) return setErrors(errs)
+    dispatch({ type: 'memorize', card, bytes: r.bytes, periode, wall: maintenant() })
+    log(`Trame mémorisée : ${toHex(r.bytes)} toutes les ${freq.trim()} s`)
     onClose()
   }
 
@@ -422,8 +424,10 @@ function ListeTrames({ card, log, onClose }: { card: CardId; log: (t: string) =>
   return (
     <Window title="Liste des trames mémorisées" onClose={onClose}>
       <ol className={`max-h-48 list-inside list-decimal overflow-y-auto bg-white p-1 font-mono ${sunken}`}>
-        {software[card].memorized.map((b, k) => (
-          <li key={k}>{toHex(b)}</li>
+        {software[card].memorized.map((m, k) => (
+          <li key={k}>
+            {toHex(m.bytes)} <span className="text-[#606060]">({String(m.periode).replace('.', ',')} s)</span>
+          </li>
         ))}
       </ol>
       <div className="mt-2 flex justify-end gap-2">

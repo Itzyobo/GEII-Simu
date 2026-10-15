@@ -240,7 +240,26 @@ export default function Banc() {
               </div>
             ))}
             <div className="rounded-xl bg-[#1b1d20] p-2 ring-1 ring-white/10">
-              <Pupitre wiring={w} />
+              <Pupitre wiring={w} pupitre={s.pupitre} t={s.sim.t} onInterrupteur={(k) => dispatch({ type: 'interrupteur', k })} />
+              <div className="mt-2 flex flex-wrap items-center gap-3 px-1 text-xs text-neutral-300">
+                {([0, 1] as const).map((k) => (
+                  <label key={k} className="flex items-center gap-2">
+                    Potentiomètre IN{k}
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round(s.pupitre.otb.pots[k] * 100)}
+                      onChange={(e) => dispatch({ type: 'potentiometre', k, value: Number(e.target.value) / 100 })}
+                      className="w-24"
+                    />
+                  </label>
+                ))}
+                <UnverifiedBadge deps={['otbAnalogMax', 'otbPotentiometres']} />
+                <button type="button" onClick={() => dispatch({ type: 'resetPupitre' })} className="ml-auto min-h-10 rounded-lg px-3 ring-1 ring-white/20 hover:bg-white/10">
+                  Réinitialiser le pupitre
+                </button>
+              </div>
             </div>
             <p className="text-xs text-neutral-400">Carte et pupitre reconstitués (pas de photo de face) : emplacement des points de test d’après le schéma TP-10.</p>
           </section>

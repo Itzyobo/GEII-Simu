@@ -3,7 +3,7 @@ import { REF } from '../data/reference'
 import { toHex } from './crc'
 import { busSimulate, frameDuration, lireLigne, parcoursComplet, rs485Lines, type BusFrame, type Emetteur } from './bus'
 import { scopeView, valueAt, type ProbeInput, type ScopeSettings } from './scope'
-import { analyzerDecode, crcOk, slaveRespond } from './slaves'
+import { analyzerDecode, crcOk, pupitreInitial, slaveRespond } from './slaves'
 
 const I = REF.parcoursIntervalle.value
 const near = (x: number, target: number, tol: number) => expect(Math.abs(x / target - 1)).toBeLessThanOrEqual(tol)
@@ -25,7 +25,7 @@ describe('parcours réseau', () => {
   it('exactement 4 esclaves répondent, avec les exceptions du CR ; adresse 00 → aucune réponse', () => {
     expect(reponses.map((f) => toHex(f.bytes))).toEqual(['17 87 01 63 F4', '1E 87 01 B3 F6', '23 87 03 A3 FB', '29 87 01 02 38'])
     expect(PARCOURS.filter((f) => f.t0 >= 0 && f.t0 < I).map((f) => f.type)).toEqual(['MAITRE'])
-    expect(crcOk(slaveRespond('TDS', [0x1e, 7, 0, 0])!)).toBe(true)
+    expect(crcOk(slaveRespond(pupitreInitial(), 'TDS', [0x1e, 7, 0, 0]).reponse!)).toBe(true)
   })
   it('durées à 38 400 bauds en 8E1 : requête 1,146 ms, exception 1,432 ms, parcours 51,6 s (± 1 %)', () => {
     near(frameDuration(4), 1.146e-3, 0.01)
@@ -126,7 +126,7 @@ describe('erreurs de manip', () => {
   })
   it('trame mémorisée non supprimée + parcours → les deux flux mêlés', () => {
     const memo = [0x17, 0x06, 0x00, 0x64, 0x00, 0x5a, 0x4a, 0xd8]
-    const f = busSimulate([maitre({ memorized: [memo] })], 0, 10 * I)
+    const f = busSimulate([maitre({ memorized: [{ bytes: memo, periode: REF.pollPeriod.value }] })], 0, 10 * I)
     const fns = f.filter((x) => x.type === 'MAITRE').map((x) => x.bytes[1])
     expect(fns).toContain(7)
     expect(fns).toContain(6)

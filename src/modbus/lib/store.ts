@@ -6,10 +6,13 @@ import { useSyncExternalStore } from 'react'
 import { REF } from '../data/reference'
 import { realtermDefaut, type CableSerie, type RealtermSettings } from '../models/serie'
 import type { Liaison } from '../models/uart'
-import { parcoursComplet, type Parcours } from '../models/bus'
+import { busRun, parcoursComplet, type BusFrame, type Emetteur, type Memorisee, type Parcours } from '../models/bus'
+import { pupitreInitial, type PupitreState } from '../models/slaves'
 
 export const STORAGE_KEY = 'tp2sim:v1'
-const VERSION = 3
+const VERSION = 4
+/** Trames gardées dans le journal du bus : au moins un parcours complet et ses réponses */
+const JOURNAL_MAX = 2 * REF.parcoursAdresses.value + 100
 
 export type CardId = 'c1' | 'c2'
 export type TestPoint = 'TXD_TTL' | 'TXD_RS232' | 'TX+' | 'TX-' | 'TX_EN'
@@ -44,7 +47,7 @@ export const ACTIVITY_LABEL: Record<Activity, string> = { serie1: 'SERIE_1', ser
 /** Logiciel SERVEUR JBUS/MODBUS d'un PC */
 export interface Logiciel {
   role: Role
-  memorized: number[][]
+  memorized: Memorisee[]
   /** Instant (horloge de simulation) de la première trame mémorisée : début des émissions périodiques */
   memStart: number
   messages: string[]
@@ -71,6 +74,10 @@ export interface State {
   sim: { t: number; speed: 1 | 10; wall0: number | null }
   /** Réglages du pupitre ; « polarisation absente » (H9) prévue pour l'étape 5 */
   reglages: { polarisation: boolean }
+  /** État des modules du pupitre, modifié par les trames et par les interrupteurs et potentiomètres */
+  pupitre: PupitreState
+  /** Trames passées sur le bus (ou sur les broches d'une carte non branchée), dans l'ordre, les plus récentes */
+  journal: BusFrame[]
   /** Octet saisi dans la console de SERIE_1 et SERIE_2 (H28) */
   octets: { serie1: number; serie2: number }
   /** Graine du format de SERIE_2, tirée au premier lancement et fixée pour la session (H3) ; vrai format saisi dans Réglages */
@@ -100,6 +107,8 @@ export const initialState = (): State => ({
   parcours: { c1: null, c2: null },
   sim: { t: 0, speed: 1, wall0: null },
   reglages: { polarisation: true },
+  pupitre: pupitreInitial(),
+  journal: [],
   octets: { serie1: 0x55, serie2: 0x55 },
   serie2: { graine: null, reel: null },
   realterm: realtermDefaut(),
@@ -116,7 +125,10 @@ export type Action =
   | { type: 'startEmission' }
   | { type: 'stopEmission' }
   | { type: 'role'; card: CardId; role: Role }
-  | { type: 'memorize'; card: CardId; bytes: number[]; wall: number }
+  | { type: 'memorize'; card: CardId; bytes: number[]; periode: number; wall: number }
+  | { type: 'interrupteur'; k: number }
+  | { type: 'potentiometre'; k: 0 | 1; value: number }
+  | { type: 'resetPupitre' }
   | { type: 'clearMemorized'; card: CardId }
   | { type: 'message'; card: CardId; text: string }
   | { type: 'parcours'; card: CardId; on: boolean; wall: number }
@@ -227,7 +239,8 @@ export function reduce(s: State, a: Action): State {
     }
     case 'memorize': {
       const sw = s.software[a.card]
-      return withWall(soft(s, a.card, { role: 'Maître', memorized: [...sw.memorized, a.bytes], memStart: sw.memorized.length ? sw.memStart : s.sim.t }), a.wall)
+      const m = { bytes: a.bytes, periode: a.periode }
+      return withWall(soft(s, a.card, { role: 'Maître', memorized: [...sw.memorized, m], memStart: sw.memorized.length ? sw.memStart : s.sim.t }), a.wall)
     }
     case 'clearMemorized':
       return soft(s, a.card, { memorized: [] })
@@ -247,9 +260,13 @@ export function reduce(s: State, a: Action): State {
     case 'tick': {
       if (!anyMaster(s)) return s
       const t = s.sim.t + a.dt * s.sim.speed
+      // Trames qui commencent pendant ce pas : exécutées par les esclaves (l'état du pupitre suit) et journalisées.
+      // La fenêtre déborde d'une marge pour voir les chevauchements avec les pas voisins.
+      const M = REF.esclaveDelaiReponse.value + REF.parcoursIntervalle.value / 4
+      const run = busRun(emetteurs(s), s.sim.t - M, t + M, s.pupitre, [s.sim.t, t])
       // Parcours qui se termine pendant ce pas
       const fin = (c: CardId) => parcoursEnCours(s, c) && t >= s.parcours[c]!.fin
-      let r: State = { ...s, sim: { ...s.sim, t } }
+      let r: State = { ...s, sim: { ...s.sim, t }, pupitre: run.etat, journal: [...s.journal, ...run.frames].slice(-JOURNAL_MAX) }
       for (const c of ['c1', 'c2'] as const) if (fin(c)) r = soft(r, c, { messages: [...r.software[c].messages, 'Parcours réseau terminé'].slice(-50) })
       return r
     }
@@ -269,10 +286,29 @@ export function reduce(s: State, a: Action): State {
       const prev = s.answers[a.key]
       return { ...s, answers: { ...s.answers, [a.key]: { value: a.value, attempts: (prev?.attempts ?? 0) + 1, points: a.points } } }
     }
+    case 'interrupteur': {
+      // Inverseur du panneau : manipulation permise pendant que le bus tourne
+      const p = s.pupitre
+      return { ...s, pupitre: { ...p, otb: { ...p.otb, entrees: p.otb.entrees ^ (1 << a.k) } } }
+    }
+    case 'potentiometre': {
+      const pots = [...s.pupitre.otb.pots] as [number, number]
+      pots[a.k] = Math.min(1, Math.max(0, a.value))
+      return { ...s, pupitre: { ...s.pupitre, otb: { ...s.pupitre.otb, pots } } }
+    }
+    case 'resetPupitre':
+      // Remise sous tension : adresses, configuration et sorties d'origine ; les inverseurs restent où ils sont
+      return { ...s, pupitre: { ...pupitreInitial(), otb: { ...pupitreInitial().otb, entrees: s.pupitre.otb.entrees, pots: s.pupitre.otb.pots } } }
     case 'reset':
       return initialState()
   }
 }
+
+/** Cartes en Maître : parcours (en cours ou passé) et trames mémorisées */
+export const emetteurs = (s: State): Emetteur[] =>
+  (['c1', 'c2'] as const)
+    .filter((c) => masterHistory(s, c))
+    .map((c) => ({ card: c, connected: s.wiring.db9[c], parcours: s.parcours[c], memorized: s.software[c].memorized, memStart: s.software[c].memStart }))
 
 /* ───────────── Persistance ───────────── */
 
@@ -307,11 +343,19 @@ export function save(s: State, storage: StorageLike | null = defaultStorage()) {
 let current: State = load()
 const listeners = new Set<() => void>()
 
+/** Les pas d'horloge (10 par seconde) ne sauvegardent qu'une fois par seconde : le journal du bus pèse quelques dizaines de ko */
+const SAVE_TICK_MS = 1000
+let lastSave = 0
+
 export function dispatch(a: Action) {
   const next = reduce(current, a)
   if (next === current) return
   current = next
-  save(current)
+  const now = Date.now()
+  if (a.type !== 'tick' || now - lastSave >= SAVE_TICK_MS) {
+    save(current)
+    lastSave = now
+  }
   listeners.forEach((l) => l())
 }
 

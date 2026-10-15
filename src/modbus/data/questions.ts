@@ -143,8 +143,8 @@ export const QUESTIONS: Question[] = DEFS.map(([id, section, intitule, attendus,
   intitule,
   attendus,
   deps,
-  // Partie A (2.1 à 2.4, étape 2) et 3.1 (étape 3) implémentées
-  statut: section.startsWith('2.') || section === '3.1' ? 'implémentée' : 'à venir',
+  // Parties A (étape 2), B (étape 3) et C (étape 4) : toutes les questions de l'énoncé sont implémentées
+  statut: 'implémentée',
 }))
 
 export const SECTIONS: Section[] = ['2.1', '2.2', '2.3', '2.4', '3.1', '3.2 a', '3.2 b', '3.2 c', '3.2 d']

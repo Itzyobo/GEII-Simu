@@ -4,17 +4,18 @@ import { ATTENDUS } from '../data/attendus'
 import { QUESTIONS, SECTIONS, type Question } from '../data/questions'
 import { champsPartieA, type Champ } from '../lib/partieA'
 import { champsPartieB } from '../lib/partieB'
+import { champsPartieC } from '../lib/partieC'
 import { points } from '../models/answers'
 import { dispatch, useStore } from '../lib/store'
 import TraceClic from '../components/TraceClic'
 import UnverifiedBadge from '../components/UnverifiedBadge'
 
 const ATTENDU_TEXT = Object.fromEntries(ATTENDUS.map((a) => [a.id, a.text]))
-const PARTIE_B = champsPartieB()
+const PARTIES_BC = { ...champsPartieB(), ...champsPartieC() }
 
 export default function Questions() {
   const s = useStore()
-  const champs = { ...champsPartieA(s), ...PARTIE_B }
+  const champs = { ...champsPartieA(s), ...PARTIES_BC }
   // Le vrai format de SERIE_2 saisi dans Réglages lève le badge H3
   const depsOf = (q: Question) => (s.serie2.reel ? q.deps.filter((d) => d !== 'serie2Format') : q.deps)
 
