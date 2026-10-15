@@ -4,7 +4,7 @@
  * Le programme n'émet que si le câblage a été vérifié (store) et le commutateur sur « contrôle de flux » (H18).
  */
 import { useState } from 'react'
-import { ACTIVITY_LABEL, dispatch, useStore, type Activity } from '../lib/store'
+import { ACTIVITY_LABEL, dispatch, useStore, type SerieActivity } from '../lib/store'
 import UnverifiedBadge from './UnverifiedBadge'
 
 const hex2 = (b: number) => b.toString(16).toUpperCase().padStart(2, '0')
@@ -14,13 +14,14 @@ const PROMPT = 'C:\\Documentation technique\\RES3\\Serie>'
 export default function ConsoleSerie() {
   const s = useStore()
   const act = s.session.activity
-  const prog = act === 'realterm' ? 'serie3' : act
+  // Partie B : aucun programme SERIE en cours, la console attend
+  const prog = act === 'realterm' ? 'serie3' : act === 'reseau' ? null : act
   const [saisie, setSaisie] = useState(() => hex2(prog === 'serie2' ? s.octets.serie2 : s.octets.serie1))
   const [erreur, setErreur] = useState<string | null>(null)
   const demandeOctet = prog === 'serie1' || prog === 'serie2'
-  const nom = ACTIVITY_LABEL[prog]
+  const nom = prog ? ACTIVITY_LABEL[prog] : ''
 
-  const choisir = (a: Activity) => {
+  const choisir = (a: SerieActivity) => {
     dispatch({ type: 'activity', activity: a })
     if (a === 'serie2') dispatch({ type: 'serie2Graine', graine: nouvelleGraine() })
     setErreur(null)
@@ -39,7 +40,7 @@ export default function ConsoleSerie() {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Programme du PC n°1">
-        {(Object.keys(ACTIVITY_LABEL) as Activity[]).map((a) => (
+        {(['serie1', 'serie2', 'serie3', 'realterm'] as const).map((a) => (
           <button
             key={a}
             type="button"
@@ -77,8 +78,10 @@ export default function ConsoleSerie() {
                 <input value={saisie} onChange={(e) => setSaisie(e.target.value)} maxLength={2} aria-label="Caractère à émettre" className="w-10 bg-neutral-800 px-1 text-white uppercase outline-none focus:ring-1 focus:ring-white" />
               </label>
             </form>
-          ) : (
+          ) : prog ? (
             <p>Appuyez sur Valider pour lancer l’émission.</p>
+          ) : (
+            <p>Choisissez un programme ci-dessus.</p>
           )}
           {erreur && <p className="text-red-400">{erreur}</p>}
         </div>
@@ -89,9 +92,11 @@ export default function ConsoleSerie() {
             Arrêter (Ctrl+C)
           </button>
         ) : (
+          prog && (
           <button type="button" onClick={valider} className="min-h-10 rounded-lg bg-emerald-600 px-4 text-sm font-semibold">
             Valider
           </button>
+          )
         )}
         {prog === 'serie2' && <UnverifiedBadge deps={s.serie2.reel ? ['serie2SaisieOctet'] : ['serie2Format', 'serie2SaisieOctet']} />}
         {prog === 'serie1' && <UnverifiedBadge deps={['serie1StopBits', 'serie1Repetition']} />}

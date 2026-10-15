@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { initialState, load, reduce, save, STORAGE_KEY, type Action } from './store'
+import { REF } from '../data/reference'
+import { initialState, load, parcoursEnCours, reduce, save, STORAGE_KEY, type Action } from './store'
 
 const run = (...actions: Action[]) => actions.reduce(reduce, initialState())
 const WIRED: Action[] = [
@@ -63,5 +64,30 @@ describe('partie A', () => {
     const base: Action[] = [{ type: 'activity', activity: 'realterm' }, { type: 'flow', card: 'c1', on: true }, { type: 'flow', card: 'c2', on: true }]
     expect(run(...base, { type: 'verify' }).check?.ok).toBe(false)
     expect(run(...base, { type: 'serialCable', cable: 'droit' }, { type: 'verify' }).check?.ok).toBe(true)
+  })
+})
+
+describe('partie B', () => {
+  const I = REF.parcoursIntervalle.value
+  it('parcours : rôle Maître, horloge, fin après 256 adresses ; DB9 verrouillé pendant le parcours', () => {
+    let s = run({ type: 'db9', card: 'c1', on: true }, { type: 'parcours', card: 'c1', on: true, wall: 0 })
+    expect(s.software.c1.role).toBe('Maître')
+    s = reduce(s, { type: 'db9', card: 'c1', on: false })
+    expect(s.wiring.db9.c1).toBe(true)
+    expect(s.incidents.at(-1)?.kind).toBe('retrait-db9')
+    for (let k = 0; k < 520; k++) s = reduce(s, { type: 'tick', dt: 0.1 })
+    expect(parcoursEnCours(s, 'c1')).toBe(false)
+    expect(s.software.c1.messages.at(-1)).toBe('Parcours réseau terminé')
+  })
+  it('second maître calé sur les créneaux du premier (H37) ; ×10 refusé en mode partiel', () => {
+    let s = run({ type: 'parcours', card: 'c1', on: true, wall: 0 }, { type: 'tick', dt: 0.5 }, { type: 'parcours', card: 'c2', on: true, wall: 0 })
+    const d = (s.parcours.c2!.debut - s.parcours.c1!.debut) / I
+    expect(d - Math.round(d)).toBeCloseTo(REF.deuxMaitresDecalage.value / I, 9)
+    s = reduce({ ...s, session: { ...s.session, mode: 'examen' } }, { type: 'speed', speed: 10 })
+    expect(s.sim.speed).toBe(1)
+  })
+  it('passer en Analyseur arrête le parcours de la carte', () => {
+    const s = run({ type: 'parcours', card: 'c1', on: true, wall: 0 }, { type: 'role', card: 'c1', role: 'Analyseur' })
+    expect(parcoursEnCours(s, 'c1')).toBe(false)
   })
 })

@@ -52,11 +52,12 @@ export function checkDebit(text: string, baud: number, tdiv: number): Verdict {
   return { ok: false, message: `Faux : ${debit} bauds. Mesurez la durée d’un bit (le plus court palier), puis D = 1 / T_bit.` }
 }
 
-export function checkTension(text: string, attendu: number): Verdict {
-  const v = Number(text.trim().replace(/[\s ]/g, '').replace(',', '.').replace(/v$/i, '').replace('−', '-'))
-  if (!Number.isFinite(v) || text.trim() === '') return { ok: false, message: 'Réponse illisible : donnez une tension en volts.' }
+/** Valeur numérique à ± 5 % (H30) ; l'unité éventuelle (V, ms…) est ignorée. */
+export function checkValeur(text: string, attendu: number): Verdict {
+  const v = Number(text.trim().replace(/[\s ]/g, '').replace(',', '.').replace('−', '-').replace(/[a-zµ]+$/i, ''))
+  if (!Number.isFinite(v) || text.trim() === '') return { ok: false, message: 'Réponse illisible : donnez une valeur numérique.' }
   const ok = Math.abs(v - attendu) <= Math.abs(attendu) * REF.toleranceTension.value
-  return { ok, message: ok ? 'Juste.' : 'Faux.' }
+  return { ok, message: ok ? 'Juste.' : `Faux : ${Number(attendu.toPrecision(4)).toString().replace('.', ',')}.` }
 }
 
 /** Ne garde que les 0 et 1 : « 0·10101010·1·1 » → « 01010101011 ». */

@@ -12,3 +12,8 @@ export const ATTENDUS = [
 ] as const
 
 export type AttenduId = (typeof ATTENDUS)[number]['id']
+
+/** Ce qui manque encore à un attendu couvert : il s'affiche « partiellement couvert ». */
+export const RESTE: Partial<Record<AttenduId, string>> = {
+  impedance: 'terminaison et polarisation : quiz de cours, étape 5',
+}

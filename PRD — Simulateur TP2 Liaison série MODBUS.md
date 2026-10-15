@@ -107,6 +107,7 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 | Silence inter-trame | ≥ 1,75 ms | cours (norme au-delà de 19 200 bauds) |
 | Requête 07 (4 octets) | 1,146 ms | calcul |
 | Fréquence d'interrogation | 1 s | photo (valeur par défaut) |
+| Intervalle du parcours réseau | 201,4 ms par adresse, soit ≈ 51,6 s de 00 à FF | photo (horodatages de l'analyseur, 10:52:14,650 → 16,261 sur 8 adresses) |
 | Capture : voies | Ch1 et Ch2 à 1,00 V/div, sondes 10:1 | CR (capture) |
 | Capture : Math | Ch1 − Ch2, 1,00 V/div, décalage 1,6902 V | CR (capture) |
 | Capture : déclenchement | 2,54 V | CR (capture) |
@@ -180,6 +181,13 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 29. H29 — Générateur « message codé » : 1 200 à 19 200 bauds, 7 ou 8 bits, sans parité / paire / impaire, 1 stop ; 3 à 8 caractères (lettres, chiffres, espace) ; RS232 une fois sur deux à partir du niveau 2 ; 2 V/div en TTL, 5 V/div en RS232 ; un bit couvre au moins 1,5 div.
 30. H30 — Correction : la bonne réponse de débit est le débit standard exact (1 200, 2 400, 4 800, 9 600, 19 200, 38 400) ; une valeur à ± 10 % du bon débit sans être un standard vaut la moitié des points (« Valeur mesurée correcte, mais il faut l'arrondir au débit standard le plus proche. ») ; tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d'un bit.
 31. H31 — RealTerm réduit : ports COM1 et COM2 (seul COM1 relié), débits 1 200 à 19 200 bauds, ouverture en 9 600 bauds 8N1.
+32. H32 — Délai de réponse d'un esclave : 3 ms entre la fin de la requête et le start de la réponse (la norme impose au moins 1,75 ms).
+33. H33 — TX_EN monte 50 µs avant le premier start et redescend 50 µs après le dernier stop ; même règle pour le driver d'un esclave.
+34. H34 — Convention RS485 : 1 logique (et repos piloté) ⇔ TX+ > TX−.
+35. H35 — Parasite de mode commun de démonstration : sinus de 1 V crête à 1 kHz ajouté aux deux fils.
+36. H36 — Libellés de l'analyseur pour les codes d'exception 02 à 04 (seul 01 « Code fonction inconnu » est lu sur la photo).
+37. H37 — Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux à 0,5 ms près ; deux trames superposées se corrompent (le 0 l'emporte).
+38. H38 — Pendant un parcours, les trames mémorisées partent au milieu d'un créneau de 201,4 ms, à la période d'interrogation.
 
 ## 4. Modèles de simulation
 

@@ -3,15 +3,18 @@ import { Link } from 'react-router'
 import { ATTENDUS } from '../data/attendus'
 import { QUESTIONS, SECTIONS, type Question } from '../data/questions'
 import { champsPartieA, type Champ } from '../lib/partieA'
+import { champsPartieB } from '../lib/partieB'
 import { points } from '../models/answers'
 import { dispatch, useStore } from '../lib/store'
+import TraceClic from '../components/TraceClic'
 import UnverifiedBadge from '../components/UnverifiedBadge'
 
 const ATTENDU_TEXT = Object.fromEntries(ATTENDUS.map((a) => [a.id, a.text]))
+const PARTIE_B = champsPartieB()
 
 export default function Questions() {
   const s = useStore()
-  const champs = champsPartieA(s)
+  const champs = { ...champsPartieA(s), ...PARTIE_B }
   // Le vrai format de SERIE_2 saisi dans Réglages lève le badge H3
   const depsOf = (q: Question) => (s.serie2.reel ? q.deps.filter((d) => d !== 'serie2Format') : q.deps)
 
@@ -69,21 +72,52 @@ function Reponses({ qid, champs, answers }: { qid: string; champs: Champ[]; answ
         const a = answers[key(c)]
         const verdict = a ? c.check(a.value) : null
         const id = `${qid}-${c.key}`
+        const set = (value: string) => setValues((v) => ({ ...v, [c.key]: value }))
+        const large = c.affirmations || c.trace
         return (
-          <div key={c.key} className="grid gap-1 sm:grid-cols-[16rem_minmax(0,1fr)] sm:items-center">
-            <label htmlFor={id} className="text-sm">
-              {c.label}
-            </label>
-            <div>
-              {c.options ? (
-                <select id={id} value={values[c.key]} onChange={(e) => setValues((v) => ({ ...v, [c.key]: e.target.value }))} className="min-h-10 w-full rounded-md bg-card px-2 ring-1 ring-line sm:w-48">
+          <div key={c.key} className={`grid gap-1 sm:items-center ${large ? '' : 'sm:grid-cols-[16rem_minmax(0,1fr)]'}`}>
+            {large ? (
+              <p id={id} className="text-sm">
+                {c.label}
+              </p>
+            ) : (
+              <label htmlFor={id} className="text-sm">
+                {c.label}
+              </label>
+            )}
+            <div className="min-w-0">
+              {c.affirmations ? (
+                <ul className="space-y-1" aria-labelledby={id}>
+                  {c.affirmations.map((af, k) => {
+                    const coche = (values[c.key] ?? '')[k] === '1'
+                    return (
+                      <li key={k}>
+                        <label className="flex min-h-10 items-start gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="mt-1 size-4 shrink-0"
+                            checked={coche}
+                            onChange={() => set(c.affirmations!.map((_, j) => (j === k ? (coche ? '0' : '1') : (values[c.key] ?? '')[j] === '1' ? '1' : '0')).join(''))}
+                          />
+                          <span>
+                            {k + 1}. {af.texte}
+                          </span>
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : c.trace ? (
+                <TraceClic trace={c.trace} value={values[c.key] ?? ''} onPick={set} />
+              ) : c.options ? (
+                <select id={id} value={values[c.key]} onChange={(e) => set(e.target.value)} className="min-h-10 w-full max-w-full rounded-md bg-card px-2 ring-1 ring-line sm:w-auto">
                   <option value="">—</option>
                   {c.options.map((o) => (
                     <option key={o}>{o}</option>
                   ))}
                 </select>
               ) : (
-                <input id={id} value={values[c.key]} onChange={(e) => setValues((v) => ({ ...v, [c.key]: e.target.value }))} className="min-h-10 w-full rounded-md bg-card px-2 font-mono ring-1 ring-line" />
+                <input id={id} value={values[c.key]} onChange={(e) => set(e.target.value)} className="min-h-10 w-full rounded-md bg-card px-2 font-mono ring-1 ring-line" />
               )}
               {verdict && a?.value === values[c.key] && (
                 <p role="status" className={`mt-1 text-sm ${verdict.ok ? 'text-ok' : verdict.partiel ? 'text-warn' : 'text-err'}`}>

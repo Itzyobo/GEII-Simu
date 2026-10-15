@@ -37,12 +37,23 @@ type Softkey = 'Math' | 'Function' | 'Operator' | 'Source 1' | 'Source 2' | 'Sca
 const SOFTKEYS: Softkey[] = ['Math', 'Function', 'Operator', 'Source 1', 'Source 2', 'Scale', 'Offset', 'Measure', 'Cursors']
 type CursorKey = 'x1' | 'x2' | 'y1' | 'y2'
 
+/** Zone à surligner, en temps du signal (périodique de période `period`) */
+export interface Annotation {
+  from: number
+  to: number
+  label: string
+  period: number
+}
+const ZONE_COLORS: Record<string, string> = { 'prise de ligne': '#38bdf8', 'haute impédance': '#a3a3a3', 'réponse esclave': '#f472b6' }
+const LABEL_MIN_PX = 110
+
 interface Props {
   inputs: [ProbeInput, ProbeInput]
   initial: ScopeSettings
+  annotations?: Annotation[]
 }
 
-export default function Oscilloscope({ inputs, initial }: Props) {
+export default function Oscilloscope({ inputs, initial, annotations = [] }: Props) {
   const [st, setSt] = useState<ScopeSettings>(initial)
   const [softkey, setSoftkey] = useState<Softkey>('Measure')
   const [measureSrc, setMeasureSrc] = useState<0 | 1 | 2>(0)
@@ -193,6 +204,27 @@ export default function Oscilloscope({ inputs, initial }: Props) {
               <line key={`ty${k}`} x1={W / 2 - 3} x2={W / 2 + 3} y1={k * 10} y2={k * 10} stroke="#5a6066" />
             ))}
             <g clipPath="url(#scr)">
+              {view.status !== 'Attente' &&
+                annotations.flatMap((z, i) => {
+                  const k0 = Math.floor(view.t0 / z.period)
+                  return [k0, k0 + 1].map((k) => {
+                    const x0 = ((z.from + k * z.period - view.t0) / span) * W
+                    const x1 = ((z.to + k * z.period - view.t0) / span) * W
+                    if (x1 < 0 || x0 > W) return null
+                    const c = ZONE_COLORS[z.label] ?? '#e5e7eb'
+                    return (
+                      <g key={`${i}-${k}`}>
+                        <rect x={x0} y={0} width={Math.max(1, x1 - x0)} height={H} fill={c} opacity={0.12} />
+                        {/* Libellé seulement si la zone est assez large ; sinon la légende sous l'écran suffit */}
+                        {Math.min(x1, W) - Math.max(x0, 0) >= LABEL_MIN_PX && (
+                          <text x={Math.max(4, x0 + 4)} y={14} fill={c} fontSize={12}>
+                            {z.label}
+                          </text>
+                        )}
+                      </g>
+                    )
+                  })
+                })}
               {view.traces.map(
                 (tr, k) =>
                   tr && (
@@ -251,6 +283,15 @@ export default function Oscilloscope({ inputs, initial }: Props) {
               </div>
             )}
           </div>
+          {annotations.length > 0 && (
+            <p className="flex flex-wrap gap-x-3 px-1 pt-1" aria-label="Légende des annotations">
+              {Object.entries(ZONE_COLORS).map(([label, c]) => (
+                <span key={label} style={{ color: c }}>
+                  ■ {label}
+                </span>
+              ))}
+            </p>
+          )}
           <p className="px-1 pt-1 text-neutral-400">{softkeyHint[softkey]}</p>
         </div>
 

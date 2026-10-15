@@ -125,6 +125,21 @@ export const REF = {
   rs485Low: ref({ value: 1, unit: 'V', source: 'hypothèse', hyp: 'H8', note: 'TX+ et TX− opposés, ≈ 1 V et ≈ 4 V' }),
   rs485High: ref({ value: 4, unit: 'V', source: 'hypothèse', hyp: 'H8' }),
   rs485Idle: ref({ value: 2.5, unit: 'V', source: 'hypothèse', hyp: 'H9', note: 'haute impédance, sur les deux fils' }),
+  rs485Convention: ref({ value: 'TX+ > TX− ⇔ 1 logique', source: 'hypothèse', hyp: 'H34', note: 'repos (1) : TX+ haut, TX− bas' }),
+  parcoursIntervalle: ref({
+    value: 0.2014,
+    unit: 's',
+    source: 'photo',
+    note: 'analyseur : 10:52:14,650 → 14,852 → 15,053 → 15,254 → 15,454 → 15,657 → 15,859 → 16,059 → 16,261, soit (16,261 − 14,650) / 8',
+  }),
+  parcoursAdresses: ref({ value: 256, source: 'énoncé', note: 'adresses 00 à FF (« 00, 01, 02, …, 255 »)' }),
+  esclaveDelaiReponse: ref({ value: 3e-3, unit: 's', source: 'hypothèse', hyp: 'H32', note: 'fin de la requête → premier start de la réponse (≥ 1,75 ms de la norme)' }),
+  txEnAvance: ref({ value: 50e-6, unit: 's', source: 'hypothèse', hyp: 'H33', note: 'TX_EN monte avant le premier start' }),
+  txEnRetard: ref({ value: 50e-6, unit: 's', source: 'hypothèse', hyp: 'H33', note: 'TX_EN redescend après le dernier stop ; même chose pour le driver d’un esclave' }),
+  parasiteAmplitude: ref({ value: 1, unit: 'V', source: 'hypothèse', hyp: 'H35', note: 'parasite de mode commun de démonstration, sinus crête' }),
+  parasiteFrequence: ref({ value: 1000, unit: 'Hz', source: 'hypothèse', hyp: 'H35' }),
+  deuxMaitresDecalage: ref({ value: 0.5e-3, unit: 's', source: 'hypothèse', hyp: 'H37', note: 'second parcours calé sur les créneaux du premier' }),
+  memoriseesAuMilieuDuCreneau: ref({ value: 0.5, unit: 'créneau', source: 'hypothèse', hyp: 'H38', note: 'trames mémorisées envoyées pendant un parcours : au milieu d’un créneau de 201,4 ms' }),
 
   /* ───────────────────────────── Esclaves ───────────────────────────── */
 
@@ -141,6 +156,14 @@ export const REF = {
   otbReponseEntrees: ref({ value: [0x17, 0x03, 0x02, 0x0f, 0x0f, 0xb4, 0x73], source: 'CR', note: 'capture' }),
   otbCodesIdent: ref({ value: { 1102: 0x6004, 1103: 0x6007 }, source: 'énoncé', note: 'annexe' }),
   tdsFonctions: ref({ value: [3, 6], source: 'énoncé', note: 'annexe' }),
+  tqsFonctions: ref({ value: [3, 4, 6], source: 'énoncé', note: 'annexe' }),
+  thtFonctions: ref({ value: [3, 4, 6], source: 'énoncé', note: 'annexe' }),
+  exceptionLibelles: ref({
+    value: { 1: 'Code fonction inconnu', 2: 'Adresse incorrecte', 3: 'Valeur de donnée incorrecte', 4: 'Défaut de l’esclave' } as Record<number, string>,
+    source: 'hypothèse',
+    hyp: 'H36',
+    note: '01 lu sur la photo de l’analyseur ; 02 à 04 reconstitués',
+  }),
   tdsRegTexte: ref({ value: [100, 101, 102, 103], source: 'énoncé', note: 'ASCII minuscule' }),
   tdsRegLuminosite: ref({ value: 110, source: 'énoncé', note: '0 à 4' }),
   tdsRegDuree: ref({ value: 111, source: 'énoncé' }),
@@ -228,4 +251,13 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
     text: 'Correction : la bonne réponse de débit est le débit standard exact (1 200, 2 400, 4 800, 9 600, 19 200, 38 400) ; une valeur à ± 10 % du bon débit sans être un standard vaut la moitié des points ; tensions à ± 5 % ; une réponse à ± 1 % de la base de temps est signalée comme confusion avec la durée d’un bit.',
   },
   H31: { text: 'RealTerm réduit : ports COM1 et COM2 proposés (seul COM1 relié à la carte) ; débits 1 200 à 19 200 bauds ; s’ouvre en 9 600 bauds, 8 bits, sans parité, 1 stop.' },
+  H32: { text: 'Délai de réponse d’un esclave : 3 ms entre la fin de la requête et le start de la réponse (non mesuré ; la norme impose au moins 1,75 ms).' },
+  H33: { text: 'TX_EN monte 50 µs avant le premier start et redescend 50 µs après le dernier stop (non mesuré) ; le driver d’un esclave suit la même règle.' },
+  H34: { text: 'Convention RS485 : 1 logique (et repos piloté) ⇔ TX+ > TX−.' },
+  H35: { text: 'Parasite de mode commun de démonstration : sinus de 1 V crête à 1 kHz ajouté aux deux fils.' },
+  H36: { text: 'Libellés de l’analyseur pour les codes d’exception 02 à 04 non photographiés (seul 01 « Code fonction inconnu » est lu).' },
+  H37: {
+    text: 'Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux, décalé de 0,5 ms (les deux PC lancés ensemble) ; deux trames superposées sur la paire se corrompent (le 0 l’emporte).',
+  },
+  H38: { text: 'Pendant un parcours, le logiciel envoie les trames mémorisées au milieu d’un créneau de 201,4 ms, à la période d’interrogation.' },
 }

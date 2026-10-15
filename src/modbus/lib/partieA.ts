@@ -1,15 +1,20 @@
 /** Champs de réponse des questions 2.1 à 2.4 ; chaque réponse attendue est calculée par les modèles. */
 import { REF, type Parity } from '../data/reference'
-import { checkBits, checkDebit, checkExact, checkTension, PARITE_LABEL, parseParite, type Verdict } from '../models/answers'
+import { checkBits, checkDebit, checkExact, checkValeur, PARITE_LABEL, parseParite, type Verdict } from '../models/answers'
 import { realtermReceive, realtermText, serie1, serie2Format, serie3 } from '../models/serie'
 import { formatFrame, uartFrame, type Liaison } from '../models/uart'
 import type { State } from './store'
+import type { Affirmation, TraceCliquable } from './partieB'
 
 export interface Champ {
   key: string
   label: string
   /** Liste de choix ; sinon saisie libre */
   options?: string[]
+  /** Affirmations à cocher (réponse : « 1 » ou « 0 » par affirmation) */
+  affirmations?: Affirmation[]
+  /** Trace où cliquer (réponse : instant cliqué, en s) */
+  trace?: TraceCliquable
   check: (v: string) => Verdict
 }
 
@@ -60,8 +65,8 @@ export function champsPartieA(s: State): Record<string, Champ[] | null> {
     ],
     's21-debit': [{ key: 'debit', label: 'Débit (bauds) ou durée d’un bit', check: (v) => checkDebit(v, S1.baud, REF.scopeSerie1TimeDiv.value) }],
     's21-rs232': [
-      { key: 'max', label: 'Niveau haut en RS232 (V)', check: (v) => checkTension(v, REF.rs232High.value) },
-      { key: 'repos', label: 'Niveau au repos en RS232 (V)', check: (v) => checkTension(v, REF.rs232Low.value) },
+      { key: 'max', label: 'Niveau haut en RS232 (V)', check: (v) => checkValeur(v, REF.rs232High.value) },
+      { key: 'repos', label: 'Niveau au repos en RS232 (V)', check: (v) => checkValeur(v, REF.rs232Low.value) },
       { key: 'polarite', label: 'Polarité par rapport au TTL', options: ['identique', 'inversée'], check: (v) => checkExact(v, 'inversée') },
     ],
     s22: l2 && liaisonChamps(l2),

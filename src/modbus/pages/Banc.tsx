@@ -3,10 +3,11 @@
  * L'étudiant ne fait que les gestes réels : sondes, commutateur, câble série, DB9 vers le pupitre (règle 6).
  */
 import { useState } from 'react'
-import { Link } from 'react-router'
 import { REF } from '../data/reference'
-import { signalAt } from '../lib/bench'
-import { ACTIVITY_LABEL, dispatch, pointLabel, useStore, type CardId, type ChId, type TestPoint } from '../lib/store'
+import { reseau, signalAt } from '../lib/bench'
+import { ACTIVITY_LABEL, dispatch, masterEmitting, pointLabel, useStore, type CardId, type ChId, type TestPoint } from '../lib/store'
+import ServeurModbus from '../components/ServeurModbus'
+import type { Annotation } from '../components/Oscilloscope'
 import type { CableSerie } from '../models/serie'
 import ConsoleSerie from '../components/ConsoleSerie'
 import RealTerm from '../components/RealTerm'
@@ -31,6 +32,21 @@ const INITIAL: ScopeSettings = {
   cursors: { on: false, x1: REF.scopeCurseursInitiaux.value.x1 * tdiv, x2: REF.scopeCurseursInitiaux.value.x2 * tdiv, y1: REF.ttlLow.value, y2: REF.ttlHigh.value },
 }
 
+/** Partie B : réglages de la capture du CR (sondes 10:1, Math = Ch1 − Ch2), base de temps H7. */
+const ctdiv = REF.captureTimeDiv.value
+const CAPTURE: ScopeSettings = {
+  ch: [
+    { on: true, vdiv: REF.captureVoltDiv.value, offset: 0, probe: REF.captureProbe.value },
+    { on: true, vdiv: REF.captureVoltDiv.value, offset: 0, probe: REF.captureProbe.value },
+  ],
+  tdiv: ctdiv,
+  position: REF.scopePositionInitiale.value * ctdiv,
+  trigger: { source: 0, slope: 'rising', level: REF.captureTriggerLevel.value },
+  mode: 'normal',
+  math: { on: false, src1: 0, src2: 1, vdiv: REF.captureMathVoltDiv.value, offset: REF.captureMathOffset.value },
+  cursors: { on: false, x1: REF.scopeCurseursInitiaux.value.x1 * ctdiv, x2: REF.scopeCurseursInitiaux.value.x2 * ctdiv, y1: REF.rs485Low.value, y2: REF.rs485High.value },
+}
+
 type Tool = { ch: ChId; part: 'pointe' | 'masse' }
 const TOOLS: Tool[] = [
   { ch: 'ch1', part: 'pointe' },
@@ -52,11 +68,17 @@ export default function Banc() {
   const s = useStore()
   const [tool, setTool] = useState<Tool>(TOOLS[0]!)
   const [zone, setZone] = useState<Zone>('scope')
+  const [parasite, setParasite] = useState(false)
+  const [annoter, setAnnoter] = useState(false)
+  const [ecran, setEcran] = useState<Record<CardId, 'programme' | 'modbus'>>({ c1: 'programme', c2: 'programme' })
   const w = s.wiring
+  const partieB = s.session.activity === 'reseau'
+  const maitre = masterEmitting(s, 'c1') || masterEmitting(s, 'c2')
+  const r = reseau(s, parasite)
 
   const inputs = (['ch1', 'ch2'] as const).map(
     (c): ProbeInput => ({
-      signal: w.probes[c].tip ? signalAt(w.probes[c].tip, s) : null,
+      signal: w.probes[c].tip ? signalAt(w.probes[c].tip, s, r) : null,
       probe: w.attenuation[c],
       ground: w.probes[c].tip === null || w.probes[c].ground !== null,
     }),
@@ -72,11 +94,39 @@ export default function Banc() {
     dispatch({ type: 'ground', ch: tool.ch, card: w.probes[tool.ch].ground === card ? null : card })
   }
   const hidden = (z: Zone) => (zone === z ? '' : 'max-md:hidden')
+  // Annotations (entraînement) : zones vues depuis la carte où est posée la sonde Ch1
+  const annotCard: CardId = w.probes.ch1.tip?.startsWith('c2') ? 'c2' : 'c1'
+  const annotations: Annotation[] =
+    partieB && annoter && s.session.mode === 'entrainement' ? r.zones[annotCard].map((z) => ({ ...z, period: r.window[1] - r.window[0] })) : []
+  const toggle = 'min-h-10 rounded-lg px-3 ring-1'
+  const on = (b: boolean) => (b ? 'bg-white text-black ring-white' : 'ring-white/20 hover:bg-white/10')
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-[#2b2e33] bg-[linear-gradient(#ffffff08_1px,transparent_1px),linear-gradient(90deg,#ffffff08_1px,transparent_1px)] bg-[size:24px_24px] px-3 py-4 text-neutral-100">
       <div className="mx-auto max-w-[1600px]">
         {/* Barre de manip */}
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl bg-black/30 p-3 text-sm" role="radiogroup" aria-label="Partie du TP">
+          <span className="text-neutral-400">Manip :</span>
+          <button type="button" role="radio" aria-checked={!partieB} onClick={() => partieB && dispatch({ type: 'activity', activity: 'serie1' })} className={`${toggle} ${on(!partieB)}`}>
+            Partie A — liaison série
+          </button>
+          <button type="button" role="radio" aria-checked={partieB} onClick={() => partieB || dispatch({ type: 'activity', activity: 'reseau' })} className={`${toggle} ${on(partieB)}`}>
+            Partie B — réseau Modbus
+          </button>
+          {partieB && (
+            <>
+              <button type="button" aria-pressed={parasite} onClick={() => setParasite(!parasite)} className={`${toggle} ${on(parasite)}`}>
+                Parasite de mode commun
+              </button>
+              {s.session.mode === 'entrainement' && (
+                <button type="button" aria-pressed={annoter} onClick={() => setAnnoter(!annoter)} className={`${toggle} ${on(annoter)}`}>
+                  Annotations
+                </button>
+              )}
+              {parasite && <UnverifiedBadge deps={['parasiteAmplitude']} />}
+            </>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2 rounded-xl bg-black/30 p-3 text-sm">
           <span className="text-neutral-400">En main :</span>
           {TOOLS.map((t) => {
@@ -115,6 +165,13 @@ export default function Banc() {
         {/* Retour de vérification, refus, incidents */}
         <div className="mt-2 space-y-1 text-sm" aria-live="polite">
           {s.bus.active && <p className="text-emerald-300">● {ACTIVITY_LABEL[s.session.activity]} tourne sur le PC n°1. Ne débranchez rien.</p>}
+          {maitre && <p className="text-emerald-300">● Un maître émet sur le bus Modbus. Ne débranchez rien.</p>}
+          {partieB && (
+            <p className="text-amber-200">
+              Attention : Au préalable, sur le logiciel MODBUS, cliquer sur « configuration serveur », « maître », « liste des trames mémorisées », et supprimer toutes les trames
+              présentes.
+            </p>
+          )}
           {s.notice && <p className="text-red-300">{s.notice}</p>}
           {s.check?.ok && !s.bus.active && <p className="text-emerald-300">Câblage vérifié : lancez le programme depuis la console du PC n°1.</p>}
           {s.check && !s.check.ok && (
@@ -128,7 +185,8 @@ export default function Banc() {
           <p className="text-neutral-400">
             Ch1 : {w.probes.ch1.tip ? pointLabel(w.probes.ch1.tip) : 'en l’air'}
             {w.probes.ch1.ground ? ', masse reliée' : ''} · Ch2 : {w.probes.ch2.tip ? pointLabel(w.probes.ch2.tip) : 'en l’air'}
-            {w.probes.ch2.ground ? ', masse reliée' : ''} · câble série : {w.serialCable ?? 'aucun'} · incidents : {s.incidents.length}
+            {w.probes.ch2.ground ? ', masse reliée' : ''} · câble série : {w.serialCable ?? 'aucun'} · pupitre : carte 1 {w.db9.c1 ? 'branchée' : 'non branchée'}, carte 2{' '}
+            {w.db9.c2 ? 'branchée' : 'non branchée'} · incidents : {s.incidents.length}
           </p>
         </div>
 
@@ -144,25 +202,26 @@ export default function Banc() {
         <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,1.1fr)]">
           {/* PC n°1 (console SERIE) et PC n°2 (RealTerm, 2.4) */}
           <section className={`${hidden('pc')} space-y-3 md:col-span-2 xl:col-span-1`} aria-label="PC">
-            <div className="rounded-xl bg-[#1b1d20] p-3 ring-1 ring-white/10">
-              <p className="mb-2 text-xs font-semibold text-neutral-300">PC n°1 · COM1 → carte 1</p>
-              <ConsoleSerie />
-              <p className="mt-2 text-xs text-neutral-400">
-                SERVEUR JBUS/MODBUS : rôle {s.software.role}, {s.software.memorized.length} trame(s) mémorisée(s) ·{' '}
-                <Link to="/modbus/logiciel" className="underline">
-                  ouvrir le logiciel
-                </Link>
-              </p>
-            </div>
-            <div className="rounded-xl bg-[#1b1d20] p-3 ring-1 ring-white/10">
-              <p className="mb-2 text-xs font-semibold text-neutral-300">PC n°2 · COM1 → carte 2</p>
-              <RealTerm />
-            </div>
+            {(['c1', 'c2'] as const).map((c) => (
+              <section key={c} aria-label={`PC binôme ${c === 'c1' ? 1 : 2}`} className="rounded-xl bg-[#1b1d20] p-3 ring-1 ring-white/10">
+                <div className="mb-2 flex flex-wrap items-center gap-1 text-xs">
+                  <span className="mr-auto font-semibold text-neutral-300">
+                    PC binôme {c === 'c1' ? 1 : 2} · COM1 → carte {c === 'c1' ? 1 : 2}
+                  </span>
+                  {(['programme', 'modbus'] as const).map((e) => (
+                    <button key={e} type="button" aria-pressed={ecran[c] === e} onClick={() => setEcran({ ...ecran, [c]: e })} className={`min-h-8 rounded-md px-2 ring-1 ${on(ecran[c] === e)}`}>
+                      {e === 'modbus' ? 'JBUS/MODBUS' : c === 'c1' ? 'Console SERIE' : 'RealTerm'}
+                    </button>
+                  ))}
+                </div>
+                {ecran[c] === 'modbus' ? <ServeurModbus card={c} /> : c === 'c1' ? <ConsoleSerie /> : <RealTerm />}
+              </section>
+            ))}
           </section>
 
           {/* Oscilloscope */}
           <section className={hidden('scope')} aria-label="Oscilloscope">
-            <Oscilloscope inputs={inputs} initial={INITIAL} />
+            <Oscilloscope key={partieB ? 'B' : 'A'} inputs={inputs} initial={partieB ? CAPTURE : INITIAL} annotations={annotations} />
           </section>
 
           {/* Cartes et pupitre */}

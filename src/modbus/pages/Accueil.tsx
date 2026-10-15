@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { ATTENDUS } from '../data/attendus'
+import { ATTENDUS, RESTE } from '../data/attendus'
 import { coverage } from '../data/questions'
 
 /** Accueil : les attendus du partiel (PRD §1), reliés aux questions qui les couvrent. */
@@ -25,6 +25,7 @@ export default function Accueil() {
           <tbody>
             {ATTENDUS.map((a) => {
               const { linked, covered } = coverage(a.id)
+              const partiel = covered ? RESTE[a.id] : undefined
               return (
                 <tr key={a.id} className="border-t border-line align-top">
                   <td className="px-3 py-2 font-medium">{a.text}</td>
@@ -50,7 +51,13 @@ export default function Accueil() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${covered ? 'bg-ok/15 text-ok' : 'bg-err/10 text-err'}`}>{covered ? 'couvert' : 'non couvert'}</span>
+                    <span
+                      title={partiel}
+                      className={`rounded-md px-2 py-0.5 text-xs font-semibold ${partiel ? 'bg-warn/15 text-warn' : covered ? 'bg-ok/15 text-ok' : 'bg-err/10 text-err'}`}
+                    >
+                      {partiel ? 'partiellement couvert' : covered ? 'couvert' : 'non couvert'}
+                    </span>
+                    {partiel && <p className="mt-1 text-xs text-muted">reste : {partiel}</p>}
                   </td>
                 </tr>
               )

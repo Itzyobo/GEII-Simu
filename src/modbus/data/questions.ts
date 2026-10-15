@@ -60,15 +60,15 @@ const DEFS: Def[] = [
   ],
   ['s24-transmission', '2.4', 'Sur le PC n°1, exécuter le programme précédent (SERIE 3). Vérifier la bonne transmission série entre les deux PC.', ['q2', 'message-code'], [...S3, 'serie3Message']],
   ['s24-erreur', '2.4', "Modifier les caractéristiques de réception de RealTerm (cadence, parité,…). Vérifier que la transmission n'est plus correcte.", ['q2', 'debit', 'parite'], S3],
-  ['s31-txen', '3.1', "Relever à l'oscilloscope les signaux TX+ et TX_EN.", ['q31'], [...RS485, ...CAPTURE, 'modbusRequete07']],
-  ['s31-haute-impedance', '3.1', "Repérer l'état haute impédance.", ['q31', 'impedance'], ['rs485Idle']],
+  ['s31-txen', '3.1', "Relever à l'oscilloscope les signaux TX+ et TX_EN.", ['q31'], [...RS485, ...CAPTURE, 'modbusRequete07', 'txEnAvance', 'txEnRetard']],
+  ['s31-haute-impedance', '3.1', "Repérer l'état haute impédance.", ['q31', 'impedance'], ['rs485Idle', 'txEnAvance', 'esclaveDelaiReponse']],
   ['s31-capture', '3.1', 'Capturer une trame. Quel est le numéro de fonction ?', ['q31', 'autre'], [...CAPTURE, 'modbusOctet']],
   [
     's31-differentiel',
     '3.1',
     "Afficher la tension différentielle RS485, (TX+/RX+) – (TX-/RX-), en utilisant les fonctions mathématiques de l'oscilloscope. Que constate-t-on ? Rappeler l'intérêt d'une liaison différentielle dans un contexte industriel.",
     ['q31'],
-    [...RS485, 'captureMathVoltDiv', 'captureMathOffset'],
+    [...RS485, 'rs485Convention', 'captureMathVoltDiv', 'captureMathOffset'],
   ],
   [
     's31-adresses',
@@ -77,8 +77,8 @@ const DEFS: Def[] = [
     ['q31'],
     ['esclaves'],
   ],
-  ['s31-trames', '3.1', 'Quelles trames Modbus sont émises par le logiciel lors de cette phase de détection des esclaves ? Quelle est la fonction Modbus utilisée ?', ['q31', 'autre'], ['esclaves']],
-  ['s31-exception', '3.1', "Analyser le contenu d'une réponse d'exception.", ['q31', 'autre'], ['exceptionOTB', 'exceptionTDS', 'exceptionTQS', 'exceptionTHT']],
+  ['s31-trames', '3.1', 'Quelles trames Modbus sont émises par le logiciel lors de cette phase de détection des esclaves ? Quelle est la fonction Modbus utilisée ?', ['q31', 'autre'], ['esclaves', 'parcoursIntervalle']],
+  ['s31-exception', '3.1', "Analyser le contenu d'une réponse d'exception.", ['q31', 'autre'], ['exceptionOTB', 'exceptionTDS', 'exceptionTQS', 'exceptionTHT', 'exceptionLibelles']],
   [
     's32a-registres',
     '3.2 a',
@@ -143,8 +143,8 @@ export const QUESTIONS: Question[] = DEFS.map(([id, section, intitule, attendus,
   intitule,
   attendus,
   deps,
-  // Étape 2 : partie A (2.1 à 2.4) implémentée
-  statut: section.startsWith('2.') ? 'implémentée' : 'à venir',
+  // Partie A (2.1 à 2.4, étape 2) et 3.1 (étape 3) implémentées
+  statut: section.startsWith('2.') || section === '3.1' ? 'implémentée' : 'à venir',
 }))
 
 export const SECTIONS: Section[] = ['2.1', '2.2', '2.3', '2.4', '3.1', '3.2 a', '3.2 b', '3.2 c', '3.2 d']

@@ -1,30 +1,48 @@
 /**
- * Clone du logiciel « SERVEUR JBUS/MODBUS » du TP (fenêtre Windows grise classique).
- * Étape 1 : menus, fenêtre Configuration Maître, trames mémorisées, barre d'état. Aucun bus : « aucun réseau connecté ».
+ * Clone du logiciel « SERVEUR JBUS/MODBUS » du TP (fenêtre Windows grise classique), un par PC.
+ * Configuration Serveur : Analyseur (liste des trames, Détail Trame, Messages système), Maître (Nouvelle trame,
+ * Liste des trames mémorisées), Parcours Réseau (fenêtre « Esclaves détectés sur le bus », reconstituée).
  */
 import { useState, type ReactNode } from 'react'
 import { REF } from '../data/reference'
+import { detectes, trafic } from '../lib/bench'
+import { dispatch, parcoursEnCours, useStore, type CardId } from '../lib/store'
 import { toHex } from '../models/crc'
 import { buildRequest, FONCTIONS, type Base, type Field, type FieldKey } from '../models/modbus'
-import { dispatch, useStore } from '../lib/store'
+import { analyzerDecode } from '../models/slaves'
 import UnverifiedBadge from './UnverifiedBadge'
 
 const PARITY_LABEL = { none: 'Aucune', even: 'Paire', odd: 'Impaire' } as const
-const now = () => new Date().toLocaleTimeString('fr-FR')
-const log = (text: string) => dispatch({ type: 'message', text: `${now()}  ${text}` })
+const I = REF.parcoursIntervalle.value
+const N = REF.parcoursAdresses.value
+/** Lignes gardées par l'analyseur : au moins un parcours complet (256 requêtes + réponses) et des trames mémorisées */
+const ANALYSEUR_MAX = 2 * N
 
 /** Relief Windows classique */
 const raised = 'border-2 border-t-white border-l-white border-r-[#404040] border-b-[#404040]'
 const sunken = 'border-2 border-t-[#808080] border-l-[#808080] border-r-white border-b-white'
 
-type Menu = 'liaison' | 'serveur' | 'filtrage' | 'aide'
-type Dialog = 'maitre' | 'liste' | 'apropos'
+/** « 10:52:14,650 » */
+const heure = (ms: number) => {
+  const d = new Date(ms)
+  const p = (n: number, w = 2) => String(n).padStart(w, '0')
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())},${p(d.getMilliseconds(), 3)}`
+}
 
-export default function ServeurModbus() {
-  const { software } = useStore()
+/** Heure murale (ms) ; appelée seulement dans les gestionnaires d'événements */
+const maintenant = () => Date.now()
+
+type Menu = 'liaison' | 'serveur' | 'filtrage' | 'aide'
+type Dialog = 'maitre' | 'liste' | 'apropos' | 'parcours'
+
+export default function ServeurModbus({ card }: { card: CardId }) {
+  const s = useStore()
+  const sw = s.software[card]
   const [menu, setMenu] = useState<Menu | null>(null)
   const [sub, setSub] = useState<'maitre' | 'esclave' | null>(null)
   const [dialog, setDialog] = useState<Dialog | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
+  const log = (text: string) => dispatch({ type: 'message', card, text: `${heure(maintenant())}  ${text}` })
   const close = () => {
     setMenu(null)
     setSub(null)
@@ -33,13 +51,18 @@ export default function ServeurModbus() {
     close()
     fn()
   }
-  const empty = software.memorized.length === 0
+  const empty = sw.memorized.length === 0
+  const connected = s.wiring.db9[card]
+  const analyse = sw.role === 'Analyseur'
+  const frames = analyse ? trafic(s, card).slice(-ANALYSEUR_MAX) : []
+  const wall = (t: number) => heure((s.sim.wall0 ?? 0) + t * 1000)
+  const sel = frames.find((f) => f.t0 === selected)
 
   return (
     <div onKeyDown={(e) => e.key === 'Escape' && close()} style={{ fontFamily: "Tahoma, 'MS Sans Serif', system-ui, sans-serif" }} className={`relative flex min-h-[420px] flex-col bg-[#c0c0c0] text-[12px] text-black ${raised}`}>
       {/* Barre de titre */}
       <div className="flex items-center gap-2 bg-gradient-to-r from-[#000080] to-[#1084d0] px-1.5 py-0.5 text-white">
-        <span className="font-bold">SERVEUR JBUS/MODBUS</span>
+        <span className="truncate font-bold">SERVEUR JBUS/MODBUS — PC binôme {card === 'c1' ? 1 : 2}</span>
         <span className="ml-auto flex gap-0.5" aria-hidden>
           {['_', '□', '×'].map((c) => (
             <span key={c} className={`grid h-4 w-4 place-items-center bg-[#c0c0c0] text-[10px] leading-none text-black ${raised}`}>
@@ -75,17 +98,25 @@ export default function ServeurModbus() {
                 {id === 'liaison' && <Item disabled title="Réglages imposés par le TP : COM1, 38 400 bauds, 8 bits, parité paire, 1 stop">Paramètres de la liaison…</Item>}
                 {id === 'serveur' && (
                   <>
-                    <Item onClick={pick(() => (dispatch({ type: 'role', role: 'Analyseur' }), log('Mode Analyseur — aucun réseau connecté')))}>Analyseur</Item>
+                    <Item onClick={pick(() => (dispatch({ type: 'role', card, role: 'Analyseur' }), log(connected ? 'Mode Analyseur' : 'Mode Analyseur — aucun réseau connecté')))}>Analyseur</Item>
                     <Item submenu onEnter={() => setSub('maitre')} onClick={() => setSub(sub === 'maitre' ? null : 'maitre')} open={sub === 'maitre'}>
                       Maître
                     </Item>
                     <Item submenu disabled title="hors programme du TP" onEnter={() => setSub('esclave')}>
                       Esclave
                     </Item>
-                    <Item onClick={pick(() => log('Parcours Réseau : aucun réseau connecté'))}>Parcours Réseau</Item>
+                    <Item
+                      onClick={pick(() => {
+                        dispatch({ type: 'parcours', card, on: true, wall: maintenant() })
+                        log(empty ? 'Parcours Réseau lancé' : `Parcours Réseau lancé — ${sw.memorized.length} trame(s) mémorisée(s) toujours émise(s)`)
+                        setDialog('parcours')
+                      })}
+                    >
+                      Parcours Réseau
+                    </Item>
                     {sub === 'maitre' && (
                       <div role="menu" className={`absolute top-6 left-full min-w-60 bg-[#c0c0c0] py-0.5 shadow-md max-sm:static max-sm:ml-6 max-sm:min-w-0 max-sm:shadow-none ${raised}`}>
-                        <Item onClick={pick(() => (dispatch({ type: 'role', role: 'Maître' }), setDialog('maitre')))}>Nouvelle trame</Item>
+                        <Item onClick={pick(() => setDialog('maitre'))}>Nouvelle trame</Item>
                         <Item disabled={empty} title={empty ? 'Aucune trame mémorisée' : undefined} onClick={pick(() => setDialog('liste'))}>
                           Liste des trames mémorisées
                         </Item>
@@ -105,17 +136,52 @@ export default function ServeurModbus() {
       {/* Panneau d'analyse */}
       <div className="grid flex-1 gap-1.5 p-1.5 md:grid-cols-2">
         <Pane title="Trames reçues" className="md:row-span-2">
-          <p className="text-[#606060]">Aucune trame reçue.</p>
+          {!analyse ? (
+            <p className="text-[#606060]">Passez en mode Analyseur pour espionner le bus.</p>
+          ) : !connected ? (
+            <p className="text-[#606060]">aucun réseau connecté</p>
+          ) : frames.length === 0 ? (
+            <p className="text-[#606060]">Aucune trame reçue.</p>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto font-mono text-[11px]" aria-label="Trames reçues">
+              {frames.map((f) => (
+                <li key={`${f.t0}`}>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(f.t0)}
+                    className={`w-full px-0.5 text-left ${selected === f.t0 ? 'bg-[#000080] text-white' : f.crcOk ? '' : 'text-[#a00000]'}`}
+                  >
+                    Trame reçue à {wall(f.t1)} Esclave {String(f.bytes[0] ?? 0).padStart(3, '0')} Fonction {(f.bytes[1] ?? 0).toString(16).toUpperCase().padStart(2, '0')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Pane>
         <Pane title="Détail Trame">
-          <p className="text-[#606060]">—</p>
+          {sel ? (
+            <ul className="font-mono text-[11px]">
+              {analyzerDecode(sel.bytes, sel.collision ? undefined : sel.type).map((l) => (
+                <li key={l} className="break-words">
+                  {l}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[#606060]">—</p>
+          )}
         </Pane>
         <Pane title="Messages système">
           <ul className="max-h-40 overflow-y-auto font-mono text-[11px]">
-            {software.messages.length === 0 && <li className="text-[#606060]">aucun réseau connecté</li>}
-            {software.messages.map((m, k) => (
+            {sw.messages.length === 0 && frames.length === 0 && <li className="text-[#606060]">{connected ? '—' : 'aucun réseau connecté'}</li>}
+            {sw.messages.map((m, k) => (
               <li key={k} className="break-all">
                 {m}
+              </li>
+            ))}
+            {frames.slice(-30).map((f) => (
+              <li key={`h${f.t0}`} className="break-all">
+                {toHex(f.bytes)}
               </li>
             ))}
           </ul>
@@ -124,15 +190,16 @@ export default function ServeurModbus() {
 
       {/* Barre d'état */}
       <div className="flex flex-wrap gap-1 p-0.5">
-        {[REF.modbusPort.value, REF.modbusBaud.value, REF.modbusDataBits.value, PARITY_LABEL[REF.modbusParity.value], REF.modbusStopBits.value, software.role].map((v, k) => (
+        {[REF.modbusPort.value, REF.modbusBaud.value, REF.modbusDataBits.value, PARITY_LABEL[REF.modbusParity.value], REF.modbusStopBits.value, sw.role].map((v, k) => (
           <span key={k} className={`px-2 ${sunken}`}>
             {v}
           </span>
         ))}
       </div>
 
-      {dialog === 'maitre' && <ConfigMaitre onClose={() => setDialog(null)} />}
-      {dialog === 'liste' && <ListeTrames onClose={() => setDialog(null)} />}
+      {dialog === 'maitre' && <ConfigMaitre card={card} log={log} onClose={() => setDialog(null)} />}
+      {dialog === 'liste' && <ListeTrames card={card} log={log} onClose={() => setDialog(null)} />}
+      {dialog === 'parcours' && <Parcours card={card} onClose={() => setDialog(null)} />}
       {dialog === 'apropos' && (
         <Window title="A propos" onClose={() => setDialog(null)}>
           <p>SERVEUR JBUS/MODBUS — reconstitution pour l’entraînement au TP2.</p>
@@ -140,6 +207,56 @@ export default function ServeurModbus() {
         </Window>
       )}
     </div>
+  )
+}
+
+/** Fenêtre « Esclaves détectés sur le bus » (reconstituée) : grille 00 à FF et progression du parcours. */
+function Parcours({ card, onClose }: { card: CardId; onClose: () => void }) {
+  const s = useStore()
+  const p = s.parcours[card]
+  const enCours = parcoursEnCours(s, card)
+  // Adresses déjà interrogées ; la grille garde le résultat après la fin du parcours
+  const k = p === null ? 0 : Math.min(N, Math.floor((Math.min(s.sim.t, p.fin - 1e-9) - p.debut) / I) + 1)
+  const trouves = new Set(p === null ? [] : detectes(s, card, p.debut))
+  const examen = s.session.mode === 'examen'
+  return (
+    <Window title="Parcours Réseau" onClose={onClose}>
+      <p>Esclaves détectés sur le bus</p>
+      <div className={`mt-1 grid grid-cols-16 gap-px bg-white p-0.5 font-mono text-[9px] ${sunken}`} role="grid" aria-label="Adresses 00 à FF">
+        {Array.from({ length: N }, (_, adr) => (
+          <span
+            key={adr}
+            role="gridcell"
+            aria-label={`${adr.toString(16).toUpperCase().padStart(2, '0')}${trouves.has(adr) ? ' détecté' : ''}`}
+            className={`text-center ${trouves.has(adr) ? 'bg-[#008000] font-bold text-white' : enCours && adr === k - 1 ? 'bg-[#000080] text-white' : adr < k ? 'text-[#808080]' : 'text-[#c0c0c0]'}`}
+          >
+            {adr.toString(16).toUpperCase().padStart(2, '0')}
+          </span>
+        ))}
+      </div>
+      <div className={`mt-2 h-4 bg-white ${sunken}`} role="progressbar" aria-valuemin={0} aria-valuemax={N} aria-valuenow={k} aria-label="Progression du parcours">
+        <div className="h-full bg-[#000080]" style={{ width: `${(k / N) * 100}%` }} />
+      </div>
+      <p className="mt-1" role="status">
+        {enCours ? `Adresse ${(k - 1).toString(16).toUpperCase().padStart(2, '0')}H — ${k} / ${N}` : k === N ? 'Parcours terminé' : `Parcours arrêté à ${k} / ${N}`} · détectés :{' '}
+        {[...trouves].sort((a, b) => a - b).join(', ') || 'aucun'}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+        <label className="mr-auto flex items-center gap-1" title={examen ? 'Désactivé en mode partiel' : 'Simulation accélérée'}>
+          <input type="checkbox" disabled={examen} checked={s.sim.speed === 10} onChange={(e) => dispatch({ type: 'speed', speed: e.target.checked ? 10 : 1 })} />
+          Accélérer ×10
+        </label>
+        {enCours && (
+          <button type="button" onClick={() => dispatch({ type: 'parcours', card, on: false, wall: maintenant() })} className={`bg-[#c0c0c0] px-3 py-1 ${raised}`}>
+            Arrêter
+          </button>
+        )}
+        <button type="button" onClick={onClose} className={`bg-[#c0c0c0] px-3 py-1 ${raised}`}>
+          Fermer
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] text-[#404040]">Fenêtre reconstituée ; {(I * 1000).toFixed(1).replace('.', ',')} ms par adresse (horodatages de l’analyseur).</p>
+    </Window>
   )
 }
 
@@ -180,7 +297,7 @@ function Item({
 
 function Pane({ title, className = '', children }: { title: string; className?: string; children: ReactNode }) {
   return (
-    <section className={`flex flex-col ${className}`}>
+    <section className={`flex min-w-0 flex-col ${className}`}>
       <h3 className="px-0.5 pb-0.5">{title}</h3>
       <div className={`min-h-20 flex-1 bg-white p-1 ${sunken}`}>{children}</div>
     </section>
@@ -222,7 +339,7 @@ function FieldRow({ label, field, onChange }: { label: string; field: Field; onC
   )
 }
 
-function ConfigMaitre({ onClose }: { onClose: () => void }) {
+function ConfigMaitre({ card, log, onClose }: { card: CardId; log: (t: string) => void; onClose: () => void }) {
   const bases = REF.basesParDefaut.value
   const [esclave, setEsclave] = useState<Field>({ text: '', base: bases.esclave })
   const [code, setCode] = useState<number>(REF.maitreFonctionDefaut.value)
@@ -238,9 +355,8 @@ function ConfigMaitre({ onClose }: { onClose: () => void }) {
   const validate = () => {
     const r = buildRequest({ esclave, fonction: code, champs })
     if (!r.ok) return setErrors(r.errors)
-    dispatch({ type: 'memorize', bytes: r.bytes })
+    dispatch({ type: 'memorize', card, bytes: r.bytes, wall: maintenant() })
     log(`Trame mémorisée : ${toHex(r.bytes)}`)
-    log('aucun réseau connecté')
     onClose()
   }
 
@@ -292,12 +408,12 @@ function ConfigMaitre({ onClose }: { onClose: () => void }) {
   )
 }
 
-function ListeTrames({ onClose }: { onClose: () => void }) {
+function ListeTrames({ card, log, onClose }: { card: CardId; log: (t: string) => void; onClose: () => void }) {
   const { software } = useStore()
   return (
     <Window title="Liste des trames mémorisées" onClose={onClose}>
       <ol className={`max-h-48 list-inside list-decimal overflow-y-auto bg-white p-1 font-mono ${sunken}`}>
-        {software.memorized.map((b, k) => (
+        {software[card].memorized.map((b, k) => (
           <li key={k}>{toHex(b)}</li>
         ))}
       </ol>
@@ -305,7 +421,7 @@ function ListeTrames({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={() => {
-            dispatch({ type: 'clearMemorized' })
+            dispatch({ type: 'clearMemorized', card })
             log('Trames mémorisées supprimées')
             onClose()
           }}

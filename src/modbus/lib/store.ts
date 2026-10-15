@@ -6,9 +6,10 @@ import { useSyncExternalStore } from 'react'
 import { REF } from '../data/reference'
 import { realtermDefaut, type CableSerie, type RealtermSettings } from '../models/serie'
 import type { Liaison } from '../models/uart'
+import { parcoursComplet, type Parcours } from '../models/bus'
 
 export const STORAGE_KEY = 'tp2sim:v1'
-const VERSION = 2
+const VERSION = 3
 
 export type CardId = 'c1' | 'c2'
 export type TestPoint = 'TXD_TTL' | 'TXD_RS232' | 'TX+' | 'TX-' | 'TX_EN'
@@ -35,9 +36,19 @@ export interface Incident {
   detail: string
 }
 
-/** Activité en cours : programme lancé sur le PC n°1, et câblage attendu par « Faire vérifier ». */
-export type Activity = 'serie1' | 'serie2' | 'serie3' | 'realterm'
-export const ACTIVITY_LABEL: Record<Activity, string> = { serie1: 'SERIE_1', serie2: 'SERIE_2', serie3: 'SERIE_3', realterm: 'SERIE_3 → RealTerm' }
+/** Activité en cours : programme lancé sur le PC n°1 (partie A) ou réseau Modbus (partie B), et câblage attendu par « Faire vérifier ». */
+export type Activity = 'serie1' | 'serie2' | 'serie3' | 'realterm' | 'reseau'
+export type SerieActivity = Exclude<Activity, 'reseau'>
+export const ACTIVITY_LABEL: Record<Activity, string> = { serie1: 'SERIE_1', serie2: 'SERIE_2', serie3: 'SERIE_3', realterm: 'SERIE_3 → RealTerm', reseau: 'réseau Modbus' }
+
+/** Logiciel SERVEUR JBUS/MODBUS d'un PC */
+export interface Logiciel {
+  role: Role
+  memorized: number[][]
+  /** Instant (horloge de simulation) de la première trame mémorisée : début des émissions périodiques */
+  memStart: number
+  messages: string[]
+}
 
 export interface State {
   version: typeof VERSION
@@ -52,13 +63,20 @@ export interface State {
   /** Dernier refus, affiché à l'étudiant */
   notice: string | null
   answers: Record<string, { value: string; attempts: number; /** 1, ½ ou 0 */ points: number }>
-  software: { role: Role; memorized: number[][]; messages: string[] }
+  /** Un logiciel par PC : binôme 1 (carte 1) et binôme 2 (carte 2) */
+  software: Record<CardId, Logiciel>
+  /** Dernier parcours réseau de chaque carte (horloge de simulation, s), gardé après sa fin pour l'historique */
+  parcours: Record<CardId, Parcours | null>
+  /** Horloge de simulation du bus Modbus : t (s), vitesse, heure murale (ms) correspondant à t = 0 */
+  sim: { t: number; speed: 1 | 10; wall0: number | null }
   /** Octet saisi dans la console de SERIE_1 et SERIE_2 (H28) */
   octets: { serie1: number; serie2: number }
   /** Graine du format de SERIE_2, tirée au premier lancement et fixée pour la session (H3) ; vrai format saisi dans Réglages */
   serie2: { graine: number | null; reel: Liaison | null }
   realterm: RealtermSettings
 }
+
+const logicielVide = (): Logiciel => ({ role: 'Aucun', memorized: [], memStart: 0, messages: [] })
 
 export const initialState = (): State => ({
   version: VERSION,
@@ -76,7 +94,9 @@ export const initialState = (): State => ({
   incidents: [],
   notice: null,
   answers: {},
-  software: { role: 'Aucun', memorized: [], messages: [] },
+  software: { c1: logicielVide(), c2: logicielVide() },
+  parcours: { c1: null, c2: null },
+  sim: { t: 0, speed: 1, wall0: null },
   octets: { serie1: 0x55, serie2: 0x55 },
   serie2: { graine: null, reel: null },
   realterm: realtermDefaut(),
@@ -92,10 +112,13 @@ export type Action =
   | { type: 'verify' }
   | { type: 'startEmission' }
   | { type: 'stopEmission' }
-  | { type: 'role'; role: Role }
-  | { type: 'memorize'; bytes: number[] }
-  | { type: 'clearMemorized' }
-  | { type: 'message'; text: string }
+  | { type: 'role'; card: CardId; role: Role }
+  | { type: 'memorize'; card: CardId; bytes: number[]; wall: number }
+  | { type: 'clearMemorized'; card: CardId }
+  | { type: 'message'; card: CardId; text: string }
+  | { type: 'parcours'; card: CardId; on: boolean; wall: number }
+  | { type: 'speed'; speed: 1 | 10 }
+  | { type: 'tick'; dt: number }
   | { type: 'activity'; activity: Activity }
   | { type: 'octet'; programme: 'serie1' | 'serie2'; value: number }
   | { type: 'serie2Graine'; graine: number }
@@ -113,6 +136,14 @@ export const pointLabel = (p: ProbePoint) => {
 /** Erreurs de câblage pour l'activité ; liste vide = câblage correct. */
 export function checkWiring(w: Wiring, activity: Activity): string[] {
   const errors: string[] = []
+  if (activity === 'reseau') {
+    for (const c of ['c1', 'c2'] as const) if (!w.db9[c]) errors.push(`Carte ${c === 'c1' ? 1 : 2} non reliée au pupitre (câble DB9/bleu-vert).`)
+    const chans = (['ch1', 'ch2'] as const).filter((c) => w.probes[c].tip !== null)
+    if (chans.length === 0) errors.push('Aucune sonde posée (TX+, TX− ou TX_EN).')
+    for (const c of chans)
+      if (w.probes[c].ground === null) errors.push(`Pince de masse de ${c === 'ch1' ? 'Ch1' : 'Ch2'} non reliée.`)
+    return errors
+  }
   if (activity === 'realterm') {
     // Le type de câble n'est pas contrôlé : un câble droit est une erreur de manip à constater dans RealTerm
     if (!w.serialCable) errors.push('Aucun câble série entre les deux cartes.')
@@ -136,8 +167,20 @@ const incident = (s: State, kind: Incident['kind'], detail: string): State => ({
 /** Câblage modifié : la vérification précédente ne vaut plus. */
 const rewire = (s: State, wiring: Wiring): State => ({ ...s, wiring, check: null, notice: null })
 
+/** Une carte en Maître émet : parcours en cours ou trames mémorisées envoyées périodiquement. */
+export const parcoursEnCours = (s: State, c: CardId) => s.parcours[c] !== null && s.sim.t < s.parcours[c]!.fin
+export const masterEmitting = (s: State, c: CardId) => s.software[c].role === 'Maître' && (parcoursEnCours(s, c) || s.software[c].memorized.length > 0)
+/** Maître actif ou ayant fait un parcours : ses trames restent dans l'historique de l'analyseur */
+export const masterHistory = (s: State, c: CardId) => s.software[c].role === 'Maître' && (s.parcours[c] !== null || s.software[c].memorized.length > 0)
+const stop = (s: State, c: CardId): State => (parcoursEnCours(s, c) ? { ...s, parcours: { ...s.parcours, [c]: { ...s.parcours[c]!, fin: s.sim.t } } } : s)
+const anyMaster = (s: State) => masterEmitting(s, 'c1') || masterEmitting(s, 'c2')
+const other = (c: CardId): CardId => (c === 'c1' ? 'c2' : 'c1')
+const soft = (s: State, c: CardId, patch: Partial<Logiciel>): State => ({ ...s, software: { ...s.software, [c]: { ...s.software[c], ...patch } } })
+/** Démarre l'horloge murale de l'analyseur à la première émission */
+const withWall = (s: State, wall: number): State => (s.sim.wall0 === null ? { ...s, sim: { ...s.sim, wall0: wall - s.sim.t * 1000 } } : s)
+
 export function reduce(s: State, a: Action): State {
-  const live = s.bus.active
+  const live = s.bus.active || anyMaster(s)
   const w = s.wiring
   switch (a.type) {
     case 'probe': {
@@ -174,14 +217,39 @@ export function reduce(s: State, a: Action): State {
       return { ...s, bus: { active: true }, notice: null }
     case 'stopEmission':
       return { ...s, bus: { active: false }, notice: null }
-    case 'role':
-      return { ...s, software: { ...s.software, role: a.role } }
-    case 'memorize':
-      return { ...s, software: { ...s.software, memorized: [...s.software.memorized, a.bytes] } }
+    case 'role': {
+      // Passer en Analyseur arrête le parcours de cette carte
+      const r = soft(s, a.card, { role: a.role })
+      return a.role === 'Maître' ? r : stop(r, a.card)
+    }
+    case 'memorize': {
+      const sw = s.software[a.card]
+      return withWall(soft(s, a.card, { role: 'Maître', memorized: [...sw.memorized, a.bytes], memStart: sw.memorized.length ? sw.memStart : s.sim.t }), a.wall)
+    }
     case 'clearMemorized':
-      return { ...s, software: { ...s.software, memorized: [] } }
+      return soft(s, a.card, { memorized: [] })
     case 'message':
-      return { ...s, software: { ...s.software, messages: [...s.software.messages, a.text].slice(-50) } }
+      return soft(s, a.card, { messages: [...s.software[a.card].messages, a.text].slice(-50) })
+    case 'parcours': {
+      if (!a.on) return stop(s, a.card)
+      // Second maître pendant un parcours : calé sur les créneaux du premier (H37)
+      const I = REF.parcoursIntervalle.value
+      const o = s.parcours[other(a.card)]
+      const start = o && parcoursEnCours(s, other(a.card)) ? o.debut + Math.ceil((s.sim.t - o.debut) / I) * I + REF.deuxMaitresDecalage.value : s.sim.t
+      return withWall(soft({ ...s, parcours: { ...s.parcours, [a.card]: parcoursComplet(start) } }, a.card, { role: 'Maître' }), a.wall)
+    }
+    case 'speed':
+      // Accélération interdite en mode partiel
+      return s.session.mode === 'examen' ? s : { ...s, sim: { ...s.sim, speed: a.speed } }
+    case 'tick': {
+      if (!anyMaster(s)) return s
+      const t = s.sim.t + a.dt * s.sim.speed
+      // Parcours qui se termine pendant ce pas
+      const fin = (c: CardId) => parcoursEnCours(s, c) && t >= s.parcours[c]!.fin
+      let r: State = { ...s, sim: { ...s.sim, t } }
+      for (const c of ['c1', 'c2'] as const) if (fin(c)) r = soft(r, c, { messages: [...r.software[c].messages, 'Parcours réseau terminé'].slice(-50) })
+      return r
+    }
     case 'activity':
       if (live) return { ...s, notice: 'Refusé : arrêtez le programme en cours avant d’en lancer un autre.' }
       return { ...s, session: { ...s.session, activity: a.activity }, check: null, notice: null }
@@ -237,7 +305,9 @@ let current: State = load()
 const listeners = new Set<() => void>()
 
 export function dispatch(a: Action) {
-  current = reduce(current, a)
+  const next = reduce(current, a)
+  if (next === current) return
+  current = next
   save(current)
   listeners.forEach((l) => l())
 }
