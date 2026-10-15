@@ -48,7 +48,7 @@ describe('énoncé', () => {
 
 describe('sources', () => {
   it('« cours » est réservé aux normes publiées (Modbus, EIA-485, RS232)', () => {
-    const NORMES = ['modbusSilence', 'modbusEsclaveMax', 'modbusMotMax', 'modbusMotsParRequete', 'modbusBitsParRequete', 'crcPolynome', 'crcInit']
+    const NORMES = ['modbusSilence', 'modbusEsclaveMax', 'modbusMotMax', 'modbusMotsParRequete', 'modbusBitsParRequete', 'crcPolynome', 'crcInit', 'rs485Seuil']
     const cours = Object.entries(REF).filter(([, r]) => r.source === 'cours').map(([k]) => k)
     expect(cours.filter((k) => !NORMES.includes(k))).toEqual([])
   })

@@ -113,7 +113,8 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 | Capture : déclenchement | 2,54 V | CR (capture) |
 | Capture : base de temps | 500 µs/div | hypothèse H7 |
 | Niveaux de TX+ et TX− | ≈ 1 V et ≈ 4 V, opposés | hypothèse H8 |
-| Niveau du bus en haute impédance | ≈ 2,5 V sur les deux fils | hypothèse H9 |
+| Niveau du bus en haute impédance | TX+ ≈ 2,65 V, TX− ≈ 2,35 V (+0,30 V, lu comme un 1) ; 2,5 V sur les deux fils sans polarisation | hypothèse H9 |
+| Seuil du récepteur RS485 | ± 200 mV | cours (EIA-485) |
 
 ### Esclaves
 
@@ -158,7 +159,7 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 6. H6 — Calibre TTL de SERIE\_1 : 2 V/div, front descendant, mode Normal. La base de temps de 500 µs/div est lue sur les photos.
 7. H7 — Base de temps de la capture Modbus lue sur une photo floue.
 8. H8 — Niveaux bas et haut de TX+ et TX− non mesurés.
-9. H9 — Niveau du bus au repos fixé par la polarisation, non mesuré.
+9. H9 — Polarisation du bus, non mesurée : en haute impédance TX+ ≈ 2,65 V et TX− ≈ 2,35 V, soit +0,30 V lu comme un 1 logique. Réglage « polarisation absente » (étape 5) : les deux fils à 2,5 V, caractères parasites à l'analyseur.
 10. H10 — Exception du TDS recalculée avec le code 01 : la photo est floue.
 11. H11 — Entier affiché sur le TDS non noté.
 12. H12 — THT : 00F0H choisi car cohérent avec le TQS, mais 00E0H n'est pas exclu.
@@ -186,8 +187,9 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 34. H34 — Convention RS485 : 1 logique (et repos piloté) ⇔ TX+ > TX−.
 35. H35 — Parasite de mode commun de démonstration : sinus de 1 V crête à 1 kHz ajouté aux deux fils.
 36. H36 — Libellés de l'analyseur pour les codes d'exception 02 à 04 (seul 01 « Code fonction inconnu » est lu sur la photo).
-37. H37 — Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux à 0,5 ms près ; deux trames superposées se corrompent (le 0 l'emporte).
+37. H37 — Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux à 0,5 ms près. Simplification affichée : en réalité, deux maîtres décalés ne se percutent que par moments.
 38. H38 — Pendant un parcours, les trames mémorisées partent au milieu d'un créneau de 201,4 ms, à la période d'interrogation.
+39. H39 — Conflit de drivers RS485 : un bit identique sur les deux émetteurs passe normalement ; des bits opposés donnent un différentiel de 0,05 V (|V| < 200 mV) et le récepteur lit un bit tiré par le générateur à graine.
 
 ## 4. Modèles de simulation
 

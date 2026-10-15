@@ -22,7 +22,7 @@ type Def = [id: string, section: Section, intitule: string, attendus: AttenduId[
 
 const S1: RefKey[] = ['serie1DataBits', 'serie1Parity', 'serie1StopBits', 'serie1Baud', 'ttlLow', 'ttlHigh']
 const S3: RefKey[] = ['serie3Baud', 'serie3DataBits', 'serie3Parity', 'serie3StopBits']
-const RS485: RefKey[] = ['rs485Low', 'rs485High', 'rs485Idle']
+const RS485: RefKey[] = ['rs485Low', 'rs485High', 'rs485IdlePlus', 'rs485IdleMinus']
 const CAPTURE: RefKey[] = ['captureVoltDiv', 'captureProbe', 'captureTriggerLevel', 'captureTimeDiv']
 const TRAME_OTB =
   'Préparer la trame Modbus à envoyer. Utiliser le poste Maître pour émettre la trame préparée. Relever et interpréter les différents octets contenus dans une trame de requête et une trame de réponse.'
@@ -61,7 +61,7 @@ const DEFS: Def[] = [
   ['s24-transmission', '2.4', 'Sur le PC n°1, exécuter le programme précédent (SERIE 3). Vérifier la bonne transmission série entre les deux PC.', ['q2', 'message-code'], [...S3, 'serie3Message']],
   ['s24-erreur', '2.4', "Modifier les caractéristiques de réception de RealTerm (cadence, parité,…). Vérifier que la transmission n'est plus correcte.", ['q2', 'debit', 'parite'], S3],
   ['s31-txen', '3.1', "Relever à l'oscilloscope les signaux TX+ et TX_EN.", ['q31'], [...RS485, ...CAPTURE, 'modbusRequete07', 'txEnAvance', 'txEnRetard']],
-  ['s31-haute-impedance', '3.1', "Repérer l'état haute impédance.", ['q31', 'impedance'], ['rs485Idle', 'txEnAvance', 'esclaveDelaiReponse']],
+  ['s31-haute-impedance', '3.1', "Repérer l'état haute impédance.", ['q31', 'impedance'], ['rs485IdlePlus', 'rs485IdleMinus', 'txEnAvance', 'esclaveDelaiReponse']],
   ['s31-capture', '3.1', 'Capturer une trame. Quel est le numéro de fonction ?', ['q31', 'autre'], [...CAPTURE, 'modbusOctet']],
   [
     's31-differentiel',

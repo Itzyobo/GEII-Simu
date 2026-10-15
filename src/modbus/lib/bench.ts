@@ -58,7 +58,7 @@ export function reseau(s: State, parasite = false): Reseau {
   return {
     frames,
     window: [w0, w1],
-    lines: per((c) => rs485Lines(frames, c, w0, w1, { parasite, connected: s.wiring.db9[c] })),
+    lines: per((c) => rs485Lines(frames, c, w0, w1, { parasite, connected: s.wiring.db9[c], polarisation: s.reglages.polarisation })),
     zones: per((c) => busZones(frames, c, w0, w1, s.wiring.db9[c])),
   }
 }

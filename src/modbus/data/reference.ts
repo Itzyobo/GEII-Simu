@@ -124,7 +124,11 @@ export const REF = {
   captureTimeDiv: ref({ value: 500e-6, unit: 's/div', source: 'hypothèse', hyp: 'H7' }),
   rs485Low: ref({ value: 1, unit: 'V', source: 'hypothèse', hyp: 'H8', note: 'TX+ et TX− opposés, ≈ 1 V et ≈ 4 V' }),
   rs485High: ref({ value: 4, unit: 'V', source: 'hypothèse', hyp: 'H8' }),
-  rs485Idle: ref({ value: 2.5, unit: 'V', source: 'hypothèse', hyp: 'H9', note: 'haute impédance, sur les deux fils' }),
+  rs485IdlePlus: ref({ value: 2.65, unit: 'V', source: 'hypothèse', hyp: 'H9', note: 'TX+ en haute impédance, fixé par la polarisation' }),
+  rs485IdleMinus: ref({ value: 2.35, unit: 'V', source: 'hypothèse', hyp: 'H9', note: 'TX− en haute impédance : différentiel +0,30 V, lu comme un 1' }),
+  rs485SansPolarisation: ref({ value: 2.5, unit: 'V', source: 'hypothèse', hyp: 'H9', note: 'réglage « polarisation absente » : les deux fils au même potentiel' }),
+  rs485Seuil: ref({ value: 0.2, unit: 'V', source: 'cours', note: 'EIA-485 : sensibilité du récepteur ± 200 mV ; en deçà, bit indéterminé' }),
+  rs485Conflit: ref({ value: 0.05, unit: 'V', source: 'hypothèse', hyp: 'H39', note: 'différentiel quand deux drivers imposent des bits opposés (|V| < 200 mV)' }),
   rs485Convention: ref({ value: 'TX+ > TX− ⇔ 1 logique', source: 'hypothèse', hyp: 'H34', note: 'repos (1) : TX+ haut, TX− bas' }),
   parcoursIntervalle: ref({
     value: 0.2014,
@@ -219,7 +223,9 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H6: { text: 'Calibre TTL de SERIE_1 : 2 V/div, front descendant, mode Normal. La base de temps de 500 µs/div est lue sur les photos.' },
   H7: { text: 'Base de temps de la capture Modbus lue sur une photo floue.' },
   H8: { text: 'Niveaux bas et haut de TX+ et TX− non mesurés.' },
-  H9: { text: 'Niveau du bus au repos fixé par la polarisation, non mesuré.' },
+  H9: {
+    text: 'Polarisation du bus, non mesurée : en haute impédance TX+ ≈ 2,65 V et TX− ≈ 2,35 V, soit +0,30 V lu comme un 1 logique. Réglage « polarisation absente » : les deux fils à 2,5 V, différentiel nul.',
+  },
   H10: { text: 'Exception du TDS recalculée avec le code 01 : la photo est floue.' },
   H11: { text: 'Entier affiché sur le TDS non noté.' },
   H12: { text: 'THT : 00F0H choisi car cohérent avec le TQS, mais 00E0H n’est pas exclu.' },
@@ -257,7 +263,10 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H35: { text: 'Parasite de mode commun de démonstration : sinus de 1 V crête à 1 kHz ajouté aux deux fils.' },
   H36: { text: 'Libellés de l’analyseur pour les codes d’exception 02 à 04 non photographiés (seul 01 « Code fonction inconnu » est lu).' },
   H37: {
-    text: 'Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux, décalé de 0,5 ms (les deux PC lancés ensemble) ; deux trames superposées sur la paire se corrompent (le 0 l’emporte).',
+    text: 'Deux cartes en Maître : un second parcours lancé pendant le premier se cale sur ses créneaux, décalé de 0,5 ms (les deux PC lancés ensemble). Simplification : en réalité, deux maîtres décalés ne se percutent que par moments.',
+  },
+  H39: {
+    text: 'Conflit de drivers RS485 : un bit identique sur les deux émetteurs passe normalement ; des bits opposés donnent un différentiel de 0,05 V (sous le seuil de 200 mV), et le récepteur lit un bit au hasard (générateur à graine).',
   },
   H38: { text: 'Pendant un parcours, le logiciel envoie les trames mémorisées au milieu d’un créneau de 201,4 ms, à la période d’interrogation.' },
 }

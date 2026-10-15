@@ -215,6 +215,7 @@ function Parcours({ card, onClose }: { card: CardId; onClose: () => void }) {
   const s = useStore()
   const p = s.parcours[card]
   const enCours = parcoursEnCours(s, card)
+  const deuxMaitres = enCours && parcoursEnCours(s, card === 'c1' ? 'c2' : 'c1')
   // Adresses déjà interrogées ; la grille garde le résultat après la fin du parcours
   const k = p === null ? 0 : Math.min(N, Math.floor((Math.min(s.sim.t, p.fin - 1e-9) - p.debut) / I) + 1)
   const trouves = new Set(p === null ? [] : detectes(s, card, p.debut))
@@ -241,6 +242,14 @@ function Parcours({ card, onClose }: { card: CardId; onClose: () => void }) {
         {enCours ? `Adresse ${(k - 1).toString(16).toUpperCase().padStart(2, '0')}H — ${k} / ${N}` : k === N ? 'Parcours terminé' : `Parcours arrêté à ${k} / ${N}`} · détectés :{' '}
         {[...trouves].sort((a, b) => a - b).join(', ') || 'aucun'}
       </p>
+      {deuxMaitres && (
+        <p className="mt-1 bg-[#ffffe1] p-1 text-[11px] ring-1 ring-[#808080]" role="note">
+          Deux maîtres sur le bus : collisions.
+          <br />
+          Simplification : en réalité, deux maîtres décalés ne se percutent que par moments.
+          <UnverifiedBadge deps={['deuxMaitresDecalage', 'rs485Conflit']} />
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
         <label className="mr-auto flex items-center gap-1" title={examen ? 'Désactivé en mode partiel' : 'Simulation accélérée'}>
           <input type="checkbox" disabled={examen} checked={s.sim.speed === 10} onChange={(e) => dispatch({ type: 'speed', speed: e.target.checked ? 10 : 1 })} />

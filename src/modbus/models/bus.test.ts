@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { REF } from '../data/reference'
 import { toHex } from './crc'
-import { busSimulate, frameDuration, parcoursComplet, rs485Lines, type BusFrame, type Emetteur } from './bus'
+import { busSimulate, frameDuration, lireLigne, parcoursComplet, rs485Lines, type BusFrame, type Emetteur } from './bus'
 import { scopeView, valueAt, type ProbeInput, type ScopeSettings } from './scope'
 import { analyzerDecode, crcOk, slaveRespond } from './slaves'
 
@@ -47,13 +47,21 @@ describe('signaux RS485', () => {
     // pendant la réponse de l'esclave, la carte n'émet pas
     expect(valueAt(txen, reponses[0]!.t0 - 0x17 * I + 1e-4)).toBe(REF.ttlLow.value)
   })
-  it('haute impédance sans émetteur : TX+ et TX− au niveau H9 (± 2 %), Math ≈ 0', () => {
+  it('haute impédance polarisée (H9) : TX+ 2,65 V, TX− 2,35 V, Math = +0,30 V ± 2 %', () => {
     const { txp, txm } = rs485Lines([], 'c1', 0, I)
     for (const t of [0, I / 3, I / 2]) {
-      near(valueAt(txp, t), REF.rs485Idle.value, 0.02)
-      near(valueAt(txm, t), REF.rs485Idle.value, 0.02)
-      expect(Math.abs(valueAt(txp, t) - valueAt(txm, t))).toBeLessThan(0.02 * (REF.rs485High.value - REF.rs485Low.value))
+      near(valueAt(txp, t), 2.65, 0.02)
+      near(valueAt(txm, t), 2.35, 0.02)
+      near(valueAt(txp, t) - valueAt(txm, t), 0.3, 0.02)
     }
+  })
+  it('polarisation : le récepteur ne décode aucun caractère pendant les silences ; sans elle, des parasites', () => {
+    const lus = (polarisation: boolean) => lireLigne(slot(0x17, PARCOURS, { polarisation }), 3)
+    const attendu = [...requetes[0x17]!.bytes, ...reponses[0]!.bytes]
+    expect(lus(true).map((r) => r.byte)).toEqual(attendu)
+    expect(lus(true).some((r) => r.framingError || r.parityError)).toBe(false)
+    expect(lus(false).length).toBeGreaterThan(attendu.length + 10)
+    expect(rs485Lines([], 'c1', 0, I, { polarisation: false }).txp.samples.map((s) => s.v)).toEqual([REF.rs485SansPolarisation.value])
   })
 
   const capture = (math = true): ScopeSettings => ({
@@ -103,6 +111,18 @@ describe('erreurs de manip', () => {
     const collisions = f.filter((x) => x.collision)
     expect(collisions.length).toBeGreaterThan(200)
     expect(collisions.some((x) => analyzerDecode(x.bytes).some((l) => l.startsWith('CRC faux')))).toBe(true)
+  })
+  it('conflit de drivers (H39) : bits opposés → |différentiel| < 200 mV ; bits lus déterministes à graine fixée', () => {
+    const deux = () => busSimulate([maitre(), maitre({ card: 'c2', parcours: parcoursComplet(REF.deuxMaitresDecalage.value) })], 0x17 * I, 0x18 * I)
+    const f = deux()
+    const c = f.find((x) => x.collision)!
+    expect(c.parts).toHaveLength(2)
+    const { txp, txm } = rs485Lines(f, 'c1', 0x17 * I, 0x18 * I)
+    const diffs = txp.samples.map((s) => valueAt(txp, s.t) - valueAt(txm, s.t))
+    // Paliers de conflit, proches de 0 V, à côté des 1 et 0 francs (± 3 V)
+    expect(diffs.some((d) => Math.abs(d) < 0.2)).toBe(true)
+    expect(diffs.some((d) => d > 2)).toBe(true)
+    expect(deux().find((x) => x.collision)!.bytes).toEqual(c.bytes)
   })
   it('trame mémorisée non supprimée + parcours → les deux flux mêlés', () => {
     const memo = [0x17, 0x06, 0x00, 0x64, 0x00, 0x5a, 0x4a, 0xd8]

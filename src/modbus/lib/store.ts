@@ -69,6 +69,8 @@ export interface State {
   parcours: Record<CardId, Parcours | null>
   /** Horloge de simulation du bus Modbus : t (s), vitesse, heure murale (ms) correspondant à t = 0 */
   sim: { t: number; speed: 1 | 10; wall0: number | null }
+  /** Réglages du pupitre ; « polarisation absente » (H9) prévue pour l'étape 5 */
+  reglages: { polarisation: boolean }
   /** Octet saisi dans la console de SERIE_1 et SERIE_2 (H28) */
   octets: { serie1: number; serie2: number }
   /** Graine du format de SERIE_2, tirée au premier lancement et fixée pour la session (H3) ; vrai format saisi dans Réglages */
@@ -97,6 +99,7 @@ export const initialState = (): State => ({
   software: { c1: logicielVide(), c2: logicielVide() },
   parcours: { c1: null, c2: null },
   sim: { t: 0, speed: 1, wall0: null },
+  reglages: { polarisation: true },
   octets: { serie1: 0x55, serie2: 0x55 },
   serie2: { graine: null, reel: null },
   realterm: realtermDefaut(),
