@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { REF } from '../data/reference'
 import { toHex } from './crc'
-import { busSimulate, frameDuration, lireLigne, parasites, parcoursComplet, rs485Lines, type BusFrame, type Emetteur } from './bus'
+import { amplitudeRebond, busSimulate, frameDuration, lireLigne, parasites, parcoursComplet, rs485Lines, type BusFrame, type Emetteur } from './bus'
 import { scopeView, valueAt, type ProbeInput, type ScopeSettings } from './scope'
 import { analyzerDecode, crcOk, pupitreInitial, slaveRespond } from './slaves'
 
@@ -148,15 +148,16 @@ describe('démonstrations de cours', () => {
   it('polarisation présente : le récepteur ne lit aucun caractère pendant 1 s de silence', () => {
     expect(lireLigne(rs485Lines([], 'c1', 0, 1))).toEqual([])
   })
-  it('terminaison absente (H49) : dépassement après les fronts, valeur finale inchangée', () => {
+  it('terminaison absente (H49), 300 m : dépassement après les fronts, valeur finale inchangée', () => {
     const avec = slot(0x17)
-    const sans = slot(0x17, PARCOURS, { terminaison: false })
+    const sans = slot(0x17, PARCOURS, { terminaison: false, longueur: 300 })
     const max = (w: typeof avec.txp) => Math.max(...w.samples.map((s) => s.v))
     expect(max(sans.txp)).toBeGreaterThan(max(avec.txp) + 0.5)
     // Fronts descendants aussi : creux sous le niveau bas
     const min = (w: typeof avec.txp) => Math.min(...w.samples.map((s) => s.v))
     expect(min(sans.txp)).toBeLessThan(min(avec.txp) - 0.5)
-    const fin = requetes[0x17]!.t1 - 0x17 * I - 1 / 76800
+    // Fin du dernier bit : les 6 paliers de 3 µs (18 µs) sont éteints
+    const fin = requetes[0x17]!.t1 - 0x17 * I - 0.1 / REF.modbusBaud.value
     expect(valueAt(sans.txp, fin)).toBe(valueAt(avec.txp, fin))
   })
 
@@ -168,38 +169,28 @@ describe('démonstrations de cours', () => {
     return s[k + 1]!.t - s[k]!.t
   }
   const near = (x: number, cible: number) => expect(Math.abs(x / cible - 1)).toBeLessThanOrEqual(0.02)
-  it('L = 2 m → retard d’un rebond = 20 ns (± 2 %), invisible à 10 µs/div', () => {
+  it('L = 2 m (banc) → amplitude du rebond nulle : ligne électriquement courte, signal identique à la ligne terminée', () => {
     expect(REF.busLongueur.value).toBe(2)
-    near(retardMesure(2), 20e-9)
-    const tdiv = 10e-6
+    expect(amplitudeRebond(2)).toBe(0)
+    expect(slot(0x17, PARCOURS, { terminaison: false, longueur: 2 })).toEqual(slot(0x17))
+  })
+  it('L = 300 m → retard d’un rebond = 3,0 µs (± 2 %), rebond visible à l’oscilloscope', () => {
+    near(retardMesure(300), 3e-6)
     const st: ScopeSettings = {
       ch: [
         { on: true, vdiv: 1, offset: 0, probe: 1 },
         { on: false, vdiv: 1, offset: 0, probe: 1 },
       ],
-      tdiv,
+      tdiv: 10e-6,
       position: 0,
       trigger: { source: 0, slope: 'rising', level: REF.captureTriggerLevel.value },
       mode: 'normal',
       math: { on: false, src1: 0, src2: 1, vdiv: 1, offset: 0 },
       cursors: { on: false, x1: 0, x2: 0, y1: 0, y2: 0 },
     }
-    const ecran = (terminaison: boolean) => {
-      const inp: [ProbeInput, ProbeInput] = [
-        { signal: slot(0x17, PARCOURS, { terminaison, longueur: 2 }).txp, probe: 1, ground: true },
-        { signal: null, probe: 1, ground: true },
-      ]
-      return scopeView(inp, st, { seed: 7, phase: 0 })
-    }
-    const [avec, sans] = [ecran(true), ecran(false)]
-    expect(sans.measures[0]!.max).toBeCloseTo(avec.measures[0]!.max, 9)
-    expect(sans.measures[0]!.min).toBeCloseTo(avec.measures[0]!.min, 9)
-    // À 300 m, le même réglage montre le rebond
-    const loin = scopeView([{ signal: slot(0x17, PARCOURS, { terminaison: false, longueur: 300 }).txp, probe: 1, ground: true }, { signal: null, probe: 1, ground: true }], st, { seed: 7, phase: 0 })
-    expect(loin.measures[0]!.max).toBeGreaterThan(avec.measures[0]!.max + 0.5)
-  })
-  it('L = 300 m → retard d’un rebond = 3,0 µs (± 2 %)', () => {
-    near(retardMesure(300), 3e-6)
+    const max = (terminaison: boolean) =>
+      scopeView([{ signal: slot(0x17, PARCOURS, { terminaison, longueur: 300 }).txp, probe: 1, ground: true }, { signal: null, probe: 1, ground: true }], st, { seed: 7, phase: 0 }).measures[0]!.max
+    expect(max(false)).toBeGreaterThan(max(true) + 0.5)
   })
 })
 

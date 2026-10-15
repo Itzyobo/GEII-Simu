@@ -202,12 +202,13 @@ Toutes ces valeurs vivent dans un seul fichier de constantes. Une question qui d
 46. H46 — Libellés du « Détail Trame » pour les requêtes et les réponses 06 et 16 reconstitués sur le modèle de la photo (réponse 03/04 et exception lues sur les photos).
 47. H47 — OTB : les fonctions 06 et 16 n'acceptent que les registres 100 à 102 (sorties TOR et analogiques) ; tout autre registre → exception 02.
 48. H48 — Vitesse (≠ 0008) ou parité (≠ 0001) réécrite dans un module : écho, puis le module ne comprend plus le bus et reste muet jusqu'à « Réinitialiser le pupitre ».
-49. H49 — Terminaison absente : après chaque front de TX+ et TX−, une réflexion par aller-retour sur le câble (retard 2 × L × 5 ns/m), d'amplitude 30 % de l'excursion, amortie en 3 oscillations ; l'amplitude n'est pas mesurée.
+49. H49 — Terminaison absente : après chaque front de TX+ et TX−, une réflexion par aller-retour sur le câble (retard 2 × L × 5 ns/m), d'amplitude 30 % de l'excursion × max(0, 1 − tr / 2·Tp) (tr : H55), amortie en 3 oscillations ; l'amplitude n'est pas mesurée.
 50. H50 — Polarisation absente : la ligne flottante change d'état au hasard toutes les 20 ms en moyenne ; le récepteur y lit des caractères parasites.
 51. H51 — Mode partiel : 30 minutes par défaut (réglable).
 52. H52 — Barème du partiel : 1 point par question ; câblage 1 point au 1er « Faire vérifier » réussi, ½ au 2e, 0 ensuite ; −0,5 point par manipulation pendant une émission.
 53. H53 — Longueur du bus au banc du TP : 2 m (quelques mètres de câble entre les cartes et le pupitre), non mesurée.
-54. H54 — Oscilloscope : 2 500 points d'acquisition par écran ; un palier plus court qu'un point n'apparaît ni sur la trace ni dans les mesures.
+54. H54 — Supprimée : l'oscilloscope trace le min et le max de chaque colonne (enveloppe, comme un DSOX) ; une impulsion courte reste visible à toutes les bases de temps.
+55. H55 — Temps de montée du driver DS3695 : tr ≈ 20 ns, non mesuré. Le rebond sans terminaison vaut 30 % (H49) × max(0, 1 − tr / 2·Tp) : nul tant que la ligne est électriquement courte (2·Tp ≤ tr).
 
 ## 4. Modèles de simulation
 

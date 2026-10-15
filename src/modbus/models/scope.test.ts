@@ -87,3 +87,16 @@ describe('scopeView sur 55H 8O1', () => {
     expect(scopeView(input('TTL'), settings('TTL'), OPT)).toEqual(scopeView(input('TTL'), settings('TTL'), OPT))
   })
 })
+
+describe('affichage en enveloppe (min/max par colonne)', () => {
+  it('une impulsion de 100 ns reste visible à 500 µs/div : trait fin à 5 V, Max = 5 V', () => {
+    const pulse = { samples: [{ t: 0, v: 0 }, { t: 2e-3, v: 5 }, { t: 2e-3 + 100e-9, v: 0 }], period: 10e-3 }
+    const st = settings('TTL', { tdiv: 500e-6, position: 0, trigger: { source: 0, slope: 'rising', level: 2.5 }, ch: [{ on: true, vdiv: 1, offset: 0, probe: 1 }, { on: false, vdiv: 1, offset: 0, probe: 1 }] })
+    const v = scopeView([{ signal: pulse, probe: 1, ground: true }, { signal: null, probe: 1, ground: true }], st, OPT)
+    near(v.measures[0]!.max, 5, 0.02)
+    const hauts = v.traces[0]!.filter(([, y]) => y > 4)
+    expect(hauts.length).toBeGreaterThan(0)
+    // Trait fin : tous les points hauts dans une seule colonne
+    expect(new Set(hauts.map(([x]) => x)).size).toBe(1)
+  })
+})

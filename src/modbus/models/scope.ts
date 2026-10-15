@@ -135,11 +135,6 @@ function stepsIn(w: Waveform, t0: number, t1: number, scale: (v: number) => numb
   return { start: scale(valueAt(w, t0)), changes }
 }
 
-/** Acquisition (H54) : un palier plus court qu'un point d'acquisition `dt` n'apparaît pas. */
-function acquire(s: Steps, dt: number): Steps {
-  return { start: s.start, changes: s.changes.filter((c, k) => (s.changes[k + 1]?.t ?? Infinity) - c.t >= dt) }
-}
-
 /** Différence de deux escaliers (Math). */
 function subtract(a: Steps, b: Steps): Steps {
   const all = [...a.changes.map((c) => ({ ...c, from: 'a' })), ...b.changes.map((c) => ({ ...c, from: 'b' }))].sort((x, y) => x.t - y.t)
@@ -155,23 +150,31 @@ function subtract(a: Steps, b: Steps): Steps {
   return { start: a.start - b.start, changes }
 }
 
-/** Trace en escalier, un point tous les 1/50 div sur chaque palier, chacun bruité de σ relatif (H19). */
+/**
+ * Trace en enveloppe, comme un DSOX : chaque colonne (1/50 div) trace le min et le max des valeurs qu'elle couvre,
+ * de sorte qu'une impulsion courte reste un trait fin à toutes les bases de temps. Chaque point est bruité de σ relatif (H19).
+ */
 function stepTrace(s: Steps, t0: number, tdiv: number, toDiv: (v: number) => number, rnd: () => number): Trace {
   const noisy = (v: number) => toDiv(v * (1 + REF.scopeBruitPoint.value * gauss(rnd)))
   const pts: Trace = []
-  const flat = (x0: number, x1: number, v: number) => {
-    for (let x = x0; x < x1; x += 1 / TRACE_PTS_PER_DIV) pts.push([x, noisy(v)])
-    pts.push([x1, noisy(v)])
+  const cols = DIV_X * TRACE_PTS_PER_DIV
+  let v = s.start
+  let k = 0
+  for (let i = 0; i < cols; i++) {
+    const fin = t0 + ((i + 1) / TRACE_PTS_PER_DIV) * tdiv
+    const entree = v
+    let [lo, hi] = [v, v]
+    for (; k < s.changes.length && s.changes[k]!.t < fin; k++) {
+      v = s.changes[k]!.v
+      lo = Math.min(lo, v)
+      hi = Math.max(hi, v)
+    }
+    // Entrée, extrêmes, sortie : le trait vertical suit le sens du front
+    const x = i / TRACE_PTS_PER_DIV
+    const ys = lo === hi ? [entree] : v >= entree ? [entree, lo, hi, v] : [entree, hi, lo, v]
+    for (const y of ys) pts.push([x, noisy(y)])
   }
-  let x0 = 0
-  let prev = s.start
-  for (const c of s.changes) {
-    const x = (c.t - t0) / tdiv
-    flat(x0, x, prev)
-    x0 = x
-    prev = c.v
-  }
-  flat(x0, DIV_X, prev)
+  pts.push([DIV_X, noisy(v)])
   return pts
 }
 
@@ -236,7 +239,7 @@ export function scopeView(inputs: [ProbeInput, ProbeInput], st: ScopeSettings, {
   const floating: [boolean, boolean] = [chans[0].floating, chans[1].floating]
   if (status === 'Attente') return { status, t0, traces: [null, null, null], measures: [null, null, null], cursors, floating }
 
-  const steps = chans.map((c) => acquire(stepsIn(c.w, t0, t1, c.scale), span / REF.scopePoints.value)) as [Steps, Steps]
+  const steps = chans.map((c) => stepsIn(c.w, t0, t1, c.scale)) as [Steps, Steps]
   const traces: ScopeView['traces'] = [null, null, null]
   const measures: ScopeView['measures'] = [null, null, null]
 

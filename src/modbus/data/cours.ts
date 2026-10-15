@@ -56,7 +56,7 @@ export const COURS: QuestionCours[] = [
     enonce: 'Valeur de la résistance de terminaison placée à chaque extrémité d’une paire RS485',
     unite: 'Ω',
     bonne: REF.terminaisonOhms.value,
-    justification: `${fr(REF.terminaisonOhms.value)} Ω, l’impédance caractéristique de la paire torsadée : l’onde arrivée en bout de ligne est absorbée au lieu d’être réfléchie. Chaque réflexion revient après un aller-retour, 2 × L × ${fr(REF.propagation.value * 1e9)} ns/m : négligeable au banc (≈ 20 ns pour quelques mètres, contre 26 µs par bit à 38 400 bauds), elle déforme les bits quand le câble est long.`,
+    justification: `${fr(REF.terminaisonOhms.value)} Ω, l’impédance caractéristique de la paire torsadée : l’onde arrivée en bout de ligne est absorbée au lieu d’être réfléchie. Chaque réflexion revient après un aller-retour, 2 × L × ${fr(REF.propagation.value * 1e9)} ns/m : au banc (≈ 20 ns pour 2 m), elle ne dépasse pas le temps de montée du driver et se noie dans le front : la ligne est électriquement courte. La terminaison devient nécessaire quand l’aller-retour dépasse nettement la durée des fronts.`,
     deps: ['terminaisonOhms', 'propagation'],
   },
   {

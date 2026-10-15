@@ -133,11 +133,11 @@ export const REF = {
     value: { amplitude: 0.3, oscillations: 3 },
     source: 'hypothèse',
     hyp: 'H49',
-    note: 'sans terminaison : une réflexion par aller-retour sur le câble, 30 % de l’excursion, amortie en 3 oscillations (amplitude non mesurée)',
+    note: 'sans terminaison : une réflexion par aller-retour sur le câble, 30 % de l’excursion × max(0, 1 − tr / 2·Tp), amortie en 3 oscillations (amplitude non mesurée)',
   }),
   propagation: ref({ value: 5e-9, unit: 's/m', source: 'cours', note: 'paire torsadée : ≈ 0,66 c, soit ≈ 5 ns/m ; retard d’un rebond = 2 × L × 5 ns/m' }),
   busLongueur: ref({ value: 2, unit: 'm', source: 'hypothèse', hyp: 'H53', note: 'longueur du bus au banc du TP ; curseur de démonstration jusqu’à 1 200 m' }),
-  scopePoints: ref({ value: 2500, source: 'hypothèse', hyp: 'H54', note: 'points d’acquisition par écran : un palier plus court qu’un point n’apparaît pas' }),
+  driverMontee: ref({ value: 20e-9, unit: 's', source: 'hypothèse', hyp: 'H55', note: 'temps de montée du driver DS3695 ; rebond nul tant que l’aller-retour ne le dépasse pas' }),
   bruitSansPolarisation: ref({ value: 20e-3, unit: 's', source: 'hypothèse', hyp: 'H50', note: 'sans polarisation, la ligne flottante change d’état au hasard toutes les 20 ms en moyenne' }),
 
   /* ───────────────────────────── Cours : normes RS232 et RS485 ───────────────────────────── */
@@ -334,11 +334,12 @@ export const HYPOTHESES: Record<Hyp, { text: string; resolue?: boolean }> = {
   H47: { text: 'OTB : les fonctions 06 et 16 n’acceptent que les registres 100 à 102 (sorties TOR et analogiques) ; tout autre registre → exception 02.' },
   H48: { text: 'Vitesse (≠ 0008) ou parité (≠ 0001) réécrite dans un module : écho, puis le module ne comprend plus le bus et reste muet jusqu’à « Réinitialiser le pupitre ».' },
   H49: {
-    text: 'Terminaison absente : après chaque front de TX+ et TX−, une réflexion par aller-retour sur le câble (retard 2 × L × 5 ns/m), d’amplitude 30 % de l’excursion, amortie en 3 oscillations ; l’amplitude n’est pas mesurée.',
+    text: 'Terminaison absente : après chaque front de TX+ et TX−, une réflexion par aller-retour sur le câble (retard 2 × L × 5 ns/m), d’amplitude 30 % de l’excursion × max(0, 1 − tr / 2·Tp) (tr : H55), amortie en 3 oscillations ; l’amplitude n’est pas mesurée.',
   },
   H50: { text: 'Polarisation absente : la ligne flottante change d’état au hasard toutes les 20 ms en moyenne ; le récepteur y lit des caractères parasites.' },
   H51: { text: 'Mode partiel : 30 minutes par défaut (réglable).' },
   H52: { text: 'Barème du partiel : 1 point par question ; câblage 1 point au 1er « Faire vérifier » réussi, ½ au 2e, 0 ensuite ; −0,5 point par manipulation pendant une émission.' },
   H53: { text: 'Longueur du bus au banc du TP : 2 m (quelques mètres de câble entre les cartes et le pupitre), non mesurée.' },
-  H54: { text: 'Oscilloscope : 2 500 points d’acquisition par écran ; un palier plus court qu’un point n’apparaît ni sur la trace ni dans les mesures.' },
+  H54: { text: 'Supprimée : l’oscilloscope trace le min et le max de chaque colonne (enveloppe, comme un DSOX) ; une impulsion courte reste visible à toutes les bases de temps.', resolue: true },
+  H55: { text: 'Temps de montée du driver DS3695 : tr ≈ 20 ns, non mesuré. Le rebond sans terminaison vaut 30 % (H49) × max(0, 1 − tr / 2·Tp) : nul tant que la ligne est électriquement courte (2·Tp ≤ tr).' },
 }

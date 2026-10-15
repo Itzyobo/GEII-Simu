@@ -143,7 +143,7 @@ export default function Banc() {
               {!s.reglages.polarisation && <UnverifiedBadge deps={['bruitSansPolarisation', 'rs485SansPolarisation']} />}
               {!s.reglages.terminaison && (
                 <>
-                  <UnverifiedBadge deps={['terminaisonRebond', 'busLongueur']} />
+                  <UnverifiedBadge deps={['terminaisonRebond', 'busLongueur', 'driverMontee']} />
                   <label className="flex items-center gap-2">
                     Longueur du bus
                     <input
@@ -156,8 +156,8 @@ export default function Banc() {
                     <span className="tabular-nums">{s.reglages.longueur.toLocaleString('fr-FR')} m</span>
                   </label>
                   <p className="basis-full text-sm text-neutral-300">
-                    Au banc (quelques mètres), la terminaison ne change rien de visible à 38 400 bauds : l’aller-retour dure environ 20 ns pour un bit de 26 µs. Elle devient indispensable
-                    quand le câble est long.
+                    À 2 m, l’aller-retour (≈ 20 ns) ne dépasse pas le temps de montée du driver : la réflexion se noie dans le front, la ligne est électriquement courte. La
+                    terminaison devient nécessaire quand l’aller-retour dépasse nettement la durée des fronts.
                   </p>
                 </>
               )}

@@ -285,13 +285,19 @@ export function rs485Lines(
  */
 export const retardRebond = (longueur: number) => 2 * longueur * REF.propagation.value
 
+/** Amplitude relative du rebond : nulle tant que l'aller-retour ne dépasse pas le temps de montée du driver (H55). */
+export const amplitudeRebond = (longueur: number) => REF.terminaisonRebond.value.amplitude * Math.max(0, 1 - REF.driverMontee.value / retardRebond(longueur))
+
 /**
  * Sans terminaison (H49) : chaque front piloté rebondit, un palier par aller-retour sur le câble, avec une amplitude
  * qui décroît jusqu'à s'éteindre en quelques oscillations.
  */
 function avecRebonds(w: Waveform, longueur: number): Waveform {
-  const { amplitude, oscillations } = REF.terminaisonRebond.value
+  const { oscillations } = REF.terminaisonRebond.value
   const retard = retardRebond(longueur)
+  const amplitude = amplitudeRebond(longueur)
+  // Ligne électriquement courte : la réflexion se noie dans le front
+  if (amplitude === 0) return w
   const seuil = (REF.rs485High.value - REF.rs485Low.value) / 2
   const n = 2 * oscillations
   const out: Waveform['samples'] = []
