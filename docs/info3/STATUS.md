@@ -11,18 +11,19 @@ Mis à jour à chaque bloc terminé. Étape en cours : **2** (banc, IDE, MCC de 
 | B2 | fait | Banc SVG (src/info3/board/Board.tsx) : Curiosity HPC, carte fille GEII, LED à lueur = ledDuty (variable CSS), S1/S2 souris/toucher/touches 1 et 2, USB noir et blanc, cartes Click à glisser ou à cliquer, verrouillage sous tension ; monté sur /info3/dev |
 | B3 | fait | IDE (src/info3/ide/Ide.tsx) : arborescence Projects, onglets, CodeEditor (chunk séparé) en lecture seule pour mcc_generated_files, Build F11, Make and Program, Debug Ctrl+F5, Continue F5, Step Over F8, Step Into F7, Step Out Ctrl+F7, Pause, Reset, Source › Format, un point d'arrêt dans la marge, Output cliquable, Variables et SFR à l'arrêt, thème clair (sombre en option) |
 | B4 | fait | Interface MCC (src/info3/mcc/Mcc.tsx, chunk séparé) : Project Resources (System Module, Pin Module), Device Resources vide, Generate ; System Module (Oscillator Select, HF Internal Clock, Clock Divider, Current System clock, champ grisé 32768 Hz, LVP) ; table Pin Module (Custom Name en rouge si invalide, Analog avec badge H23, IOC grisé « none ») ; Pin Manager: Grid View (cadenas, numéros PDIP40, RE3 entrée seule) |
-| B5 | à faire | Pages /info3, /info3/tp1, /info3/libre |
+| B5 | fait | /info3 (A1 à A10 en vert, orange ou rouge, cartes TP1 à TP6, mode libre), /info3/tp1 (énoncé, questions et professeur virtuel, Faire vérifier progressif, banc, IDE, MCC), /info3/libre (projets multiples, export et import JSON, Diagnostic R1 à R4) ; 4 onglets à 375 px |
 | B6 | bloqué / à faire | C1 : PDF de l'énoncé absents (docs/sources/INFO3_TP.pdf, INFO3_Cours.pdf) ; C4 tailles gzip ; C5 oxlint |
 
 Déjà fait avant R (non commité jusqu'ici) : moteur de l'étape 1 ; modèle MCC, Faire vérifier, verrouillage, professeur virtuel TP1, solutions, persistance, Diagnostic R1 à R4, symboles de l'IDE, protocole du Worker étendu.
 
-## Derniers résultats (blocs R et B1)
+## Derniers résultats (bloc B5)
 
-- Tests : `npx vitest run src/info3` → 151 réussis, 1 ignoré (F9 : énoncé non transcrit), 0 échec.
+- Tests : `npx vitest run` → 414 réussis, 1 ignoré (F9 : énoncé non transcrit), 0 échec.
 - TypeScript (`tsc -p tsconfig.app.json`) : 0 erreur.
 - Build : sans erreur ni warning (commit R vérifié dans un worktree propre : 398 tests, 1 ignoré).
 - oxlint (B1) : 26 avertissements, tous préexistants hors INFO3 ; 0 dans src/info3, src/pages/info3, scripts, src/data.
-- 375 px strict (B1) : 25 routes conformes, /info3/dev compris.
+- 375 px strict (B5) : 28 routes conformes (/info3, /info3/tp1, /info3/libre, /info3/dev compris).
+- Parcours navigateur /info3/tp1 : MCC LED_D2/RA4 + Generate, code 3.3 + Build (BUILD SUCCESSFUL), Faire vérifier, USB noir, Program, D2 à 1 Hz, 3.3 validée (période 1 000 ms), carte refusée sous tension ; 0 erreur console ; 0 tâche longue (> 50 ms) pendant l'exécution à ×1.
 
 ### Mesures R6 (fixtures du CR avec les fichiers MCC réels, Fosc = 4 MHz)
 

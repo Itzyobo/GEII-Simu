@@ -97,7 +97,7 @@ function q33(p: Program): Verdict {
   const iv = intervals(rises).slice(0, periods)
   const bad = iv.find((x) => !within(x, target))
   if (bad !== undefined || iv.length < periods) return { ok: false, messages: [`Période de D2 : ${fmtMs(target)} attendu, ${fmtMs(bad ?? median(iv))} mesuré`] }
-  return { ok: true, messages: [`Période de D2 : ${fmtMs(median(iv))} (cible ${fmtMs(target)} ± ${T.tolerance * 100} %)`] }
+  return { ok: true, messages: [`Période de D2 : ${fmtMs(median(iv))} (cible ${fmtMs(target)} ± ${String(T.tolerance * 100).replace('.', ',')} %)`] }
 }
 
 function q34(p: Program): Verdict {

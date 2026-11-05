@@ -2,13 +2,14 @@
  * Persistance INFO3 dans localStorage, clés `tpsim.info3.v1.*`, schéma versionné.
  * Tous les accès sont protégés : une donnée absente, illisible ou corrompue redonne un état vierge.
  */
-import { blankProject, parseProject, type Project } from './project'
+import { blankProject, parseProject, runGenerate, type Project } from './project'
 
 export const STORAGE_PREFIX = 'tpsim.info3.v1.'
 export const KEYS = {
   tp1: `${STORAGE_PREFIX}project.tp1`,
   libre: `${STORAGE_PREFIX}libre`,
   progress: `${STORAGE_PREFIX}progress`,
+  prefs: `${STORAGE_PREFIX}prefs`,
 } as const
 
 /** Stockage minimal (localStorage ou substitut de test) */
@@ -63,7 +64,8 @@ export interface LibreState {
 }
 
 export function blankLibre(): LibreState {
-  const p = blankProject('libre', 'Projet 1', 'libre-1')
+  // Projet vierge : configuration MCC par défaut et main.c du cours (premier Generate)
+  const p = runGenerate(blankProject('libre', 'Projet 1', 'libre-1')).project
   return { version: 1, projects: [p], currentId: p.id }
 }
 
@@ -118,4 +120,20 @@ export function loadProgress(s?: KeyValueStore | null): Progress {
 
 export function saveProgress(p: Progress, s?: KeyValueStore | null) {
   writeJson(KEYS.progress, p, s === undefined ? store() : s)
+}
+
+/* ───────────── Préférences d'affichage ───────────── */
+
+export interface Prefs {
+  /** Thème sombre de l'IDE (clair par défaut, comme MPLAB X) */
+  dark: boolean
+}
+
+export function loadPrefs(s?: KeyValueStore | null): Prefs {
+  const x = readJson(KEYS.prefs, s === undefined ? store() : s) as Record<string, unknown> | undefined
+  return { dark: !!x && typeof x === 'object' && x.dark === true }
+}
+
+export function savePrefs(p: Prefs, s?: KeyValueStore | null) {
+  writeJson(KEYS.prefs, p, s === undefined ? store() : s)
 }
