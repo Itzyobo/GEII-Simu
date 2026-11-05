@@ -84,8 +84,6 @@ export interface SimControls {
   grade(question: string, files: Record<string, string>): Promise<{ ok: boolean; messages: string[] }>
   log(line: Output): void
   clearOutput(): void
-  /** Le Worker existe (créé au premier Build ou Program) */
-  started: boolean
 }
 
 export function useSim(): SimControls {
@@ -190,6 +188,5 @@ export function useSim(): SimControls {
       }),
     log: (line) => dispatch({ kind: 'log', line }),
     clearOutput: () => dispatch({ kind: 'clear' }),
-    started: client.current !== null,
   }
 }

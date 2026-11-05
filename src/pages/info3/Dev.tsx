@@ -28,10 +28,12 @@ export default function Info3Dev() {
   const editor = useRef<HTMLTextAreaElement>(null)
   const outBox = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  /** Worker créé au premier Compile (ou Run), jamais au chargement : la page reste « réseau inactif » */
+  const ensureClient = (): SimClient => {
+    if (client.current) return client.current
     const c = createSimClient()
     client.current = c
-    const off = c.onMessage((m) => {
+    c.onMessage((m) => {
       if (m.type === 'frame') {
         setTSim(m.tSim)
         if (Object.keys(m.ledDuty).length) setDuty((d) => ({ ...d, ...m.ledDuty }))
@@ -44,18 +46,22 @@ export default function Info3Dev() {
         if (m.reason !== 'pause' && m.reason !== 'breakpoint') setOutput((o) => [...o, { type: 'output', level: 'error', text: `Arrêt : ${m.reason}` }])
       }
     })
-    return () => {
-      off()
-      c.terminate()
+    return c
+  }
+
+  useEffect(
+    () => () => {
+      client.current?.terminate()
       client.current = null
-    }
-  }, [])
+    },
+    [],
+  )
 
   useEffect(() => {
     outBox.current?.scrollTo({ top: outBox.current.scrollHeight })
   }, [output])
 
-  const send: SimClient['send'] = (msg) => client.current?.send(msg)
+  const send: SimClient['send'] = (msg) => ensureClient().send(msg)
 
   const build = () => {
     setOutput([])
