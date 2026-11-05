@@ -1,0 +1,270 @@
+/**
+ * MCC Classic (étape 2) : Project Resources (System Module, Pin Module), Device Resources, Generate,
+ * Easy Setup du System Module, table Pin Module et Pin Manager: Grid View. Chargé à l'ouverture de MCC.
+ * Les données viennent du modèle testé (config.ts) ; Generate est confié au parent (runGenerate).
+ */
+import { useState } from 'react'
+import { INFO3 } from '../../data/reference'
+import { customNameError, DIVIDERS, pinOrder, systemFosc, toggleGridPin, updatePin, type Direction, type MccConfig, type Oscillator } from './config'
+
+export interface MccProps {
+  config: MccConfig
+  onChange(cfg: MccConfig): void
+  onGenerate(): void
+  /** Dernier message de Generate (réussite ou refus) */
+  message: { ok: boolean; text: string } | null
+  dark?: boolean
+}
+
+type Resource = 'system' | 'pins'
+const PORTS = Object.entries(INFO3.mcc.gridPorts) as [string, number][]
+const fmtHz = (hz: number) => (hz >= 1e6 ? `${hz / 1e6} MHz` : hz >= 1e3 ? `${(hz / 1e3).toLocaleString('fr-FR')} kHz` : `${hz} Hz`)
+
+function Badge({ id }: { id: string }) {
+  const h = INFO3.hypotheses.find((x) => x.id === id)
+  return (
+    <span className="ml-1 inline-block rounded bg-warn/10 px-1 text-[10px] font-semibold text-warn ring-1 ring-warn/30" title={h ? `${h.id} : ${h.texte}` : id}>
+      valeur non vérifiée ({id})
+    </span>
+  )
+}
+
+export default function Mcc({ config, onChange, onGenerate, message }: MccProps) {
+  const [res, setRes] = useState<Resource>('pins')
+  const s = config.system
+  const setSys = (patch: Partial<MccConfig['system']>) => onChange({ ...config, system: { ...s, ...patch } })
+  const pins = [...config.pins].sort((a, b) => pinOrder(a.pin, b.pin))
+
+  const panel = 'rounded-lg border border-[#c8c8c8] bg-white text-[#1e1e1e]'
+  const head = 'border-b border-[#c8c8c8] bg-[#e8e8e8] px-2 py-1 text-xs font-semibold'
+  const field = 'rounded border border-[#b8b8b8] bg-white px-1.5 py-0.5 text-xs disabled:bg-[#eee] disabled:text-[#888]'
+
+  return (
+    <section className="space-y-2 rounded-card bg-[#f2f2f2] p-2 text-[#1e1e1e] ring-1 ring-[#c8c8c8]" aria-label="MCC">
+      <div className="grid gap-2 md:grid-cols-[13rem_minmax(0,1fr)]">
+        {/* Ressources */}
+        <div className="space-y-2">
+          <div className={panel}>
+            <div className={`${head} flex items-center justify-between`}>
+              <span>Project Resources</span>
+              <button type="button" onClick={onGenerate} className="rounded border border-[#8a8a8a] bg-[#fafafa] px-2 py-0.5 text-xs font-semibold hover:bg-white">
+                Generate
+              </button>
+            </div>
+            <ul className="p-1 text-xs">
+              <li className="px-1 font-semibold">System</li>
+              {(
+                [
+                  ['pins', 'Pin Module'],
+                  ['system', 'System Module'],
+                ] as const
+              ).map(([id, label]) => (
+                <li key={id}>
+                  <button type="button" onClick={() => setRes(id)} aria-pressed={res === id} className={`w-full rounded px-3 py-0.5 text-left ${res === id ? 'bg-[#cfe2fb] font-semibold' : 'hover:bg-[#eef3fa]'}`}>
+                    {label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className={panel}>
+            <div className={head}>Device Resources</div>
+            <p className="p-2 text-xs text-[#777]">Aucun périphérique à cette étape (TMR2, MSSP1, EUSART… aux étapes suivantes).</p>
+          </div>
+          {message && (
+            <p role="status" className={`rounded px-2 py-1 text-xs ring-1 ${message.ok ? 'bg-[#e8f5e9] text-[#1b5e20] ring-[#a5d6a7]' : 'bg-[#ffebee] text-[#b71c1c] ring-[#ef9a9a]'}`}>
+              {message.text}
+            </p>
+          )}
+        </div>
+
+        {/* Panneau de la ressource */}
+        <div className={`${panel} min-w-0`}>
+          {res === 'system' ? (
+            <>
+              <div className={head}>System Module — Easy Setup</div>
+              <div className="grid gap-x-4 gap-y-2 p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+                <label htmlFor="mcc-osc">Oscillator Select</label>
+                <select id="mcc-osc" className={field} value={s.oscillator} onChange={(e) => setSys({ oscillator: e.target.value as Oscillator })}>
+                  <option value="HFINTOSC">HFINTOSC</option>
+                  <option value="LFINTOSC">LFINTOSC</option>
+                </select>
+                <label htmlFor="mcc-hf">HF Internal Clock</label>
+                <select id="mcc-hf" className={field} value={s.hfMHz} disabled={s.oscillator !== 'HFINTOSC'} onChange={(e) => setSys({ hfMHz: Number(e.target.value) })}>
+                  {INFO3.clock.hfintoscMHz.map((m) => (
+                    <option key={m} value={m}>
+                      {m}_MHz
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="mcc-div">Clock Divider</label>
+                <select id="mcc-div" className={field} value={s.divider} onChange={(e) => setSys({ divider: Number(e.target.value) })}>
+                  {DIVIDERS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="mcc-ext">External Clock</label>
+                <input id="mcc-ext" className={field} disabled value={`${INFO3.clock.mccGreyedClockField} Hz`} title="Champ grisé : affiché par MCC mais non utilisé" readOnly />
+                <span>Current System clock</span>
+                <output className="font-mono font-semibold">{fmtHz(systemFosc(s))}</output>
+                <span>Programming</span>
+                <label className="flex items-center gap-1.5">
+                  <input type="checkbox" checked={s.lvp} onChange={(e) => setSys({ lvp: e.target.checked })} /> Low-voltage programming enable
+                </label>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={head}>Pin Module</div>
+              <div className="max-w-full overflow-x-auto">
+                <table className="w-full min-w-[46rem] text-left text-xs">
+                  <thead className="bg-[#f5f5f5]">
+                    <tr>
+                      {['Pin Name', 'Module', 'Function', 'Custom Name', 'Start High'].map((h) => (
+                        <th key={h} className="border-b border-[#ddd] px-2 py-1 font-semibold">
+                          {h}
+                        </th>
+                      ))}
+                      <th className="border-b border-[#ddd] px-2 py-1 font-semibold">
+                        Analog
+                        <Badge id="H23" />
+                      </th>
+                      {['Output', 'WPU', 'OD', 'IOC'].map((h) => (
+                        <th key={h} className="border-b border-[#ddd] px-2 py-1 font-semibold">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pins.length === 0 && (
+                      <tr>
+                        <td colSpan={10} className="px-2 py-2 text-[#777]">
+                          Cliquer sur un cadenas du Pin Manager: Grid View pour ajouter une broche.
+                        </td>
+                      </tr>
+                    )}
+                    {pins.map((p) => {
+                      const err = customNameError(config, p)
+                      const set = (patch: Parameters<typeof updatePin>[2]) => onChange(updatePin(config, p.pin, patch))
+                      return (
+                        <tr key={p.pin} className="border-b border-[#eee]">
+                          <td className="px-2 py-1 font-mono">{p.pin}</td>
+                          <td className="px-2 py-1">Pin Module</td>
+                          <td className="px-2 py-1">GPIO</td>
+                          <td className="px-2 py-1">
+                            <input
+                              aria-label={`Custom Name de ${p.pin}`}
+                              aria-invalid={!!err}
+                              title={err ?? ''}
+                              className={`w-32 rounded border px-1 py-0.5 font-mono ${err ? 'border-[#d32f2f] bg-[#ffebee] text-[#b71c1c]' : 'border-[#b8b8b8]'}`}
+                              value={p.customName}
+                              onChange={(e) => set({ customName: e.target.value })}
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input type="checkbox" aria-label={`Start High ${p.pin}`} checked={p.startHigh} disabled={p.direction !== 'output'} onChange={(e) => set({ startHigh: e.target.checked })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input type="checkbox" aria-label={`Analog ${p.pin}`} checked={p.analog} onChange={(e) => set({ analog: e.target.checked })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="checkbox"
+                              aria-label={`Output ${p.pin}`}
+                              checked={p.direction === 'output'}
+                              disabled={(INFO3.mcc.inputOnly as readonly string[]).includes(p.pin)}
+                              onChange={(e) => onChange(toggleGridPin(config, p.pin, e.target.checked ? 'output' : 'input'))}
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input type="checkbox" aria-label={`WPU ${p.pin}`} checked={p.wpu} onChange={(e) => set({ wpu: e.target.checked })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input type="checkbox" aria-label={`OD ${p.pin}`} checked={p.od} onChange={(e) => set({ od: e.target.checked })} />
+                          </td>
+                          <td className="px-2 py-1">
+                            <select disabled className="rounded border border-[#ccc] bg-[#eee] px-1 text-[#888]" aria-label={`IOC ${p.pin} (étape 3)`} value="none">
+                              <option value="none">none</option>
+                            </select>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Pin Manager: Grid View */}
+      <div className={panel}>
+        <div className={head}>Pin Manager: Grid View</div>
+        <div className="max-w-full overflow-x-auto">
+          <table className="border-collapse text-[10px]">
+            <thead>
+              <tr>
+                <th className="sticky left-0 bg-white px-2 text-left font-semibold" rowSpan={2}>
+                  Module
+                </th>
+                <th className="sticky left-0 bg-white px-2 text-left font-semibold" rowSpan={2}>
+                  Function
+                </th>
+                {PORTS.map(([port, n]) => (
+                  <th key={port} colSpan={n} className="border border-[#ccc] bg-[#e8e8e8] px-1">
+                    Port {port}
+                  </th>
+                ))}
+              </tr>
+              <tr>
+                {PORTS.flatMap(([port, n]) =>
+                  Array.from({ length: n }, (_, b) => (
+                    <th key={`${port}${b}`} className="w-6 border border-[#ccc] bg-[#f5f5f5] font-normal" title={`R${port}${b} — broche ${INFO3.mcc.pdip40[`R${port}${b}`] ?? '?'} (PDIP40)`}>
+                      {b}
+                      <div className="text-[8px] text-[#888]">{INFO3.mcc.pdip40[`R${port}${b}`]}</div>
+                    </th>
+                  )),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {(['input', 'output'] as Direction[]).map((dir) => (
+                <tr key={dir}>
+                  <td className="sticky left-0 bg-white px-2 font-semibold">Pin Module</td>
+                  <td className="sticky left-0 bg-white px-2">{dir === 'input' ? 'GPIO input' : 'GPIO output'}</td>
+                  {PORTS.flatMap(([port, n]) =>
+                    Array.from({ length: n }, (_, b) => {
+                      const pin = `R${port}${b}`
+                      const sel = config.pins.find((p) => p.pin === pin)
+                      const locked = sel?.direction === dir
+                      const unavailable = dir === 'output' && (INFO3.mcc.inputOnly as readonly string[]).includes(pin)
+                      return (
+                        <td key={pin} className="border border-[#ccc] p-0 text-center">
+                          <button
+                            type="button"
+                            disabled={unavailable}
+                            aria-pressed={locked}
+                            aria-label={`${pin} ${dir === 'input' ? 'GPIO input' : 'GPIO output'}${unavailable ? ' (MCLR, entrée seule)' : ''}`}
+                            title={unavailable ? `${pin} = MCLR, entrée seulement` : `${pin} (broche ${INFO3.mcc.pdip40[pin]})`}
+                            onClick={() => onChange(toggleGridPin(config, pin, dir))}
+                            className={`h-6 w-6 ${unavailable ? 'cursor-not-allowed bg-[#ddd] text-[#aaa]' : locked ? 'bg-[#2e7d32] text-white' : sel ? 'bg-[#e3f2fd] text-[#90a4ae]' : 'text-[#1565c0] hover:bg-[#e3f2fd]'}`}
+                          >
+                            {unavailable ? '·' : locked ? '🔒' : '🔓'}
+                          </button>
+                        </td>
+                      )
+                    }),
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )
+}
