@@ -167,12 +167,26 @@ export const INFO3 = {
     gridPorts: { A: 8, B: 8, C: 8, D: 8, E: 4 },
     /** Broche d'entrée seule (MCLR) */
     inputOnly: ['RE3'],
-    /** Numéros de broche du boîtier PDIP40 (datasheet DS40001802, H18) */
-    pdip40: {
-      RE3: 1, RA0: 2, RA1: 3, RA2: 4, RA3: 5, RA4: 6, RA5: 7, RE0: 8, RE1: 9, RE2: 10, RA7: 13, RA6: 14,
-      RC0: 15, RC1: 16, RC2: 17, RC3: 18, RD0: 19, RD1: 20, RD2: 21, RD3: 22, RC4: 23, RC5: 24, RC6: 25, RC7: 26,
-      RD4: 27, RD5: 28, RD6: 29, RD7: 30, RB0: 33, RB1: 34, RB2: 35, RB3: 36, RB4: 37, RB5: 38, RB6: 39, RB7: 40,
-    } as Record<string, number>,
+    /** Boîtier sélectionné par défaut dans le Pin Manager : Grid View (captures du CR) */
+    defaultPackage: 'UQFN40',
+    /** Numéros de broche par boîtier : UQFN40 relevé sur les captures du CR ; PDIP40 du datasheet (H18) */
+    packages: {
+      UQFN40: {
+        RA0: 17, RA1: 18, RA2: 19, RA3: 20, RA4: 21, RA5: 22, RA6: 29, RA7: 28,
+        RB0: 8, RB1: 9, RB2: 10, RB3: 11, RB4: 12, RB5: 13, RB6: 14, RB7: 15,
+        RC0: 30, RC1: 31, RC2: 32, RC3: 33, RC4: 38, RC5: 39, RC6: 40, RC7: 1,
+        RD0: 34, RD1: 35, RD2: 36, RD3: 37, RD4: 2, RD5: 3, RD6: 4, RD7: 5,
+        RE0: 23, RE1: 24, RE2: 25, RE3: 16,
+      } as Record<string, number>,
+      PDIP40: {
+        RE3: 1, RA0: 2, RA1: 3, RA2: 4, RA3: 5, RA4: 6, RA5: 7, RE0: 8, RE1: 9, RE2: 10, RA7: 13, RA6: 14,
+        RC0: 15, RC1: 16, RC2: 17, RC3: 18, RD0: 19, RD1: 20, RD2: 21, RD3: 22, RC4: 23, RC5: 24, RC6: 25, RC7: 26,
+        RD4: 27, RD5: 28, RD6: 29, RD7: 30, RB0: 33, RB1: 34, RB2: 35, RB3: 36, RB4: 37, RB5: 38, RB6: 39, RB7: 40,
+      } as Record<string, number>,
+    },
+    /** Lignes fixes du Grid View : sortie d'horloge (RA6 seulement) et MCLR (RE3, verrouillée) */
+    clkoutPin: 'RA6',
+    mclrPin: 'RE3',
     /** Dossier des fichiers générés */
     dir: 'mcc_generated_files',
     hyp: ['H18', 'H23', 'H25', 'H26'],

@@ -1,8 +1,22 @@
 # INFO3 — état d'avancement
 
-Mis à jour à chaque bloc terminé. Étape en cours : **2** (banc, IDE, MCC de base, TP1, mode libre v1).
+Mis à jour à chaque bloc terminé. Étape en cours : **3** (TP2 + TP3). Étape 2 terminée (commit e91a015).
 
-## Étape 2
+## Étape 3
+
+| Bloc | État | Contenu |
+| --- | --- | --- |
+| B0 | fait | Grid View au boîtier UQFN40 par défaut (numéros des captures du CR), PDIP40 au menu Package ; lignes OSC/CLKOUT (RA6), GPIO input/output, RESET/MCLR (RE3 verrouillée) ; bleu/vert/orange ; deux fonctions par broche ; « Selected Package : UQFN40 » |
+| B1 | à faire | IOC (modèle, colonne Pin Module, code généré) |
+| B2 | à faire | Interrupt Module, interrupt_manager, inspecteur |
+| B3 | à faire | TMR2/4/6 (MCC, code généré, modèle timer246) |
+| B4 | à faire | Carte Rotary (ec12d), analyseur logique |
+| B5 | à faire | Pages /info3/tp2 et /info3/tp3, questions, fixtures, Faire vérifier |
+| B6 | à faire | Vérifications finales, tailles gzip |
+
+C1 (transcription de l'énoncé) : toujours bloquée, docs/sources/INFO3_TP.pdf absent.
+
+## Étape 2 (terminée)
 
 | Bloc | État | Contenu |
 | --- | --- | --- |

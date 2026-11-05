@@ -5,6 +5,7 @@
 import { INFO3 } from '../../data/reference'
 
 export type Oscillator = 'HFINTOSC' | 'LFINTOSC'
+export type PackageName = keyof typeof INFO3.mcc.packages
 export type Direction = 'input' | 'output'
 
 export interface SystemConfig {
@@ -33,6 +34,8 @@ export interface MccConfig {
   system: SystemConfig
   /** Broches sélectionnées dans le Grid View, dans l'ordre d'ajout */
   pins: PinConfig[]
+  /** Boîtier du Pin Manager : Grid View (UQFN40 par défaut, comme sur les captures du CR) */
+  package?: PackageName
 }
 
 export const MCC_VERSION = 1 as const
@@ -50,6 +53,12 @@ export function systemFosc(s: SystemConfig): number {
   const base = s.oscillator === 'LFINTOSC' ? INFO3.clock.lfintosc : s.hfMHz * INFO3.units.usPerS
   return base / s.divider
 }
+
+/** Boîtier effectif (UQFN40 si non précisé) */
+export const packageOf = (cfg: MccConfig): PackageName => cfg.package ?? (INFO3.mcc.defaultPackage as PackageName)
+
+/** Numéro de broche dans le boîtier sélectionné */
+export const pinNumber = (cfg: MccConfig, pin: string): number | undefined => INFO3.mcc.packages[packageOf(cfg)][pin]
 
 /** Ordre des broches : port puis numéro (RA0…RA7, RB0…, RE3) */
 export const pinOrder = (a: string, b: string) => (a[1] === b[1] ? Number(a[2]) - Number(b[2]) : a[1] < b[1] ? -1 : 1)
@@ -115,5 +124,6 @@ export function parseMccConfig(x: unknown): MccConfig | null {
     if (typeof q.customName !== 'string') return null
     pins.push({ pin: q.pin, direction: q.direction, customName: q.customName, startHigh: !!q.startHigh, analog: !!q.analog, wpu: !!q.wpu, od: !!q.od })
   }
-  return { version: MCC_VERSION, system: { oscillator: s.oscillator, hfMHz: s.hfMHz, divider: s.divider, lvp: s.lvp }, pins }
+  const pkg = typeof o.package === 'string' && o.package in INFO3.mcc.packages ? (o.package as PackageName) : undefined
+  return { version: MCC_VERSION, system: { oscillator: s.oscillator, hfMHz: s.hfMHz, divider: s.divider, lvp: s.lvp }, pins, ...(pkg ? { package: pkg } : {}) }
 }

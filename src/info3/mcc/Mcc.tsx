@@ -5,7 +5,8 @@
  */
 import { useState } from 'react'
 import { INFO3 } from '../../data/reference'
-import { customNameError, DIVIDERS, pinOrder, systemFosc, toggleGridPin, updatePin, type Direction, type MccConfig, type Oscillator } from './config'
+import { customNameError, DIVIDERS, packageOf, pinOrder, systemFosc, toggleGridPin, updatePin, type MccConfig, type Oscillator } from './config'
+import GridView from './GridView'
 
 export interface MccProps {
   config: MccConfig
@@ -17,7 +18,6 @@ export interface MccProps {
 }
 
 type Resource = 'system' | 'pins'
-const PORTS = Object.entries(INFO3.mcc.gridPorts) as [string, number][]
 const fmtHz = (hz: number) => (hz >= 1e6 ? `${hz / 1e6} MHz` : hz >= 1e3 ? `${(hz / 1e3).toLocaleString('fr-FR')} kHz` : `${hz} Hz`)
 
 function Badge({ id }: { id: string }) {
@@ -117,7 +117,10 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
             </>
           ) : (
             <>
-              <div className={head}>Pin Module</div>
+              <div className={`${head} flex flex-wrap justify-between gap-2`}>
+                <span>Pin Module</span>
+                <span className="font-normal">Selected Package : {packageOf(config)}</span>
+              </div>
               <div className="max-w-full overflow-x-auto">
                 <table className="w-full min-w-[46rem] text-left text-xs">
                   <thead className="bg-[#f5f5f5]">
@@ -202,69 +205,6 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
       </div>
 
       {/* Pin Manager: Grid View */}
-      <div className={panel}>
-        <div className={head}>Pin Manager: Grid View</div>
-        <div className="max-w-full overflow-x-auto">
-          <table className="border-collapse text-[10px]">
-            <thead>
-              <tr>
-                <th className="sticky left-0 bg-white px-2 text-left font-semibold" rowSpan={2}>
-                  Module
-                </th>
-                <th className="sticky left-0 bg-white px-2 text-left font-semibold" rowSpan={2}>
-                  Function
-                </th>
-                {PORTS.map(([port, n]) => (
-                  <th key={port} colSpan={n} className="border border-[#ccc] bg-[#e8e8e8] px-1">
-                    Port {port}
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {PORTS.flatMap(([port, n]) =>
-                  Array.from({ length: n }, (_, b) => (
-                    <th key={`${port}${b}`} className="w-6 border border-[#ccc] bg-[#f5f5f5] font-normal" title={`R${port}${b} — broche ${INFO3.mcc.pdip40[`R${port}${b}`] ?? '?'} (PDIP40)`}>
-                      {b}
-                      <div className="text-[8px] text-[#888]">{INFO3.mcc.pdip40[`R${port}${b}`]}</div>
-                    </th>
-                  )),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {(['input', 'output'] as Direction[]).map((dir) => (
-                <tr key={dir}>
-                  <td className="sticky left-0 bg-white px-2 font-semibold">Pin Module</td>
-                  <td className="sticky left-0 bg-white px-2">{dir === 'input' ? 'GPIO input' : 'GPIO output'}</td>
-                  {PORTS.flatMap(([port, n]) =>
-                    Array.from({ length: n }, (_, b) => {
-                      const pin = `R${port}${b}`
-                      const sel = config.pins.find((p) => p.pin === pin)
-                      const locked = sel?.direction === dir
-                      const unavailable = dir === 'output' && (INFO3.mcc.inputOnly as readonly string[]).includes(pin)
-                      return (
-                        <td key={pin} className="border border-[#ccc] p-0 text-center">
-                          <button
-                            type="button"
-                            disabled={unavailable}
-                            aria-pressed={locked}
-                            aria-label={`${pin} ${dir === 'input' ? 'GPIO input' : 'GPIO output'}${unavailable ? ' (MCLR, entrée seule)' : ''}`}
-                            title={unavailable ? `${pin} = MCLR, entrée seulement` : `${pin} (broche ${INFO3.mcc.pdip40[pin]})`}
-                            onClick={() => onChange(toggleGridPin(config, pin, dir))}
-                            className={`h-6 w-6 ${unavailable ? 'cursor-not-allowed bg-[#ddd] text-[#aaa]' : locked ? 'bg-[#2e7d32] text-white' : sel ? 'bg-[#e3f2fd] text-[#90a4ae]' : 'text-[#1565c0] hover:bg-[#e3f2fd]'}`}
-                          >
-                            {unavailable ? '·' : locked ? '🔒' : '🔓'}
-                          </button>
-                        </td>
-                      )
-                    }),
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+      <GridView config={config} onChange={onChange} />    </section>
   )
 }
