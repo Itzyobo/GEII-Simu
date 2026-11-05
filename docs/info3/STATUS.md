@@ -8,7 +8,7 @@ Mis à jour à chaque bloc terminé. Étape en cours : **2** (banc, IDE, MCC de 
 | --- | --- | --- |
 | R | fait | Fichiers MCC réels (docs/sources/mplab/tp1, MCC 1.81.7) : fixtures et gabarits du générateur ; générateur identique octet pour octet ; Fosc 4 MHz ; `_XTAL_FREQ` dans device_config.h ; préprocesseur (`__XC8_VERSION`, `#pragma config` → VM, `<conio.h>`) ; STVREN ; hypothèses H1/H24 réfutées, H18/H25 partielles, H26 à H29 ajoutées |
 | B1 | fait | Worker créé au premier Build/Run (y compris /info3/dev) ; contrôle 375 px strict (« réseau inactif ») restauré sur toutes les routes |
-| B2 | à faire | Banc SVG |
+| B2 | fait | Banc SVG (src/info3/board/Board.tsx) : Curiosity HPC, carte fille GEII, LED à lueur = ledDuty (variable CSS), S1/S2 souris/toucher/touches 1 et 2, USB noir et blanc, cartes Click à glisser ou à cliquer, verrouillage sous tension ; monté sur /info3/dev |
 | B3 | à faire | IDE (CodeEditor déjà écrit, à brancher) |
 | B4 | à faire | Interface MCC |
 | B5 | à faire | Pages /info3, /info3/tp1, /info3/libre |

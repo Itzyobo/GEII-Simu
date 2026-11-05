@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { INFO3 } from '../../data/reference'
 import { CR_FIXTURES, MCC_TP1 } from '../../info3/fixtures'
 import { createSimClient, type SimClient } from '../../info3/worker/client'
 import type { OutMsg, Speed } from '../../info3/worker/protocol'
+import { blankProject, setCard, setUsbBlack, setUsbWhite, type Project } from '../../info3/project/project'
+
+const Board = lazy(() => import('../../info3/board/Board'))
 
 type Output = Extract<OutMsg, { type: 'output' }>
 
@@ -24,6 +27,13 @@ export default function Info3Dev() {
   const [speed, setSpeed] = useState<Speed>(1)
   const [bounce, setBounce] = useState(false)
   const [bpLine, setBpLine] = useState('')
+  // Banc de démonstration (mode libre : pas de Faire vérifier) pour le contrôle visuel du SVG
+  const [bench, setBench] = useState<Project>(() => blankProject('libre', 'dev', 'dev'))
+  const [benchMsg, setBenchMsg] = useState<string | null>(null)
+  const applyBench = (r: { project: Project; ok: boolean; message?: string }) => {
+    setBench(r.project)
+    setBenchMsg(r.ok ? null : (r.message ?? null))
+  }
   const client = useRef<SimClient | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const outBox = useRef<HTMLDivElement>(null)
@@ -229,6 +239,18 @@ export default function Info3Dev() {
               </label>
             </div>
           </div>
+
+          <Suspense fallback={<p className="text-xs text-muted">Chargement du banc…</p>}>
+            <Board
+              duty={duty}
+              bench={bench.bench}
+              message={benchMsg}
+              onButton={(name, action) => send({ type: 'stimulus', action, button: name, bounce })}
+              onUsbBlack={(v) => applyBench(setUsbBlack(bench, v))}
+              onUsbWhite={(v) => applyBench(setUsbWhite(bench, v))}
+              onCard={(slot, card) => applyBench(setCard(bench, slot, card))}
+            />
+          </Suspense>
 
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <label htmlFor="bp">Point d’arrêt main.c, ligne</label>
