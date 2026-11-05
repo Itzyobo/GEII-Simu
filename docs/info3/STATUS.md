@@ -7,7 +7,7 @@ Mis à jour à chaque bloc terminé. Étape en cours : **3** (TP2 + TP3). Étape
 | Bloc | État | Contenu |
 | --- | --- | --- |
 | B0 | fait | Grid View au boîtier UQFN40 par défaut (numéros des captures du CR), PDIP40 au menu Package ; lignes OSC/CLKOUT (RA6), GPIO input/output, RESET/MCLR (RE3 verrouillée) ; bleu/vert/orange ; deux fonctions par broche ; « Selected Package : UQFN40 » |
-| B1 | à faire | IOC (modèle, colonne Pin Module, code généré) |
+| B1 | fait | IOC : modèle `ioc` (fronts selon IOCxP/IOCxN, ignorés en analogique), IOCIF en lecture seule = OU des IOCxF, colonne IOC de Pin Module (grisée sur le port D), code généré (registres, handlers, PIE0bits.IOCIE, PIN_MANAGER_IOC, ISR/Set/Default) ; format = H34 |
 | B2 | à faire | Interrupt Module, interrupt_manager, inspecteur |
 | B3 | à faire | TMR2/4/6 (MCC, code généré, modèle timer246) |
 | B4 | à faire | Carte Rotary (ec12d), analyseur logique |

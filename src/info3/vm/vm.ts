@@ -11,7 +11,8 @@ import { Op, type FuncMeta, type Program } from '../compiler/bytecode'
 import type { CType } from '../compiler/types'
 import { kindOf, sizeOf } from '../compiler/types'
 import { Button, type Edge } from '../models/button'
-import { Gpio, type Level, type PinChange } from '../models/gpio'
+import { Gpio, parsePin, type Level, type PinChange } from '../models/gpio'
+import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
 import { foscFromRegisters } from '../models/clock'
 import { SfrBus } from './bus'
@@ -109,6 +110,9 @@ export class Vm {
       for (let b = 0; b < INFO3.c.bitsPerByte; b++) if (mask & (1 << b)) this.inputWrites.add(`R${port}${b}`)
     }
     this.updateClock()
+    // IOC : un front sur une broche dont IOCxP / IOCxN est à 1 lève IOCxF (IOCIF en découle)
+    for (const p of IRQ.iocPorts) this.iocRegs[p] = { P: this.bus.addrOf[`IOC${p}P`], N: this.bus.addrOf[`IOC${p}N`], F: this.bus.addrOf[`IOC${p}F`] }
+    this.gpio.onChange((c) => this.iocPin(c))
     for (const b of INFO3.pins.buttons) {
       this.buttons[b.name] = { button: new Button({ activeLevel: b.activeLevel as Level, rng: () => this.rng() }), pin: b.pin }
     }
@@ -522,6 +526,21 @@ export class Vm {
   }
 
   /* ═════════════ Interruptions ═════════════ */
+
+  /** Registres IOCxP, IOCxN, IOCxF par port (A, B, C, E) */
+  private readonly iocRegs: Record<string, { P: number; N: number; F: number }> = {}
+
+  private iocPin(c: PinChange) {
+    const { port, bit } = parsePin(c.pin)
+    const a = this.iocRegs[port]
+    if (!a) return
+    const m = 1 << bit
+    const f = iocEdges(c.level ? 0 : m, c.level ? m : 0, this.mem[a.P], this.mem[a.N], this.gpio.readReg('ANSEL', port))
+    if (f) {
+      this.mem[a.F] |= f
+      this.irqDirty = true
+    }
+  }
 
   private gie(): boolean {
     return this.bus.readBit(IRQ.gie.sfr, IRQ.gie.bit) === 1

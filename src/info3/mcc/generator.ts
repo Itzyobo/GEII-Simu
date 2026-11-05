@@ -8,7 +8,7 @@
 import { INFO3 } from '../../data/reference'
 import { oscRegisters } from '../models/clock'
 import { implementedMask, parsePin, PORT_NAMES, type PortName } from '../models/gpio'
-import { pinOrder, systemFosc, type MccConfig, type PinConfig } from './config'
+import { iocOf, pinOrder, systemFosc, type IocEdge, type MccConfig, type PinConfig } from './config'
 
 const DIR = INFO3.mcc.dir
 const HEX = 16
@@ -131,6 +131,115 @@ function pinMacros(p: PinConfig): string {
 const MACROS_START = '#define PULL_UP_DISABLED     0\n\n'
 const MACROS_END = '/**\n   @Param'
 
+/* ───────────── IOC (format MCC 1.81, cours p. 38 à 40 ; détail des commentaires = H34) ───────────── */
+
+interface IocPin {
+  /** Nom MCC de la source : IOCBF4 */
+  id: string
+  port: string
+  bit: number
+  edge: IocEdge
+}
+
+/** Broches dotées d'une IOC, dans l'ordre des broches (jamais le port D) */
+export function iocPins(cfg: MccConfig): IocPin[] {
+  return [...cfg.pins]
+    .filter((p) => iocOf(p) !== 'none')
+    .sort((x, y) => pinOrder(x.pin, y.pin))
+    .map((p) => {
+      const { port, bit } = parsePin(p.pin)
+      return { id: `IOC${port}F${bit}`, port, bit, edge: iocOf(p) }
+    })
+}
+
+const SP = ' '
+const iocHeaderDecls = (p: IocPin) => `
+/**
+ * @Param
+    none
+ * @Returns
+    none
+ * @Description
+    Interrupt on Change Handler for the ${p.id} pin functionality
+ * @Example
+    ${p.id}_ISR();
+ */
+void ${p.id}_ISR(void);
+
+/**
+  @Summary
+    Interrupt Handler Setter for ${p.id} pin interrupt-on-change functionality
+
+  @Description
+    Allows selecting an interrupt handler for ${p.id} at application runtime
+${SP.repeat(4)}
+  @Preconditions
+    Pin Manager intializer called
+
+  @Returns
+    None.
+
+  @Param
+    InterruptHandler function pointer.
+
+  @Example
+    PIN_MANAGER_Initialize();
+    ${p.id}_SetInterruptHandler(MyInterruptHandler);
+
+*/
+void ${p.id}_SetInterruptHandler(void (* InterruptHandler)(void));
+
+/**
+  @Summary
+    Dynamic Interrupt Handler for ${p.id} pin
+
+  @Description
+    This is a dynamic interrupt handler to be used together with the ${p.id}_SetInterruptHandler() method.
+    This handler is called every time the ${p.id} ISR is executed and allows any function to be registered at runtime.
+${SP.repeat(4)}
+  @Preconditions
+    Pin Manager intializer called
+
+  @Returns
+    None.
+
+  @Param
+    None.
+
+  @Example
+    PIN_MANAGER_Initialize();
+    ${p.id}_SetInterruptHandler(${p.id}_InterruptHandler);
+
+*/
+extern void (*${p.id}_InterruptHandler)(void);
+
+/**
+  @Summary
+    Default Interrupt Handler for ${p.id} pin
+
+  @Description
+    This is a predefined interrupt handler to be used together with the ${p.id}_SetInterruptHandler() method.
+    This handler is called every time the ${p.id} ISR is executed.${SP}
+${SP.repeat(4)}
+  @Preconditions
+    Pin Manager intializer called
+
+  @Returns
+    None.
+
+  @Param
+    None.
+
+  @Example
+    PIN_MANAGER_Initialize();
+    ${p.id}_SetInterruptHandler(${p.id}_DefaultInterruptHandler);
+
+*/
+void ${p.id}_DefaultInterruptHandler(void);
+`
+
+const IOC_PROTO = 'void PIN_MANAGER_IOC(void);\n'
+
 function pinManagerH(cfg: MccConfig): string {
   const t = tpl('pin_manager.h')
   const a = t.indexOf(MACROS_START)
@@ -138,7 +247,92 @@ function pinManagerH(cfg: MccConfig): string {
   if (a < 0 || z < 0) throw new Error('gabarit MCC : bloc des macros de pin_manager.h introuvable')
   const pins = [...cfg.pins].sort((x, y) => pinOrder(x.pin, y.pin))
   const blocks = pins.length ? `${pins.map(pinMacros).join('\n')}\n` : ''
-  return t.slice(0, a + MACROS_START.length) + blocks + t.slice(z)
+  let out = t.slice(0, a + MACROS_START.length) + blocks + t.slice(z)
+  const ioc = iocPins(cfg)
+  if (ioc.length) out = replaceOnce(out, IOC_PROTO, IOC_PROTO + ioc.map(iocHeaderDecls).join(''))
+  return out
+}
+
+/** Registres IOCx, enregistrement des handlers par défaut et validation d'IOCIE (fin de PIN_MANAGER_Initialize) */
+function iocInitBlock(ioc: IocPin[]): string {
+  const regs = ioc.flatMap((p) => {
+    const n = p.edge === 'negative' || p.edge === 'any' ? 1 : 0
+    const q = p.edge === 'positive' || p.edge === 'any' ? 1 : 0
+    return [
+      `    //interrupt on change for group IOC${p.port}F - flag`,
+      `    IOC${p.port}Fbits.IOC${p.port}F${p.bit} = 0;`,
+      `    //interrupt on change for group IOC${p.port}N - negative`,
+      `    IOC${p.port}Nbits.IOC${p.port}N${p.bit} = ${n};`,
+      `    //interrupt on change for group IOC${p.port}P - positive`,
+      `    IOC${p.port}Pbits.IOC${p.port}P${p.bit} = ${q};`,
+    ]
+  })
+  const handlers = ioc.map((p) => `    ${p.id}_SetInterruptHandler(${p.id}_DefaultInterruptHandler);`)
+  return [
+    '',
+    '',
+    '    /**',
+    `    IOCx registers${SP}`,
+    '    */',
+    ...regs,
+    '',
+    '',
+    '',
+    '    // register default IOC callback functions at runtime; use these methods to register a custom function',
+    ...handlers,
+    SP.repeat(3),
+    `    // Enable IOCI interrupt${SP}`,
+    `    PIE0bits.IOCIE = 1;${SP}`,
+    SP.repeat(4),
+  ].join('\n')
+}
+
+const iocDispatch = (p: IocPin) => [`\t// interrupt on change for pin ${p.id}`, `    if(IOC${p.port}Fbits.IOC${p.port}F${p.bit} == 1)`, '    {', `        ${p.id}_ISR();${SP.repeat(2)}`, `    }\t`].join('\n')
+
+const iocFunctions = (p: IocPin) => `
+/**
+   ${p.id} Interrupt Service Routine
+*/
+void ${p.id}_ISR(void) {
+
+    // Add custom ${p.id} code
+
+    // Call the interrupt handler for the callback registered at runtime
+    if(${p.id}_InterruptHandler)
+    {
+        ${p.id}_InterruptHandler();
+    }
+    IOC${p.port}Fbits.IOC${p.port}F${p.bit} = 0;
+}
+
+/**
+  Allows selecting an interrupt handler for ${p.id} at application runtime
+*/
+void ${p.id}_SetInterruptHandler(void (* InterruptHandler)(void)){
+    ${p.id}_InterruptHandler = InterruptHandler;
+}
+
+/**
+  Default interrupt handler for ${p.id}
+*/
+void ${p.id}_DefaultInterruptHandler(void){
+    // add your ${p.id} interrupt custom code
+    // or set custom function using ${p.id}_SetInterruptHandler()
+}
+`
+
+/** Passages du gabarit pin_manager.c où MCC insère le code IOC */
+const PM_HEAD = /(#include "pin_manager\.h"\n)\n{5}(void PIN_MANAGER_Initialize\(void\))/
+const PM_TAIL = /( {4}INLVLE = 0x[0-9A-F]{2};\n)[\s\S]*?(\n\}\n {2}\nvoid PIN_MANAGER_IOC\(void\)\n\{ {3}\n)(\})/
+
+function withIoc(text: string, ioc: IocPin[]): string {
+  if (!ioc.length) return text
+  const ptrs = ioc.map((p) => `void (*${p.id}_InterruptHandler)(void);`).join('\n')
+  let out = replaceOnce(text, PM_HEAD, `#include "pin_manager.h"\n\n\n\n\n${ptrs}\n\n\nvoid PIN_MANAGER_Initialize(void)`)
+  const inlvlE = out.match(PM_TAIL)![1]
+  // Fin de PIN_MANAGER_Initialize, corps de PIN_MANAGER_IOC, puis les fonctions de chaque broche
+  out = replaceOnce(out, PM_TAIL, `${inlvlE}${iocInitBlock(ioc)}\n}\n  \nvoid PIN_MANAGER_IOC(void)\n{   \n${ioc.map(iocDispatch).join('\n')}\n}\n${ioc.map(iocFunctions).join('')}`)
+  return out
 }
 
 /** Lignes « REGx = 0x..; » du gabarit : l'ordre (H26) est celui de MCC, les valeurs sont calculées */
@@ -152,7 +346,7 @@ function pinManagerC(cfg: MccConfig): string {
     return `${indent}${reg}${port} = ${hex2(regs[port][reg])};`
   })
   if (count !== PORT_NAMES.length * Object.keys(regs.A).length) throw new Error('gabarit MCC : registres de pin_manager.c incomplets')
-  return out
+  return withIoc(out, iocPins(cfg))
 }
 
 const MHZ_LABEL = (mhz: number) => `${mhz}_MHz`

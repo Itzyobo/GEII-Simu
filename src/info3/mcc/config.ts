@@ -27,7 +27,24 @@ export interface PinConfig {
   analog: boolean
   wpu: boolean
   od: boolean
+  /** Colonne IOC de Pin Module (none par défaut ; jamais sur le port D) */
+  ioc?: IocEdge
 }
+
+export type IocEdge = 'none' | 'positive' | 'negative' | 'any'
+export const IOC_EDGES: readonly IocEdge[] = ['none', 'positive', 'negative', 'any']
+
+/** IOC disponible sur la broche (pas d'IOC sur le port D, RE3 seule sur le port E) */
+export const iocAvailable = (pin: string) => (INFO3.interrupts.iocPorts as readonly string[]).includes(pin[1]) && (pin[1] !== 'E' || pin === INFO3.mcc.mclrPin)
+
+/** Règle la colonne IOC ; refusé (configuration inchangée) sur le port D */
+export function setIoc(cfg: MccConfig, pin: string, edge: IocEdge): MccConfig {
+  if (!iocAvailable(pin)) return cfg
+  return { ...cfg, pins: cfg.pins.map((p) => (p.pin === pin ? { ...p, ioc: edge } : p)) }
+}
+
+/** IOC effective d'une broche */
+export const iocOf = (p: PinConfig): IocEdge => (iocAvailable(p.pin) ? (p.ioc ?? 'none') : 'none')
 
 export interface MccConfig {
   version: 1
@@ -122,7 +139,8 @@ export function parseMccConfig(x: unknown): MccConfig | null {
     if (typeof q.pin !== 'string' || !/^R[A-E][0-7]$/.test(q.pin)) return null
     if (q.direction !== 'input' && q.direction !== 'output') return null
     if (typeof q.customName !== 'string') return null
-    pins.push({ pin: q.pin, direction: q.direction, customName: q.customName, startHigh: !!q.startHigh, analog: !!q.analog, wpu: !!q.wpu, od: !!q.od })
+    const ioc = IOC_EDGES.includes(q.ioc as IocEdge) && q.ioc !== 'none' ? { ioc: q.ioc as IocEdge } : {}
+    pins.push({ pin: q.pin, direction: q.direction, customName: q.customName, startHigh: !!q.startHigh, analog: !!q.analog, wpu: !!q.wpu, od: !!q.od, ...ioc })
   }
   const pkg = typeof o.package === 'string' && o.package in INFO3.mcc.packages ? (o.package as PackageName) : undefined
   return { version: MCC_VERSION, system: { oscillator: s.oscillator, hfMHz: s.hfMHz, divider: s.divider, lvp: s.lvp }, pins, ...(pkg ? { package: pkg } : {}) }

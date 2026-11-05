@@ -14,7 +14,9 @@ const ROLE_PLAIN = 1
 const ROLE_PORT = 2
 const ROLE_GPIO = 3
 
-const IRQ_REGS = new Set<string>([INFO3.interrupts.gie.sfr, ...INFO3.interrupts.firstLevel.flat(), ...INFO3.interrupts.peripheral.flat()])
+/** Registres dont l'écriture peut changer l'état des interruptions (IOCxF : IOCIF en dépend) */
+const IRQ_REGS = new Set<string>([INFO3.interrupts.gie.sfr, ...INFO3.interrupts.firstLevel.flat(), ...INFO3.interrupts.peripheral.flat(), ...INFO3.interrupts.iocPorts.map((p) => `IOC${p}F`)])
+const BYTE_MASK = (1 << INFO3.c.bitsPerByte) - 1
 
 export class SfrBus {
   readonly role = new Uint8Array(MEM.sfrLimit)
@@ -32,6 +34,13 @@ export class SfrBus {
   onPlainWrite: ((addr: number) => void) | null = null
   /** Écriture qui modifie le LAT d'une broche en entrée (Diagnostic R2) : port, masque des bits */
   onInputWrite: ((port: PortName, mask: number) => void) | null = null
+  /** Périphériques : lecture calculée (TMRx…) et réaction à l'écriture, par adresse */
+  readonly readHooks = new Map<number, () => number>()
+  readonly writeHooks = new Map<number, (value: number) => void>()
+  /** IOCIF (PIR0) en lecture seule : OU des IOCxF */
+  private readonly iocSummaryAddr: number
+  private readonly iocSummaryMask: number
+  private readonly iocFlagAddrs: number[]
 
   constructor(mem: Uint8Array, gpio: Gpio, now: () => number, onIrq: () => void) {
     this.mem = mem
@@ -56,6 +65,10 @@ export class SfrBus {
         }
       } else this.role[a] = ROLE_PLAIN
     }
+    const s = INFO3.interrupts.iocSummary
+    this.iocSummaryAddr = SFRS[s.sfr].addr
+    this.iocSummaryMask = 1 << SFRS[s.sfr].bits.indexOf(s.bit)
+    this.iocFlagAddrs = INFO3.interrupts.iocPorts.map((p) => SFRS[`IOC${p}F`].addr)
   }
 
   /** Valeurs au reset (PCON0 : bits conservés selon `keep`) */
@@ -89,8 +102,15 @@ export class SfrBus {
         return this.gpio.readPort(this.port[addr]!)
       case ROLE_GPIO:
         return this.gpio.readReg(this.reg[addr]!, this.port[addr]!)
-      default:
+      default: {
+        const hook = this.readHooks.get(addr)
+        if (hook) return hook()
+        if (addr === this.iocSummaryAddr) {
+          const any = this.iocFlagAddrs.some((a) => this.mem[a] !== 0)
+          return (this.mem[addr] & ~this.iocSummaryMask) | (any ? this.iocSummaryMask : 0)
+        }
         return this.mem[addr]
+      }
     }
   }
 
@@ -104,9 +124,11 @@ export class SfrBus {
         else this.gpio.writeReg(this.reg[addr]!, this.port[addr]!, value, this.now())
         return
       case ROLE_PLAIN:
-        this.mem[addr] = value & this.mask[addr]
+        // IOCIF n'est pas modifiable par logiciel (calculé à la lecture)
+        this.mem[addr] = value & this.mask[addr] & (addr === this.iocSummaryAddr ? ~this.iocSummaryMask : BYTE_MASK)
         if (this.irqAt[addr]) this.onIrq()
         if (this.onPlainWrite) this.onPlainWrite(addr)
+        this.writeHooks.get(addr)?.(this.mem[addr])
         return
       default:
         this.mem[addr] = value

@@ -57,6 +57,14 @@ const PORT_ADDR = {
   INLVL: { A: 0xf3c, B: 0xf47, C: 0xf52, D: 0xf5d, E: 0xf68 },
 } as const
 
+/** Interruption sur changement d'état (IOC) : ports A, B, C et E (RE3 seulement) ; pas d'IOC sur le port D */
+const IOC_ADDR = {
+  A: { P: 0xf3d, N: 0xf3e, F: 0xf3f },
+  B: { P: 0xf48, N: 0xf49, F: 0xf4a },
+  C: { P: 0xf53, N: 0xf54, F: 0xf55 },
+  E: { P: 0xf69, N: 0xf6a, F: 0xf6b },
+} as const
+
 function buildSfrs(): Record<string, SfrDef> {
   const out: Record<string, SfrDef> = {}
   for (const p of PORTS) {
@@ -71,6 +79,11 @@ function buildSfrs(): Record<string, SfrDef> {
     // Écrits par pin_manager.c (fichiers MCC TP1) : 0xFF, 0x07 pour le port E ; sans effet sur le modèle gpio
     out[`SLRCON${p}`] = sfr(PORT_ADDR.SLRCON[p], p === 'E' ? 0x07 : 0xff, sfrBits(`SLR${p}`, portWidth(p, 'out')), ['H18'])
     out[`INLVL${p}`] = sfr(PORT_ADDR.INLVL[p], p === 'E' ? 0x07 : 0xff, sfrBits(`INLVL${p}`, portWidth(p, 'out')), ['H18'])
+  }
+  for (const [p, a] of Object.entries(IOC_ADDR)) {
+    // RE3 seulement sur le port E
+    const bits = (prefix: string) => (p === 'E' ? namedBits(`- - - ${prefix}3 - - - -`) : sfrBits(prefix))
+    for (const k of ['P', 'N', 'F'] as const) out[`IOC${p}${k}`] = sfr(a[k], 0, bits(`IOC${p}${k}`), ['H18', 'H19'])
   }
   out.STATUS = sfr(0x003, 0x18, namedBits('C DC Z nPD nTO - - -'), ['H18', 'H19'])
   out.INTCON = sfr(0x00b, 0x01, namedBits('INTEDG - - - - - PEIE GIE'), ['H18', 'H19'])
@@ -257,6 +270,10 @@ export const INFO3 = {
     peripheral: [['PIE1', 'PIR1'], ['PIE2', 'PIR2'], ['PIE3', 'PIR3'], ['PIE4', 'PIR4'], ['PIE5', 'PIR5'], ['PIE6', 'PIR6'], ['PIE7', 'PIR7'], ['PIE8', 'PIR8']],
     stackOverflow: { sfr: 'PCON0', bit: 'STKOVF' },
     stackUnderflow: { sfr: 'PCON0', bit: 'STKUNF' },
+    /** IOCIF (PIR0) : lecture seule, OU de tous les IOCxF (datasheet DS40001802) */
+    iocSummary: { sfr: 'PIR0', bit: 'IOCIF' },
+    /** Ports dotés de l'IOC (pas d'IOC sur le port D) */
+    iocPorts: ['A', 'B', 'C', 'E'],
   },
   /** Machine virtuelle (PRD §4.2 et §5) */
   vm: {
@@ -326,6 +343,7 @@ export const INFO3 = {
     { id: 'H26', texte: 'Ordre des registres dans pin_manager.c identique pour tous les projets : LAT E,D,A,B,C ; TRIS E,A,B,C,D ; ANSEL D,C,B,E,A ; WPU D,E,B,A,C ; ODCON E,A,B,C,D ; SLRCON et INLVL A→E', commentVerifier: 'pin_manager.c d’un autre projet MCC (TP2 à TP6)', preuve: 'relevé sur docs/sources/mplab/tp1/pin_manager.c' },
     { id: 'H27', texte: '__XC8_VERSION prédéfini à 2310 (XC8 v2.31 du projet TP1)', commentVerifier: 'version du compilateur des postes de TP (Project Properties)' },
     { id: 'H28', texte: 'Timer2 du TP3 : source LFINTOSC, T2PR = 0x1E, prescaler × postscaler = 1024', commentVerifier: 'capture MCC du TP3 (Timer2)' },
+    { id: 'H34', texte: 'Format du code généré pour l’IOC, interrupt_manager et TMR2/4/6 (commentaires, lignes vides, ordre des fonctions) reconstitué d’après MCC 1.81 : seules les lignes citées par la consigne (cours p. 38 à 40, 58, 59, 65) sont garanties', commentVerifier: 'cours p. 38 à 40, 58, 59, 65 ou fichiers générés en TP2 et TP3' },
     { id: 'H29', texte: 'Avec STVREN = OFF, un débordement de pile met STKOVF à 1 sans reset et l’appel se poursuit normalement (la corruption des adresses de retour n’est pas simulée)', commentVerifier: 'datasheet DS40001802, « Stack Overflow/Underflow Reset »' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],

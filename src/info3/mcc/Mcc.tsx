@@ -5,7 +5,7 @@
  */
 import { useState } from 'react'
 import { INFO3 } from '../../data/reference'
-import { customNameError, DIVIDERS, packageOf, pinOrder, systemFosc, toggleGridPin, updatePin, type MccConfig, type Oscillator } from './config'
+import { customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, setIoc, systemFosc, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator } from './config'
 import GridView from './GridView'
 
 export interface MccProps {
@@ -189,9 +189,19 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
                             <input type="checkbox" aria-label={`OD ${p.pin}`} checked={p.od} onChange={(e) => set({ od: e.target.checked })} />
                           </td>
                           <td className="px-2 py-1">
-                            <select disabled className="rounded border border-[#ccc] bg-[#eee] px-1 text-[#888]" aria-label={`IOC ${p.pin} (étape 3)`} value="none">
-                              <option value="none">none</option>
-                            </select>
+                            {iocAvailable(p.pin) ? (
+                              <select aria-label={`IOC ${p.pin}`} className="rounded border border-[#b8b8b8] bg-white px-1" value={iocOf(p)} onChange={(e) => onChange(setIoc(config, p.pin, e.target.value as IocEdge))}>
+                                {IOC_EDGES.map((x) => (
+                                  <option key={x} value={x}>
+                                    {x}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <select disabled aria-label={`IOC ${p.pin} (non disponible)`} title={p.pin[1] === 'D' ? 'IOC non disponible sur le port D' : 'IOC non disponible sur cette broche'} className="rounded border border-[#ccc] bg-[#eee] px-1 text-[#888]" value="none">
+                                <option value="none">none</option>
+                              </select>
+                            )}
                           </td>
                         </tr>
                       )
