@@ -1,13 +1,13 @@
 /**
- * Éditeur CodeMirror 6 (lang-cpp), chargé à la demande (chunk séparé).
+ * Éditeur CodeMirror 6 (mode C léger, cLanguage.ts), chargé à la demande (chunk séparé).
  * Marge : clic = point d'arrêt (un seul, géré par le parent). Ligne courante du débogueur surlignée.
  * Ctrl+Espace : complétion sur les symboles du projet ; Ctrl+clic : aller à la définition ;
  * Source > Format (Alt+Maj+F) : réindentation. Thème clair MPLAB X par défaut, sombre en option.
  */
 import { autocompletion, completionKeymap, type Completion, type CompletionContext } from '@codemirror/autocomplete'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { cpp } from '@codemirror/lang-cpp'
-import { bracketMatching, HighlightStyle, indentOnInput, indentRange, syntaxHighlighting } from '@codemirror/language'
+import { cLanguage, INDENT } from './cLanguage'
+import { bracketMatching, HighlightStyle, indentOnInput, indentRange, indentUnit, syntaxHighlighting } from '@codemirror/language'
 import { EditorState, RangeSet, StateEffect, StateField, type Extension } from '@codemirror/state'
 import { Decoration, EditorView, gutter, GutterMarker, highlightActiveLine, keymap, lineNumbers, type DecorationSet } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
@@ -152,7 +152,8 @@ const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEd
         highlightActiveLine(),
         bracketMatching(),
         indentOnInput(),
-        cpp(),
+        cLanguage,
+        indentUnit.of(INDENT),
         autocompletion({ override: [completionSource], activateOnTyping: false }),
         keymap.of([
           { key: 'Alt-Shift-f', run: (v) => formatView(v) },

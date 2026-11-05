@@ -3,6 +3,9 @@ import { crProject, MCC_TP1 } from '../fixtures'
 import { tp1Config } from '../mcc/presets'
 import { diagnose } from '../project/diagnostic'
 import { blankProject, runGenerate, setCard } from '../project/project'
+import { EditorState } from '@codemirror/state'
+import { indentRange, indentUnit } from '@codemirror/language'
+import { cLanguage, INDENT } from './cLanguage'
 import { completionNames, findDefinition } from './symbols'
 
 describe('symboles du projet (Ctrl+Espace, Ctrl+clic)', () => {
@@ -37,5 +40,14 @@ describe('Diagnostic du mode libre (R1 à R4)', () => {
   it('R4 : carte au bon emplacement mais inutilisée', () => {
     const f = diagnose(setCard(p, 'mikrobus2', 'rotary').project, null)
     expect(f).toEqual([{ rule: 'R4', text: 'Carte ROTARY O click sur le mikroBUS 2 : aucune de ses broches n’est configurée dans MCC' }])
+  })
+})
+
+describe('Source > Format (mode C léger)', () => {
+  it('réindente selon les accolades, 4 espaces par niveau', () => {
+    const src = 'void main(void)\n{\nSYSTEM_Initialize();\nwhile (1)\n{\nLED_D2_Toggle(); /* { */\n}\n}\n'
+    const state = EditorState.create({ doc: src, extensions: [cLanguage, indentUnit.of(INDENT)] })
+    const out = state.update({ changes: indentRange(state, 0, state.doc.length) }).state.doc.toString()
+    expect(out).toBe('void main(void)\n{\n    SYSTEM_Initialize();\n    while (1)\n    {\n        LED_D2_Toggle(); /* { */\n    }\n}\n')
   })
 })
