@@ -144,3 +144,6 @@ export const UNVERIFIED: Record<string, string[]> = {
 export const UNVERIFIED_BY_MODE: Partial<Record<'entier' | 'demi' | 'quart', Record<string, string[]>>> = {
   quart: { 'pap-q10': ['TB6600_MODES'], 'pap-q11': ['TB6600_MODES'] },
 }
+
+/* ───────────── INFO3 : dans questions.info3.ts (chargé avec /info3 seulement), réexporté ici ───────────── */
+export { INFO3_QUESTIONS, INFO3_VALIDATION, coverage, type CoverageState, type Info3Question, type Info3QuestionKind, type ValidationPoint } from './questions.info3'

@@ -215,3 +215,7 @@ export const BRUIT = { min: 0.01, max: 0.02 } as const
 
 /** Pince ampèremétrique de l'oscilloscope : sensibilité — V/A (100 mV/A) — hypothèse */
 export const PINCE_SENSIBILITE = 0.1
+
+
+/* ───────────── INFO3 : constantes dans reference.info3.ts, réexportées ici (seule source) ───────────── */
+export { INFO3, info3Hypothese, type Info3Hypothese, type SfrDef } from './reference.info3'

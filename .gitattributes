@@ -1,0 +1,5 @@
+# Fichiers MCC réels : conservés octet pour octet (CRLF compris)
+docs/sources/** -text
+# Gabarits et fixtures MCC : toujours en LF (comparés octet pour octet aux sources, CRLF → LF)
+src/info3/mcc/templates/** text eol=lf
+src/info3/fixtures/** text eol=lf

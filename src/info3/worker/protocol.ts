@@ -1,0 +1,56 @@
+/** Messages typés entre le fil principal et le Worker de simulation (unions discriminées). */
+import type { INFO3 } from '../../data/reference'
+
+export type Speed = (typeof INFO3.vm.speeds)[number]
+
+/** Fil principal → Worker */
+export type InMsg =
+  /** Build (F11) : compile sans charger */
+  | { type: 'build'; files: Record<string, string> }
+  /** Make and Program Device / Debug : compile et charge dans le PIC (sans lancer) */
+  | { type: 'load'; files: Record<string, string> }
+  | { type: 'run'; speed: Speed }
+  | { type: 'pause' }
+  | { type: 'reset' }
+  /** Step Into */
+  | { type: 'step' }
+  | { type: 'stepOver' }
+  | { type: 'stepOut' }
+  | { type: 'stimulus'; action: 'press' | 'release'; button: string; bounce: boolean }
+  | { type: 'breakpoint'; file: string; line: number | null }
+  /** Fenêtres Variables et SFR */
+  | { type: 'inspect' }
+  /** Défi du professeur virtuel */
+  | { type: 'grade'; question: string; files: Record<string, string> }
+  /** Mise hors tension (USB noir débranché) : programme arrêté, broches relâchées */
+  | { type: 'powerOff' }
+  /** Horloge interne du Worker : temps réel écoulé depuis le tick précédent */
+  | { type: 'tick'; wallMs: number }
+
+export type OutputLevel = 'info' | 'warning' | 'error'
+
+export interface WatchRow {
+  name: string
+  value: string
+}
+
+/** Worker → fil principal */
+export type OutMsg =
+  | {
+      type: 'frame'
+      /** Temps simulé — s */
+      tSim: number
+      /** Broches dont le niveau a changé depuis l'image précédente */
+      pinsDiff: Record<string, 0 | 1>
+      /** Fraction du temps à 1 sur l'image, pour les LED dont la valeur a changé */
+      ledDuty: Record<string, number>
+    }
+  | { type: 'output'; level: OutputLevel; text: string; file?: string; line?: number; col?: number }
+  | { type: 'halted'; reason: string }
+  | { type: 'built'; ok: boolean; ms: number; loaded: boolean }
+  /** Position courante après un arrêt (pas à pas, point d'arrêt, pause) */
+  | { type: 'stopped'; file?: string; line?: number }
+  | { type: 'snapshot'; func: string | null; locals: WatchRow[]; globals: WatchRow[]; sfrs: WatchRow[] }
+  | { type: 'graded'; question: string; ok: boolean; messages: string[] }
+  /** Diagnostic (mode libre) : lu dans les registres et pendant l'exécution */
+  | { type: 'diag'; analogReads: string[]; inputWrites: string[]; fosc: number }

@@ -16,6 +16,8 @@ const PAGES = {
   'machine-asynchrone': lazy(() => import('./pages/AsyncPage')),
 }
 const ModbusApp = lazy(() => import('./modbus/App'))
+// INFO3, étape 1 : page technique du moteur, chargée à la demande, sans lien public
+const INFO3_PAGES = { dev: lazy(() => import('./pages/info3/Dev')) }
 const renderTp = (tp: { slug: Tp['slug'] }) => {
   const full = TPS.find((t) => t.slug === tp.slug)!
   const Page = PAGES[full.slug]
@@ -45,6 +47,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/examen-blanc" element={<MockExam />} />
           <Route path="/demo" element={<Demo />} />
           <Route path="/modbus/*" element={<ModbusApp />} />
+          <Route path="/info3/dev" element={<INFO3_PAGES.dev />} />
           <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>
