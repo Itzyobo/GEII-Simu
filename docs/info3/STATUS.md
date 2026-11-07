@@ -1,6 +1,6 @@
 # INFO3 — état d'avancement
 
-Mis à jour à chaque bloc terminé. Étape en cours : **3** (TP2 + TP3). Étape 2 terminée (commit e91a015).
+Mis à jour à chaque bloc terminé. Étape 3 (TP2 + TP3) terminée ; étape 4 non commencée. Étape 2 terminée (commit e91a015).
 
 ## Étape 3
 
@@ -12,9 +12,27 @@ Mis à jour à chaque bloc terminé. Étape en cours : **3** (TP2 + TP3). Étape
 | B3 | fait | TMR2/4/6 : SFR (T2TMR/TMR2, T2PR/PR2, T2CON, T2HLT, T2CLKCON, T2RST, T2INPPS ; champs MODE, RSEL, CKPS, OUTPS, CS dans xc.h), modèle `timer246` événementiel (Roll over, one-shot, monostable sur front de TMRx_ers, fronts ignorés pendant le comptage = H33), panneau MCC aux libellés du CR (Hardware Settings, Timer Clock, Timer Period avec plage et Actual Period, Software Settings ; Monostable → postscaler 1:1), ligne TMR2 T2IN du Grid View (écrit T2INPPS), tmrX.c/.h (cours p. 58, 59, 65 ; fonctions = H32), presets tp3-1A/1B/1C/2 ; H28 partielle, H31–H33 ajoutées. Tests 2, 3, 4, 9 (mesures), 10, 11, 12, 13 |
 | B4 | fait | Modèle `ec12d` (30 crans, 15 impulsions par voie, A = B aux crans, A en avance en sens horaire = H9, sans rebond) ; câblage selon le mikroBUS (ENCA → PWM, ENCB → AN, SW → INT = H35 : mikroBUS 2 → RD1, RA2, RB0 ; mikroBUS 1 → RC2, RA1, RD1 et RA2 flottent = H20) ; commandes : molette, flèches, glisser circulaire, rotation continue 1–10 crans/s, SW (anneau de LED éteint) ; analyseur logique 4 voies (broches + ISR, TMRxIF), 1 µs à 1 s/div, curseurs ; solution tp2/q2_4. Tests 7, 8 |
 | B5 | fait | Pages /info3/tp2 et /info3/tp3 (page commune TpPage : énoncé, questions, banc, IDE, MCC, analyseur aux voies du TP) ; 9 questions par ancre (TP2 1.1, 1.2, 2.1–2.4 ; TP3 1, 2, 3) en parties : défi noté, QCM à une ou plusieurs réponses, valeurs numériques lues dans tmr2.c, mise en ordre de la chaîne d’appel, liste de contrôle du débogage ; professeur virtuel prof/tp23.ts (refus 1B : « Période : 1 000 ms attendue, 63,5 ms mesurée ») ; Faire vérifier TP2/TP3 (noms, IOC, TMR2 Monostable + T2IN, Rotary sur le mikroBUS 2) ; solutions tp2/q2_4 et tp3/q1 (code du CR + tp3-1C) ; cartes TP2 et TP3 de l’accueil ; A5 à A10 partiels. Tests 9 (refus), 14 |
-| B6 | à faire | Vérifications finales, tailles gzip |
+| B6 | fait sauf C1 | Vérifications finales (ci-dessous) ; case « Rebonds des boutons S1 et S2 (H3) » sous le banc, cochée par défaut (sans elle, les rebonds du TP2 1.1 et l’anti-rebond du TP3 §2 n’étaient pas observables au navigateur) |
 
 C1 (transcription de l'énoncé) : toujours bloquée, docs/sources/INFO3_TP.pdf absent.
+
+### Résultats de l'étape 3 (B6, HEAD vérifié dans un worktree propre, sans le travail ENER3 non commité)
+
+- Tests : 460 réussis, 1 ignoré (F9), 0 échec. Un premier passage a vu échouer `src/models/stepper.test.ts` (ENER3, 7,4 s, sensible à la charge) ; il passe seul et au second passage complet.
+- TypeScript et `npm run build` : 0 erreur, 0 warning.
+- oxlint : 23 avertissements à e91a015 et 23 à HEAD (même comptage), 0 dans src/info3, src/pages/info3, src/data ; 0 erreur.
+- 375 px strict : 30 routes conformes (/info3/tp2 et /info3/tp3 comprises) ; onglets Code, MCC, Banc, Questions de /info3/tp3 sans débordement.
+- Navigateur /info3/tp3 (configuration tp3-2, code du CR) : Generate, Faire vérifier conforme (question 2), Program ; 10 appuis sur S2 rebonds activés → D5…D2 0 → 6 (−10 exactement) ; analyseur 20 ms/div : front descendant de RC5 → TMR2IF et ISR à 10 ms. 0 erreur console.
+- Navigateur /info3/tp2 (2.3, Rotary sur le mikroBUS 2) : D3 = 1 après 10/10 crans horaires, 0 après 10/10 antihoraires (flèches du bouton). 0 erreur console.
+
+| Chunk (gzip) | Étape 3 | Budget |
+| --- | --- | --- |
+| Bundle initial (index-*.js, worktree propre) | 79,93 Ko | ≤ base + 3 Ko |
+| /info3/tp2 ou /info3/tp3 hors éditeur | 47,4 Ko | — |
+| /info3/tp1 hors éditeur | 43,6 Ko | — |
+| Worker (compilateur, VM, timers, codeur, professeurs TP1–TP3) | 47,3 Ko | — |
+| /info3/tp3 hors éditeur, Worker compris | 94,7 Ko | ≤ 150 Ko |
+| CodeMirror (CodeEditor) | 103,3 Ko | ≤ 120 Ko |
 
 ## Étape 2 (terminée)
 

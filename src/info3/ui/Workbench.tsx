@@ -4,6 +4,7 @@
  * Toutes les règles (Generate, verrouillage, programmation) viennent du modèle testé (project.ts).
  */
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
+import { INFO3 } from '../../data/reference'
 import Board from '../board/Board'
 import RotaryControl from '../board/RotaryControl'
 import InterruptInspector from './InterruptInspector'
@@ -43,6 +44,8 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
   const [tab, setTab] = useState<Tab>('code')
   const [main, setMain] = useState<'code' | 'mcc'>('code')
   const [benchMsg, setBenchMsg] = useState<string | null>(null)
+  /** Rebonds des boutons (H3) : comme sur la carte réelle, activés par défaut */
+  const [bounce, setBounce] = useState(true)
   const [genMsg, setGenMsg] = useState<{ ok: boolean; text: string } | null>(null)
   /** Programme en mémoire flash : redémarre à chaque mise sous tension */
   const flash = useRef<Record<string, string> | null>(null)
@@ -166,11 +169,14 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               duty={powered ? sim.view.duty : {}}
               bench={project.bench}
               message={benchMsg}
-              onButton={(name, action) => sim.view.mode !== 'off' && sim.send({ type: 'stimulus', action, button: name, bounce: false })}
+              onButton={(name, action) => sim.view.mode !== 'off' && sim.send({ type: 'stimulus', action, button: name, bounce })}
               onUsbBlack={usbBlack}
               onUsbWhite={(v) => apply(setUsbWhite(project, v))}
               onCard={(slot, card) => apply(setCard(project, slot, card))}
             />
+            <label className="mt-1 flex items-center gap-1.5 text-xs text-muted" title={INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
+              <input type="checkbox" checked={bounce} onChange={(e) => setBounce(e.target.checked)} /> Rebonds des boutons S1 et S2 (H3)
+            </label>
             {rotarySlot && (
               <div className="mt-2">
                 <RotaryControl slotLabel={SLOT_NAMES[rotarySlot]} onTurn={(n) => sim.rotary({ action: 'turn', detents: n })} onSpin={(r) => sim.rotary({ action: 'spin', rate: r })} onSw={(p) => sim.rotary({ action: 'sw', pressed: p })} />
