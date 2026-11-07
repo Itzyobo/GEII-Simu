@@ -19,12 +19,17 @@ const NDIV = sfrField('OSCCON1', 'NDIV')
 const HFFRQ = sfrField('OSCFRQ', 'HFFRQ')
 const MAX_NDIV = Math.log2(CLK.maxDivider)
 
+/** Fréquence HFINTOSC décrite par OSCFRQ — Hz */
+export function hfintoscFromRegister(oscfrq: number): number {
+  const hf = CLK.hfintoscMHz[(oscfrq >> HFFRQ.shift) & HFFRQ.mask] ?? CLK.hfintoscMHz[CLK.hfintoscMHz.length - 1]
+  return hf * INFO3.units.usPerS
+}
+
 /** Fosc décrit par OSCCON1 et OSCFRQ — Hz */
 export function foscFromRegisters(osccon1: number, oscfrq: number): number {
   const nosc = (osccon1 >> NOSC.shift) & NOSC.mask
   const ndiv = Math.min((osccon1 >> NDIV.shift) & NDIV.mask, MAX_NDIV)
-  const hf = CLK.hfintoscMHz[(oscfrq >> HFFRQ.shift) & HFFRQ.mask] ?? CLK.hfintoscMHz[CLK.hfintoscMHz.length - 1]
-  const base = nosc === CLK.nosc.LFINTOSC ? CLK.lfintosc : hf * INFO3.units.usPerS
+  const base = nosc === CLK.nosc.LFINTOSC ? CLK.lfintosc : hfintoscFromRegister(oscfrq)
   return base / 2 ** ndiv
 }
 

@@ -12,6 +12,7 @@ import { iocOf, pinOrder, systemFosc, type IocEdge, type MccConfig, type PinConf
 import { interruptManagerFiles } from './interruptManager'
 import { isEnabled } from './interrupts'
 import { DIR, hex2, replaceOnce, tpl, type DriverOutput } from './templates'
+import { ppsLines, TIMER_DRIVERS } from './timers'
 
 const sfrReset = (name: string) => (INFO3.sfr as Record<string, { reset: number }>)[name].reset
 
@@ -331,7 +332,14 @@ function pinManagerC(cfg: MccConfig): string {
   })
   if (count !== PORT_NAMES.length * Object.keys(regs.A).length) throw new Error('gabarit MCC : registres de pin_manager.c incomplets')
   // IOCI décochée dans l'Interrupt Module : PIE0bits.IOCIE n'est pas mis à 1
-  return withIoc(out, iocPins(cfg), isEnabled(cfg, 'IOC'))
+  return withPps(withIoc(out, iocPins(cfg), isEnabled(cfg, 'IOC')), ppsLines(cfg))
+}
+
+/** Entrées PPS (TxIN…) : dernières lignes de PIN_MANAGER_Initialize (format = H34) */
+const PM_INIT_END = '\n}\n  \nvoid PIN_MANAGER_IOC(void)'
+function withPps(text: string, lines: string[]): string {
+  if (!lines.length) return text
+  return replaceOnce(text, PM_INIT_END, `\n\n\t\n${lines.join('\n')}${PM_INIT_END}`)
 }
 
 const MHZ_LABEL = (mhz: number) => `${mhz}_MHz`
@@ -361,7 +369,7 @@ function deviceConfigC(cfg: MccConfig): string {
 /** Fichiers générés, indexés par chemin dans le projet (mcc_generated_files/…) */
 /* ───────────── Pilotes ajoutés (Interrupt Module, timers…), appelés dans cet ordre ───────────── */
 
-const DRIVERS: ((cfg: MccConfig) => DriverOutput | null)[] = [interruptManagerFiles]
+const DRIVERS: ((cfg: MccConfig) => DriverOutput | null)[] = [interruptManagerFiles, ...TIMER_DRIVERS]
 
 const INCLUDE_ANCHOR = '#include <conio.h>\n'
 const INIT_ANCHOR = '    OSCILLATOR_Initialize();\n'

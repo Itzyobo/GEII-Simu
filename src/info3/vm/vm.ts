@@ -11,10 +11,11 @@ import { Op, type FuncMeta, type Program } from '../compiler/bytecode'
 import type { CType } from '../compiler/types'
 import { kindOf, sizeOf } from '../compiler/types'
 import { Button, type Edge } from '../models/button'
-import { Gpio, parsePin, type Level, type PinChange } from '../models/gpio'
+import { Gpio, parsePin, PORT_NAMES, type Level, type PinChange } from '../models/gpio'
 import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
-import { foscFromRegisters } from '../models/clock'
+import { foscFromRegisters, hfintoscFromRegister } from '../models/clock'
+import { Timer246, timerClockHz, type TimerReg } from '../models/timer246'
 import { SfrBus } from './bus'
 import { EventQueue } from './events'
 import { formatPrintf } from './printf'
@@ -113,6 +114,7 @@ export class Vm {
     // IOC : un front sur une broche dont IOCxP / IOCxN est à 1 lève IOCxF (IOCIF en découle)
     for (const p of IRQ.iocPorts) this.iocRegs[p] = { P: this.bus.addrOf[`IOC${p}P`], N: this.bus.addrOf[`IOC${p}N`], F: this.bus.addrOf[`IOC${p}F`] }
     this.gpio.onChange((c) => this.iocPin(c))
+    this.createTimers()
     for (const b of INFO3.pins.buttons) {
       this.buttons[b.name] = { button: new Button({ activeLevel: b.activeLevel as Level, rng: () => this.rng() }), pin: b.pin }
     }
@@ -125,7 +127,46 @@ export class Vm {
   private updateClock() {
     this.fosc = foscFromRegisters(this.mem[this.bus.addrOf.OSCCON1], this.mem[this.bus.addrOf.OSCFRQ])
     this.ticksPerTcy = Math.round((CLK.timeBaseHz * CLK.foscPerTcy) / this.fosc)
+    for (const tm of Object.values(this.timers)) tm.updateClock()
   }
+
+  /* ═════════════ Timers 2, 4, 6 ═════════════ */
+
+  /** Timers par numéro (2, 4, 6) */
+  readonly timers: Record<number, Timer246> = {}
+
+  private createTimers() {
+    const regs: TimerReg[] = ['TMR', 'PR', 'CON', 'HLT', 'CLKCON', 'RST']
+    const sfrName = (n: number, r: TimerReg) => `T${n}${r}`
+    for (const n of INFO3.timers.ids) {
+      const tm = new Timer246({
+        now: () => this.t,
+        clockHz: (cs) => timerClockHz(cs, this.fosc, hfintoscFromRegister(this.mem[this.bus.addrOf.OSCFRQ])),
+        schedule: (t, fn) => this.events.pushFn(t, fn),
+        raiseFlag: () => this.bus.writeBit(INFO3.timers.irq.flag, `TMR${n}IF`, 1),
+        clearOn: () => {
+          const b = this.bus.bit(sfrName(n, 'CON'), `TMR${n}ON`)
+          this.mem[b.addr] &= ~b.mask
+        },
+      })
+      this.timers[n] = tm
+      for (const r of regs) {
+        const addr = this.bus.addrOf[sfrName(n, r)]
+        this.bus.writeHooks.set(addr, (v) => tm.write(r, v))
+      }
+      this.bus.readHooks.set(this.bus.addrOf[sfrName(n, 'TMR')], () => tm.read('TMR') ?? 0)
+      this.ersPps[n] = this.bus.addrOf[`T${n}INPPS`]
+    }
+    // Entrée TMRx_ers : broche choisie par TxINPPS (port << 3 | bit), lue par le buffer numérique (ANSEL = 0)
+    this.gpio.onChange((c) => {
+      const { port, bit } = parsePin(c.pin)
+      const code = (PORT_NAMES.indexOf(port) << INFO3.timers.ppsPortShift) | bit
+      if ((this.gpio.readReg('ANSEL', port) >> bit) & 1) return
+      for (const n of INFO3.timers.ids) if (this.mem[this.ersPps[n]] === code) this.timers[n].ersEdge(c.level === 1)
+    })
+  }
+
+  private readonly ersPps: Record<number, number> = {}
 
   /** Tcy par seconde à l'horloge courante */
   get fcy() {
@@ -177,6 +218,7 @@ export class Vm {
   /** Reset du cœur (POR ou débordement de pile) : SFR au reset, variables globales initialisées, pc = main */
   private cpuReset(keep: Record<string, number> = {}) {
     this.bus.reset(keep)
+    for (const tm of Object.values(this.timers)) tm.reset()
     this.updateClock()
     this.gpio.reset()
     this.gpio.settle(this.t)
@@ -664,7 +706,8 @@ export class Vm {
   private processEvents() {
     while (this.events.size && this.events.peekTime() <= this.t) {
       const e = this.events.pop()!
-      this.gpio.setExternal(e.pin, e.level, e.t)
+      if (e.fn) e.fn()
+      else this.gpio.setExternal(e.pin, e.level, e.t)
     }
   }
 

@@ -1,12 +1,14 @@
-/** File d'événements datés (tas binaire, ordre stable à temps égal) : fronts externes, rebonds. */
+/** File d'événements datés (tas binaire, ordre stable à temps égal) : fronts externes, rebonds, périphériques. */
 import type { Level } from '../models/gpio'
 
 export interface SimEvent {
-  /** Temps — Tcy */
+  /** Temps — ticks */
   t: number
   seq: number
   pin: string
   level: Level | null
+  /** Événement de périphérique (timer…) : appelé à l'instant t à la place d'un front */
+  fn?: () => void
 }
 
 export class EventQueue {
@@ -26,8 +28,17 @@ export class EventQueue {
   }
 
   push(t: number, pin: string, level: Level | null) {
+    this.insert({ t, seq: this.seq++, pin, level })
+  }
+
+  /** Événement de périphérique */
+  pushFn(t: number, fn: () => void) {
+    this.insert({ t, seq: this.seq++, pin: '', level: null, fn })
+  }
+
+  private insert(e: SimEvent) {
     const h = this.heap
-    h.push({ t, seq: this.seq++, pin, level })
+    h.push(e)
     let i = h.length - 1
     while (i > 0) {
       const parent = (i - 1) >> 1

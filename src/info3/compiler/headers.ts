@@ -2,7 +2,7 @@
  * En-têtes virtuels fournis par le simulateur (xc.h, stdint.h, stdbool.h, stdio.h, stdlib.h)
  * et unité de compilation d'exécution (printf → putch). xc.h est généré depuis INFO3.sfr.
  */
-import { INFO3 } from '../../data/reference'
+import { INFO3, type SfrDef } from '../../data/reference'
 
 const HEX = 16
 const hex = (v: number, digits: number) => `0x${v.toString(HEX).toUpperCase().padStart(digits, '0')}`
@@ -21,12 +21,14 @@ export function generateXcH(): string {
     '#include <stdint.h>',
     '',
   ]
-  for (const [name, def] of Object.entries(INFO3.sfr)) {
+  for (const [name, def] of Object.entries(INFO3.sfr as Record<string, SfrDef>)) {
     const addr = hex(def.addr, ADDR_DIGITS)
     lines.push(`extern volatile uint8_t ${name} __at(${addr});`)
+    if (def.alias) lines.push(`extern volatile uint8_t ${def.alias} __at(${addr});`)
     if (def.bits.some((b) => b !== null)) {
       lines.push('typedef struct {')
-      for (const b of def.bits) lines.push(b ? `    unsigned ${b} :1;` : '    unsigned :1;')
+      const fields = def.fields ?? def.bits.map((b) => ({ name: b, width: 1 }))
+      for (const f of fields) lines.push(f.name ? `    unsigned ${f.name} :${f.width};` : `    unsigned :${f.width};`)
       lines.push(`} ${name}bits_t;`)
       lines.push(`extern volatile ${name}bits_t ${name}bits __at(${addr});`)
       if (SHORT_BIT_REGS.test(name)) {

@@ -4,8 +4,8 @@
  * sont testées d'abord, puis `else if(INTCONbits.PEIE == 1)` avec les périphériques dans l'ordre de la table (H30).
  * Format des commentaires et en-têtes reconstitué d'après MCC 1.81 (H34).
  */
-import type { MccConfig } from './config'
-import { iocOf } from './config'
+import { INFO3 } from '../../data/reference'
+import { iocOf, TIMER_IDS, type MccConfig, type TimerId } from './config'
 
 export type InterruptLevel = 'first' | 'peripheral'
 
@@ -21,22 +21,29 @@ export interface InterruptSource {
   call: string
 }
 
-/** Sources déclarées par les autres modules (timers : bloc B3) */
-export type SourceProvider = (cfg: MccConfig) => InterruptSource[]
-const providers: SourceProvider[] = []
-export const registerInterruptSources = (p: SourceProvider) => {
-  if (!providers.includes(p)) providers.push(p)
-}
-
 const IOC_SOURCE: InterruptSource = { id: 'IOC', module: 'Pin Module', interrupt: 'IOCI', level: 'first', ie: 'PIE0bits.IOCIE', flag: 'PIR0bits.IOCIF', call: 'PIN_MANAGER_IOC();' }
+
+/** Interruption de période d'un timer (Enable Timer Interrupt coché) : PIE4/PIR4, niveau périphérique */
+const timerSource = (id: TimerId): InterruptSource => ({
+  id,
+  module: id,
+  interrupt: 'TMRI',
+  level: 'peripheral',
+  ie: `${INFO3.timers.irq.enable}bits.${id}IE`,
+  flag: `${INFO3.timers.irq.flag}bits.${id}IF`,
+  call: `${id}_ISR();`,
+})
 
 /** Sources configurées (activées ou non), avant tri */
 export function configuredSources(cfg: MccConfig): InterruptSource[] {
   const out: InterruptSource[] = []
   if (cfg.pins.some((p) => iocOf(p) !== 'none')) out.push(IOC_SOURCE)
-  for (const p of providers) out.push(...p(cfg))
+  for (const id of TIMER_IDS) if (cfg.timers?.[id]?.interrupt) out.push(timerSource(id))
   return out
 }
+
+/** Interruption d'un timer réellement générée (cochée dans le timer et dans la table Interrupt Vector) */
+export const timerIrqOn = (cfg: MccConfig, id: TimerId) => !!cfg.timers?.[id]?.interrupt && isEnabled(cfg, id)
 
 /** Une source est activée sauf si elle a été décochée dans la table (colonne Enabled) */
 export const isEnabled = (cfg: MccConfig, id: string) => !(cfg.interruptsDisabled ?? []).includes(id)

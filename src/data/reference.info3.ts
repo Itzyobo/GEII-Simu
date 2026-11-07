@@ -21,6 +21,10 @@ export interface SfrDef {
   source: string
   /** Hypothèses dont dépend l'entrée (adresse, bits ou valeur au reset) */
   hyp: readonly string[]
+  /** Autre nom du registre dans xc.h (TMR2 pour T2TMR, PR2 pour T2PR) */
+  alias?: string
+  /** Champs de la structure `NOMbits` de xc.h, du bit 0 vers le bit 7 (champs de plusieurs bits : MODE, RSEL…) */
+  fields?: readonly { name: string | null; width: number }[]
 }
 
 export interface Info3Hypothese {
@@ -64,6 +68,11 @@ const IOC_ADDR = {
   C: { P: 0xf53, N: 0xf54, F: 0xf55 },
   E: { P: 0xf69, N: 0xf6a, F: 0xf6b },
 } as const
+
+/** Timers 2, 4, 6 : adresse de TMRx (PRx, TxCON, TxHLT, TxCLKCON, TxRST suivent) — H18 */
+const TIMER_ADDR = { 2: 0x28c, 4: 0x292, 6: 0x298 } as const
+/** Entrée externe (T2IN…) : registres PPS d'entrée — H18 */
+const TIMER_PPS_ADDR = { 2: 0xe9c, 4: 0xe9d, 6: 0xe9e } as const
 
 function buildSfrs(): Record<string, SfrDef> {
   const out: Record<string, SfrDef> = {}
@@ -120,6 +129,18 @@ function buildSfrs(): Record<string, SfrDef> {
   // Désactivation des modules (banque 15) : registres mémorisés, bits non nommés
   const PMD0_ADDR = 0x796
   for (let n = 0; n <= 5; n++) out[`PMD${n}`] = sfr(PMD0_ADDR + n, 0x00, sfrBits('', 0), ['H18', 'H19'])
+  // Timers 2, 4, 6 (banque 5) : TMR, PR, CON, HLT, CLKCON, RST consécutifs ; entrée externe par PPS (TxINPPS)
+  for (const [n, base] of Object.entries(TIMER_ADDR)) {
+    const t = `T${n}`
+    const f = (...xs: [string | null, number][]) => xs.map(([name, width]) => ({ name, width }))
+    out[`${t}TMR`] = { ...sfr(base, 0, sfrBits('', 0), ['H18', 'H19']), alias: `TMR${n}` }
+    out[`${t}PR`] = { ...sfr(base + 1, 0xff, sfrBits('', 0), ['H18', 'H19']), alias: `PR${n}` }
+    out[`${t}CON`] = { ...sfr(base + 2, 0, namedBits(`${t}OUTPS0 ${t}OUTPS1 ${t}OUTPS2 ${t}OUTPS3 ${t}CKPS0 ${t}CKPS1 ${t}CKPS2 TMR${n}ON`), ['H18', 'H19']), fields: f(['OUTPS', 4], ['CKPS', 3], [`TMR${n}ON`, 1]) }
+    out[`${t}HLT`] = { ...sfr(base + 3, 0, namedBits(`${t}MODE0 ${t}MODE1 ${t}MODE2 ${t}MODE3 ${t}MODE4 ${t}CKSYNC ${t}CKPOL ${t}PSYNC`), ['H18', 'H19']), fields: f(['MODE', 5], ['CKSYNC', 1], ['CKPOL', 1], ['PSYNC', 1]) }
+    out[`${t}CLKCON`] = { ...sfr(base + 4, 0, namedBits(`${t}CS0 ${t}CS1 ${t}CS2 ${t}CS3 - - - -`), ['H18', 'H19']), fields: f(['CS', 4], [null, 4]) }
+    out[`${t}RST`] = { ...sfr(base + 5, 0, namedBits(`${t}RSEL0 ${t}RSEL1 ${t}RSEL2 ${t}RSEL3 - - - -`), ['H18', 'H19']), fields: f(['RSEL', 4], [null, 4]) }
+    out[`${t}INPPS`] = sfr(TIMER_PPS_ADDR[Number(n) as keyof typeof TIMER_PPS_ADDR], 0, namedBits(`${t}INPPS0 ${t}INPPS1 ${t}INPPS2 ${t}INPPS3 ${t}INPPS4 - - -`), ['H18', 'H19'])
+  }
   return out
 }
 
@@ -275,6 +296,67 @@ export const INFO3 = {
     /** Ports dotés de l'IOC (pas d'IOC sur le port D) */
     iocPorts: ['A', 'B', 'C', 'E'],
   },
+  /** Timers 2, 4, 6 (TMR2/4/6) : MCC (captures du CR TP3) et modèle timer246 */
+  timers: {
+    ids: [2, 4, 6],
+    /** Compteur 8 bits : TMRx revient à 0 au cycle qui suit TMRx = PRx */
+    counterRange: 256,
+    /** Clock Source de MCC → TxCLKCON.CS (FOSC/4 = 0x01 cours p. 58 ; LFINTOSC = 0x04 cours p. 65 ; autres codes H18) */
+    clockSources: [
+      { label: 'FOSC/4', cs: 0x01 },
+      { label: 'FOSC', cs: 0x02 },
+      { label: 'HFINTOSC', cs: 0x03 },
+      { label: 'LFINTOSC', cs: 0x04 },
+      { label: 'MFINTOSC', cs: 0x05 },
+    ],
+    /** MFINTOSC — Hz (500 kHz) — datasheet (H18) */
+    mfintosc: 500e3,
+    /** Prescaler 1:1 à 1:128 (CKPS = log2), postscaler 1:1 à 1:16 (OUTPS = valeur − 1) */
+    prescalerMaxLog2: 7,
+    postscalerMax: 16,
+    /**
+     * Control Mode et Start/Reset Option de MCC → TxHLT.MODE (cours p. 58 : Roll over 0x00 ; p. 65 : Monostable
+     * front montant 0x11 ; front descendant 0x12 = H31 ; deux fronts 0x13). `{ers}` = TMR2_ers, TMR4_ers…
+     */
+    modes: [
+      { control: 'Roll over pulse', start: 'Software control', mode: 0x00 },
+      { control: 'One shot', start: 'Software control', mode: 0x08 },
+      { control: 'One shot', start: 'Starts on rising edge on {ers}', mode: 0x09 },
+      { control: 'One shot', start: 'Starts on falling edge on {ers}', mode: 0x0a },
+      { control: 'One shot', start: 'Starts on any edge on {ers}', mode: 0x0b },
+      { control: 'Monostable', start: 'Starts on rising edge on {ers}', mode: 0x11 },
+      { control: 'Monostable', start: 'Starts on falling edge on {ers}', mode: 0x12 },
+      { control: 'Monostable', start: 'Starts on any edge on {ers}', mode: 0x13 },
+    ],
+    /** Front de démarrage par MODE<1:0> en one-shot et monostable : 1 montant, 2 descendant, 3 les deux */
+    edgeBits: { rising: 1, falling: 2 },
+    /** Familles de MODE<4:3> : 00 roll over, 01 one shot, 10 monostable */
+    modeFamily: { shift: 3, rollOver: 0, oneShot: 1, monostable: 2 },
+    /** Ext Reset Source → TxRST.RSEL (seule l'entrée par broche est simulée) */
+    ersSources: [{ label: 'T{n}CKIPPS pin', rsel: 0 }],
+    /** Ports proposés pour l'entrée TxIN dans le Grid View (T2IN sur A et C : captures du CR ; T4IN, T6IN : H18) */
+    ersPorts: { 2: ['A', 'C'], 4: ['B', 'C'], 6: ['B', 'D'] },
+    /** Réglages d'un timer ajouté depuis Device Resources (valeurs initiales du simulateur) */
+    mccDefault: { enabled: true, controlMode: 'Roll over pulse', startOption: 'Software control', ersSource: 'T{n}CKIPPS pin', clockSource: 'FOSC/4', clockSync: false, polarity: 'Rising Edge', prescaler: 1, prescalerSync: false, postscaler: 1, periodS: 100e-6, interrupt: false },
+    polarities: ['Rising Edge', 'Falling Edge'],
+    /** Arrondi des durées affichées par MCC : la nanoseconde (64.516 us, 16.516129 ms : captures du CR) */
+    mccPeriodResolutionS: 1e-9,
+    /** Registre PPS d'entrée : port << 3 | bit (RC5 → 0x15) */
+    ppsPortShift: 3,
+    /** Interruption de période : PIR4.TMRxIF, PIE4.TMRxIE */
+    irq: { flag: 'PIR4', enable: 'PIE4' },
+    hyp: ['H18', 'H31', 'H32', 'H33'],
+  },
+  /** TP3 : cahier des charges utilisé par le professeur virtuel */
+  tp3: {
+    /** §1 : période du clignotement attendue — s (1 s ± 1 %) */
+    blinkPeriodS: 1,
+    blinkTolerance: 0.01,
+    /** §2 : délai d'anti-rebond (Timer Period) — s (10 ms ± 0,5 %) */
+    debounceS: 0.01,
+    debounceTolerance: 0.005,
+    source: 'consigne étape 3 (CR TP3)',
+  },
   /** Machine virtuelle (PRD §4.2 et §5) */
   vm: {
     /** Tranche d'exécution maximale dans le Worker — ms simulées */
@@ -295,6 +377,8 @@ export const INFO3 = {
     memory: { size: 0x10000, sfrLimit: 0x1000, globalsBase: 0x2000, stackBase: 0x6000 },
     /** Profondeur de la pile d'évaluation du bytecode (limite du simulateur) */
     operandStackSize: 4096,
+    /** Tolérance numérique sur les instants calculés en ticks (périphériques à horloge non entière) */
+    tickEpsilon: 1e-6,
     /** Graine par défaut du générateur des rebonds (H3) */
     defaultSeed: 1,
   },
@@ -342,9 +426,12 @@ export const INFO3 = {
     { id: 'H25', texte: 'Contenu de device_config.c (bits de configuration #pragma config) : celui du projet TP1 réel ; seul LVP suit la case du System Module', commentVerifier: 'device_config.c d’un projet où d’autres bits seraient modifiés', statut: 'partielle', preuve: 'docs/sources/mplab/tp1/device_config.c (MCC 1.81.7)' },
     { id: 'H26', texte: 'Ordre des registres dans pin_manager.c identique pour tous les projets : LAT E,D,A,B,C ; TRIS E,A,B,C,D ; ANSEL D,C,B,E,A ; WPU D,E,B,A,C ; ODCON E,A,B,C,D ; SLRCON et INLVL A→E', commentVerifier: 'pin_manager.c d’un autre projet MCC (TP2 à TP6)', preuve: 'relevé sur docs/sources/mplab/tp1/pin_manager.c' },
     { id: 'H27', texte: '__XC8_VERSION prédéfini à 2310 (XC8 v2.31 du projet TP1)', commentVerifier: 'version du compilateur des postes de TP (Project Properties)' },
-    { id: 'H28', texte: 'Timer2 du TP3 : source LFINTOSC, T2PR = 0x1E, prescaler × postscaler = 1024', commentVerifier: 'capture MCC du TP3 (Timer2)' },
+    { id: 'H28', texte: 'Timer2 du TP3 : source LFINTOSC, T2PR = 0x1E, prescaler × postscaler = 1024', commentVerifier: 'capture MCC du TP3 (Timer2)', statut: 'partielle', preuve: 'consigne étape 3 (CR TP3) : T2PR = 0x1E avec FOSC/4 en §1B ; LFINTOSC, 1:128, 1:1, PR2 = 241 en §1C' },
     { id: 'H34', texte: 'Format du code généré pour l’IOC, interrupt_manager et TMR2/4/6 (commentaires, lignes vides, ordre des fonctions) reconstitué d’après MCC 1.81 : seules les lignes citées par la consigne (cours p. 38 à 40, 58, 59, 65) sont garanties', commentVerifier: 'cours p. 38 à 40, 58, 59, 65 ou fichiers générés en TP2 et TP3' },
     { id: 'H30', texte: 'interrupt_manager avec plusieurs sources : les sources de premier niveau (IOC, PIE0) sont testées d’abord, puis « else if(INTCONbits.PEIE == 1) » avec les périphériques dans l’ordre de la table Interrupt Vector ; inverser la table inverse l’ordre dans le fichier', commentVerifier: 'interrupt_manager.c généré en TP3 §2 (TMR2 ordre 1, IOCI ordre 2)' },
+    { id: 'H31', texte: 'Monostable « Starts on falling edge on TMR2_ers » : T2HLT = 0x12 (MODE = 10010) ; « any edge » : 0x13 ; adresses de TMR2/4/6 et de T2INPPS, codes CS autres que FOSC/4 et LFINTOSC d’après le datasheet', commentVerifier: 'tmr2.c généré en TP3 §2 ; datasheet DS40001802 « Timer2 Operating Modes »' },
+    { id: 'H32', texte: 'Fonctions de tmrX.c (Start/StartTimer, Stop/StopTimer, Counter8BitGet/ReadTimer, Counter8BitSet/WriteTimer, Period8BitSet/LoadPeriodRegister, HasPeriodElapsed sans interruption) reconstituées au format MCC 1.81 ; seuls les noms et rôles sont garantis (ModeSet et ExtResetSourceSet non générés)', commentVerifier: 'tmr2.c / tmr4.c générés en TP3' },
+    { id: 'H33', texte: 'Monostable et one-shot : un front sur TMRx_ers pendant le comptage est ignoré ; le timer s’arrête à TMRx = 0 et lève TMRxIF à la première égalité TMRx = PRx (one-shot : TMRxON repasse à 0), puis attend le front suivant', commentVerifier: 'oscilloscope sur RC5 et une LED basculée dans IT_Timer2 (TP3 §2)' },
     { id: 'H29', texte: 'Avec STVREN = OFF, un débordement de pile met STKOVF à 1 sans reset et l’appel se poursuit normalement (la corruption des adresses de retour n’est pas simulée)', commentVerifier: 'datasheet DS40001802, « Stack Overflow/Underflow Reset »' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],

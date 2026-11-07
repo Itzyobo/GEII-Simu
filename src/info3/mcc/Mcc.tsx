@@ -5,9 +5,11 @@
  */
 import { useState } from 'react'
 import { INFO3 } from '../../data/reference'
-import { customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, setIoc, systemFosc, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator } from './config'
+import { addTimer, customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, removeTimer, setIoc, systemFosc, TIMER_IDS, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator, type TimerId } from './config'
 import GridView from './GridView'
 import { interruptTable, moveInterrupt, setInterruptEnabled } from './interrupts'
+import TimerPanel from './TimerPanel'
+import { timerGridRows } from './timers'
 
 export interface MccProps {
   config: MccConfig
@@ -18,7 +20,7 @@ export interface MccProps {
   dark?: boolean
 }
 
-type Resource = 'system' | 'pins' | 'interrupts'
+type Resource = 'system' | 'pins' | 'interrupts' | TimerId
 
 /** Interrupt Module : table « Interrupt Vector » (Order, Module, Interrupt, Enabled) */
 function InterruptPanel({ config, onChange, head }: { config: MccConfig; onChange(cfg: MccConfig): void; head: string }) {
@@ -93,6 +95,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
   const s = config.system
   const setSys = (patch: Partial<MccConfig['system']>) => onChange({ ...config, system: { ...s, ...patch } })
   const pins = [...config.pins].sort((a, b) => pinOrder(a.pin, b.pin))
+  const added = TIMER_IDS.filter((id) => config.timers?.[id])
 
   const panel = 'rounded-lg border border-[#c8c8c8] bg-white text-[#1e1e1e]'
   const head = 'border-b border-[#c8c8c8] bg-[#e8e8e8] px-2 py-1 text-xs font-semibold'
@@ -125,11 +128,50 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
                   </button>
                 </li>
               ))}
+              {added.length > 0 && <li className="px-1 pt-1 font-semibold">Peripherals</li>}
+              {added.map((id) => (
+                <li key={id} className="flex items-center">
+                  <button type="button" onClick={() => setRes(id)} aria-pressed={res === id} className={`flex-1 rounded px-3 py-0.5 text-left ${res === id ? 'bg-[#cfe2fb] font-semibold' : 'hover:bg-[#eef3fa]'}`}>
+                    {id}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Retirer ${id} du projet`}
+                    title={`Retirer ${id}`}
+                    onClick={() => {
+                      onChange(removeTimer(config, id))
+                      if (res === id) setRes('pins')
+                    }}
+                    className="px-1.5 text-[#b71c1c] hover:bg-[#ffebee]"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
           <div className={panel}>
             <div className={head}>Device Resources</div>
-            <p className="p-2 text-xs text-[#777]">Aucun périphérique à cette étape (TMR2, MSSP1, EUSART… aux étapes suivantes).</p>
+            <ul className="p-1 text-xs">
+              <li className="px-1 font-semibold">Timer</li>
+              {TIMER_IDS.map((id) => (
+                <li key={id} className="flex items-center justify-between px-3 py-0.5">
+                  <span>{id}</span>
+                  <button
+                    type="button"
+                    aria-label={`Ajouter ${id} au projet`}
+                    disabled={!!config.timers?.[id]}
+                    onClick={() => {
+                      onChange(addTimer(config, id))
+                      setRes(id)
+                    }}
+                    className="rounded border border-[#8a8a8a] bg-[#fafafa] px-1.5 font-semibold text-[#1b5e20] disabled:opacity-40"
+                  >
+                    +
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
           {message && (
             <p role="status" className={`rounded px-2 py-1 text-xs ring-1 ${message.ok ? 'bg-[#e8f5e9] text-[#1b5e20] ring-[#a5d6a7]' : 'bg-[#ffebee] text-[#b71c1c] ring-[#ef9a9a]'}`}>
@@ -142,6 +184,8 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
         <div className={`${panel} min-w-0`}>
           {res === 'interrupts' ? (
             <InterruptPanel config={config} onChange={onChange} head={head} />
+          ) : res.startsWith('TMR') ? (
+            <TimerPanel key={res} id={res as TimerId} config={config} onChange={onChange} head={head} field={field} />
           ) : res === 'system' ? (
             <>
               <div className={head}>System Module — Easy Setup</div>
@@ -277,6 +321,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
       </div>
 
       {/* Pin Manager: Grid View */}
-      <GridView config={config} onChange={onChange} />    </section>
+      <GridView config={config} onChange={onChange} extraRows={timerGridRows(config)} />
+    </section>
   )
 }

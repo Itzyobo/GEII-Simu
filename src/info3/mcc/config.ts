@@ -59,6 +59,66 @@ export interface MccConfig {
   interruptsDisabled?: string[]
   /** Interrupt Module : « Single ISR per interrupt » (coché par défaut) */
   singleIsr?: boolean
+  /** Timers ajoutés depuis Device Resources (TMR2, TMR4, TMR6) */
+  timers?: Partial<Record<TimerId, TimerConfig>>
+}
+
+/* ───────────── Timers 2, 4, 6 (Device Resources) ───────────── */
+
+export type TimerId = 'TMR2' | 'TMR4' | 'TMR6'
+export const TIMER_IDS: readonly TimerId[] = INFO3.timers.ids.map((n) => `TMR${n}` as TimerId)
+export const timerNumber = (id: TimerId) => Number(id.slice(3))
+
+export interface TimerConfig {
+  /** Hardware Settings */
+  enabled: boolean
+  controlMode: string
+  /** Libellé générique (« Starts on falling edge on {ers} ») */
+  startOption: string
+  /** Libellé générique (« T{n}CKIPPS pin ») */
+  ersSource: string
+  /** Timer Clock */
+  clockSource: string
+  clockSync: boolean
+  polarity: string
+  prescaler: number
+  prescalerSync: boolean
+  postscaler: number
+  /** Timer Period demandée — s */
+  periodS: number
+  /** Software Settings : Enable Timer Interrupt */
+  interrupt: boolean
+  /** Entrée TxIN choisie dans le Grid View (écrit TxINPPS) */
+  ersPin?: string
+}
+
+export const defaultTimerConfig = (): TimerConfig => ({ ...INFO3.timers.mccDefault })
+
+export function addTimer(cfg: MccConfig, id: TimerId): MccConfig {
+  if (cfg.timers?.[id]) return cfg
+  return { ...cfg, timers: { ...cfg.timers, [id]: defaultTimerConfig() } }
+}
+
+export function removeTimer(cfg: MccConfig, id: TimerId): MccConfig {
+  const timers = { ...cfg.timers }
+  delete timers[id]
+  return { ...cfg, timers }
+}
+
+export function updateTimer(cfg: MccConfig, id: TimerId, patch: Partial<TimerConfig>): MccConfig {
+  const cur = cfg.timers?.[id]
+  if (!cur) return cfg
+  return { ...cfg, timers: { ...cfg.timers, [id]: { ...cur, ...patch } } }
+}
+
+function parseTimer(x: unknown): TimerConfig | null {
+  if (!x || typeof x !== 'object') return null
+  const o = x as Record<string, unknown>
+  const d = defaultTimerConfig()
+  const out = { ...d } as unknown as Record<string, unknown>
+  for (const [k, v] of Object.entries(d)) if (typeof o[k] === typeof v) out[k] = o[k]
+  if (typeof o.ersPin === 'string' && /^R[A-E][0-7]$/.test(o.ersPin)) out.ersPin = o.ersPin
+  return out as unknown as TimerConfig
 }
 
 export const MCC_VERSION = 1 as const
@@ -152,6 +212,13 @@ export function parseMccConfig(x: unknown): MccConfig | null {
   const strList = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : undefined)
   const order = strList(o.interruptOrder)
   const disabled = strList(o.interruptsDisabled)
+  const timers: Partial<Record<TimerId, TimerConfig>> = {}
+  if (o.timers && typeof o.timers === 'object') {
+    for (const id of TIMER_IDS) {
+      const t = parseTimer((o.timers as Record<string, unknown>)[id])
+      if (t) timers[id] = t
+    }
+  }
   return {
     version: MCC_VERSION,
     system: { oscillator: s.oscillator, hfMHz: s.hfMHz, divider: s.divider, lvp: s.lvp },
@@ -160,5 +227,6 @@ export function parseMccConfig(x: unknown): MccConfig | null {
     ...(order ? { interruptOrder: order } : {}),
     ...(disabled ? { interruptsDisabled: disabled } : {}),
     ...(typeof o.singleIsr === 'boolean' ? { singleIsr: o.singleIsr } : {}),
+    ...(Object.keys(timers).length ? { timers } : {}),
   }
 }
