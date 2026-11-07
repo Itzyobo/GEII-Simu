@@ -14,6 +14,11 @@ export const MCC_TP1: Record<string, string> = Object.fromEntries(Object.entries
 /** Code des CR, indexé par identifiant (tp1/q3_3…) */
 export const CR_FIXTURES: Record<string, string> = Object.fromEntries(Object.entries(CR).map(([k, v]) => [k.replace('./cr/', '').replace(/\.c$/, ''), v]))
 
+const SOL = import.meta.glob('./solutions/**/*.c', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+
+/** Solutions de référence écrites pour le professeur virtuel (questions sans code dans le CR), par identifiant */
+export const SOLUTIONS: Record<string, string> = Object.fromEntries(Object.entries(SOL).map(([k, v]) => [k.replace('./solutions/', '').replace(/\.c$/, ''), v.replace(/\r\n/g, '\n')]))
+
 /** Projet complet : main.c d'abord, puis les fichiers MCC (sources .c compilées dans cet ordre) */
 export function project(main: string, mcc: Record<string, string> = MCC_TP1): Record<string, string> {
   return { 'main.c': main, ...mcc }

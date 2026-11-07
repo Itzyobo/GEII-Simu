@@ -26,6 +26,21 @@ export type InMsg =
   | { type: 'powerOff' }
   /** Horloge interne du Worker : temps réel écoulé depuis le tick précédent */
   | { type: 'tick'; wallMs: number }
+  /** Banc : mikroBUS où la carte Rotary est enfichée (appliqué au PIC courant et aux suivants) */
+  | { type: 'bench'; rotary: 'mikrobus1' | 'mikrobus2' | null }
+  /** Codeur : crans (signe = sens), rotation continue (crans/s, 0 = arrêt), bouton SW */
+  | { type: 'rotary'; action: 'turn'; detents: number }
+  | { type: 'rotary'; action: 'spin'; rate: number }
+  | { type: 'rotary'; action: 'sw'; pressed: boolean }
+  /** Analyseur logique : voies observées (broches RA0…, pseudo-voies ISR, TMRxIF) */
+  | { type: 'analyzer'; channels: string[] }
+
+/** Changement d'une voie de l'analyseur logique (t en s simulées) */
+export interface TraceChange {
+  ch: string
+  t: number
+  level: 0 | 1
+}
 
 export type OutputLevel = 'info' | 'warning' | 'error'
 
@@ -54,5 +69,7 @@ export type OutMsg =
   | { type: 'graded'; question: string; ok: boolean; messages: string[] }
   /** Inspecteur d'interruptions : GIE, PEIE, puis IE, IF et nombre d'appels par source */
   | { type: 'irq'; gie: number; peie: number; sources: { name: string; ie: number; flag: number; calls: number }[] }
+  /** Analyseur logique : changements des voies observées depuis l'image précédente ; `reset` = nouvelle origine des temps */
+  | { type: 'trace'; changes: TraceChange[]; reset: boolean }
   /** Diagnostic (mode libre) : lu dans les registres et pendant l'exécution */
   | { type: 'diag'; analogReads: string[]; inputWrites: string[]; fosc: number }

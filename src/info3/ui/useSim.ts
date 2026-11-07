@@ -2,9 +2,10 @@
  * Session de simulation côté fil principal. Le Worker n'est créé qu'au premier Build ou à la première
  * programmation (jamais au chargement de la page) : la page reste « réseau inactif » tant qu'on n'agit pas.
  */
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { createSimClient, type SimClient } from '../worker/client'
-import type { InMsg, OutMsg, Speed } from '../worker/protocol'
+import { INFO3 } from '../../data/reference'
+import type { InMsg, OutMsg, Speed, TraceChange } from '../worker/protocol'
 
 export type Output = Extract<OutMsg, { type: 'output' }>
 export type Snapshot = Extract<OutMsg, { type: 'snapshot' }>
@@ -89,6 +90,36 @@ export interface SimControls {
   grade(question: string, files: Record<string, string>): Promise<{ ok: boolean; messages: string[] }>
   log(line: Output): void
   clearOutput(): void
+  /** Banc : mikroBUS de la carte Rotary (envoyé au Worker dès qu'il existe) */
+  setBench(rotary: 'mikrobus1' | 'mikrobus2' | null): void
+  /** Codeur : crans, rotation continue, bouton SW */
+  rotary(msg: { action: 'turn'; detents: number } | { action: 'spin'; rate: number } | { action: 'sw'; pressed: boolean }): void
+  /** Analyseur logique : voies observées, changements reçus (tSim en s) */
+  setAnalyzer(channels: string[]): void
+  trace: TraceStore
+}
+
+/** Changements reçus par voie (plafonnés à INFO3.analyzer.maxChanges) */
+export class TraceStore {
+  private readonly data = new Map<string, TraceChange[]>()
+  version = 0
+  add(changes: TraceChange[], reset: boolean) {
+    if (reset) this.data.clear()
+    for (const c of changes) {
+      let a = this.data.get(c.ch)
+      if (!a) this.data.set(c.ch, (a = []))
+      a.push(c)
+      if (a.length > INFO3.analyzer.maxChanges) a.splice(0, a.length - INFO3.analyzer.maxChanges)
+    }
+    this.version++
+  }
+  get(ch: string): readonly TraceChange[] {
+    return this.data.get(ch) ?? []
+  }
+  clear() {
+    this.data.clear()
+    this.version++
+  }
 }
 
 export function useSim(): SimControls {
@@ -96,11 +127,18 @@ export function useSim(): SimControls {
   const client = useRef<SimClient | null>(null)
   const waiters = useRef<{ built: ((m: Extract<OutMsg, { type: 'built' }>) => void)[]; graded: Map<string, (m: Extract<OutMsg, { type: 'graded' }>) => void> }>({ built: [], graded: new Map() })
   const debugging = useRef(false)
+  const bench = useRef<'mikrobus1' | 'mikrobus2' | null>(null)
+  const channels = useRef<string[]>([])
+  const [traceStore] = useState(() => new TraceStore())
 
   const ensure = useCallback((): SimClient => {
     if (client.current) return client.current
     const c = createSimClient()
+    // Le Worker naît au premier Build ou Program : il reçoit l'état du banc et de l'analyseur
+    c.send({ type: 'bench', rotary: bench.current })
+    c.send({ type: 'analyzer', channels: channels.current })
     c.onMessage((m) => {
+      if (m.type === 'trace') traceStore.add(m.changes, m.reset)
       dispatch({ kind: 'msg', m })
       if (m.type === 'built') waiters.current.built.shift()?.(m)
       if (m.type === 'graded') {
@@ -111,7 +149,7 @@ export function useSim(): SimControls {
     })
     client.current = c
     return c
-  }, [])
+  }, [traceStore])
 
   useEffect(
     () => () => {
@@ -169,6 +207,16 @@ export function useSim(): SimControls {
     [send],
   )
 
+  const setBench = useCallback((r: 'mikrobus1' | 'mikrobus2' | null) => {
+    bench.current = r
+    client.current?.send({ type: 'bench', rotary: r })
+  }, [])
+  const rotary = useCallback((msg: Parameters<SimControls['rotary']>[0]) => client.current?.send({ type: 'rotary', ...msg }), [])
+  const setAnalyzer = useCallback((chs: string[]) => {
+    channels.current = chs
+    client.current?.send({ type: 'analyzer', channels: chs })
+  }, [])
+
   return {
     view,
     build,
@@ -193,5 +241,9 @@ export function useSim(): SimControls {
       }),
     log: (line) => dispatch({ kind: 'log', line }),
     clearOutput: () => dispatch({ kind: 'clear' }),
+    setBench,
+    rotary,
+    setAnalyzer,
+    trace: traceStore,
   }
 }

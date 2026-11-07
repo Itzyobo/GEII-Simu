@@ -3,11 +3,13 @@
  * Écran étroit : 4 onglets (Code, MCC, Banc, panneau latéral), sans défilement horizontal de la page.
  * Toutes les règles (Generate, verrouillage, programmation) viennent du modèle testé (project.ts).
  */
-import { lazy, Suspense, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import Board from '../board/Board'
+import RotaryControl from '../board/RotaryControl'
 import InterruptInspector from './InterruptInspector'
+import LogicAnalyzer from './LogicAnalyzer'
 import Ide, { type Breakpoint } from '../ide/Ide'
-import { programCheck, projectFiles, runGenerate, setCard, setUsbBlack, setUsbWhite, type Project, type Result } from '../project/project'
+import { programCheck, projectFiles, runGenerate, setCard, setUsbBlack, setUsbWhite, type Project, type Result, type SlotId } from '../project/project'
 import { useSim, type SimControls } from './useSim'
 
 const Mcc = lazy(() => import('../mcc/Mcc'))
@@ -22,12 +24,22 @@ export interface WorkbenchProps {
   side(ctx: { sim: SimControls }): ReactNode
   /** Contenu ajouté sous le banc (Faire vérifier…) */
   benchExtra?: ReactNode
+  /** Voies proposées au départ par l'analyseur logique */
+  analyzerChannels?: string[]
   dark: boolean
   onDarkChange(dark: boolean): void
 }
 
-export default function Workbench({ project, onProject, sideLabel, side, benchExtra, dark, onDarkChange }: WorkbenchProps) {
+const SLOT_NAMES: Record<SlotId, string> = { mikrobus1: 'mikroBUS 1', mikrobus2: 'mikroBUS 2' }
+const DEFAULT_CHANNELS = ['RA4', 'RB4', 'RC5', 'ISR']
+
+export default function Workbench({ project, onProject, sideLabel, side, benchExtra, analyzerChannels = DEFAULT_CHANNELS, dark, onDarkChange }: WorkbenchProps) {
   const sim = useSim()
+  const rotarySlot = (Object.keys(project.bench.slots) as SlotId[]).find((s) => project.bench.slots[s] === 'rotary') ?? null
+  const { setBench } = sim
+  useEffect(() => {
+    setBench(rotarySlot)
+  }, [rotarySlot, setBench])
   const [tab, setTab] = useState<Tab>('code')
   const [main, setMain] = useState<'code' | 'mcc'>('code')
   const [benchMsg, setBenchMsg] = useState<string | null>(null)
@@ -159,9 +171,17 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               onUsbWhite={(v) => apply(setUsbWhite(project, v))}
               onCard={(slot, card) => apply(setCard(project, slot, card))}
             />
+            {rotarySlot && (
+              <div className="mt-2">
+                <RotaryControl slotLabel={SLOT_NAMES[rotarySlot]} onTurn={(n) => sim.rotary({ action: 'turn', detents: n })} onSpin={(r) => sim.rotary({ action: 'spin', rate: r })} onSw={(p) => sim.rotary({ action: 'sw', pressed: p })} />
+              </div>
+            )}
             {benchExtra}
             <div className="mt-2">
               <InterruptInspector irq={powered ? sim.view.irq : null} mcc={project.mcc} />
+            </div>
+            <div className="mt-2">
+              <LogicAnalyzer sim={sim} defaults={analyzerChannels} />
             </div>
           </div>
           <div className={on('side')}>{side({ sim })}</div>

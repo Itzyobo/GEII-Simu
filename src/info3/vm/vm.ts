@@ -16,6 +16,15 @@ import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
 import { foscFromRegisters, hfintoscFromRegister } from '../models/clock'
 import { Timer246, timerClockHz, type TimerReg } from '../models/timer246'
+import { Ec12d } from '../models/ec12d'
+
+export type RotarySlot = 'mikrobus1' | 'mikrobus2'
+/** Changement d'une pseudo-voie de l'analyseur logique (ISR, TMRxIF) */
+export interface ProbeChange {
+  name: string
+  t: number
+  level: Level
+}
 import { SfrBus } from './bus'
 import { EventQueue } from './events'
 import { formatPrintf } from './printf'
@@ -104,8 +113,10 @@ export class Vm {
     this.rng = mulberry32(opts.seed ?? INFO3.vm.defaultSeed)
     this.bus = new SfrBus(this.mem, this.gpio, () => this.t, () => (this.irqDirty = true))
     const clockRegs = new Set([this.bus.addrOf.OSCCON1, this.bus.addrOf.OSCFRQ])
+    const pir4 = this.bus.addrOf[INFO3.timers.irq.flag]
     this.bus.onPlainWrite = (addr) => {
       if (clockRegs.has(addr)) this.updateClock()
+      else if (addr === pir4) this.probePir4()
     }
     this.bus.onInputWrite = (port, mask) => {
       for (let b = 0; b < INFO3.c.bitsPerByte; b++) if (mask & (1 << b)) this.inputWrites.add(`R${port}${b}`)
@@ -168,6 +179,100 @@ export class Vm {
 
   private readonly ersPps: Record<number, number> = {}
 
+  /* ═════════════ Carte ROTARY O click (codeur EC12D) ═════════════ */
+
+  readonly encoder = new Ec12d()
+  rotarySlot: RotarySlot | null = null
+  private rotaryPins: { A: string; B: string; SW: string } | null = null
+  /** Fin du dernier pas programmé (ticks) : les pas demandés s'enchaînent */
+  private rotaryBusyUntil = 0
+  private spinRate = 0
+  private spinGen = 0
+
+  /** Broches du codeur selon le mikroBUS (ENCA → PWM, ENCB → AN, SW → INT : H35) */
+  static rotaryPinsOf(slot: RotarySlot): { A: string; B: string; SW: string } {
+    const bus = INFO3.pins[slot] as Record<string, string>
+    const w = INFO3.rotary.wiring
+    return { A: bus[w.ENCA], B: bus[w.ENCB], SW: bus[w.SW] }
+  }
+
+  /** Enfiche (ou retire) la carte Rotary : ses sorties pilotent les broches du mikroBUS choisi */
+  setRotarySlot(slot: RotarySlot | null) {
+    if (this.rotaryPins) for (const p of Object.values(this.rotaryPins)) this.gpio.setExternal(p, null, this.t)
+    this.rotarySlot = slot
+    this.rotaryPins = slot ? Vm.rotaryPinsOf(slot) : null
+    this.driveRotary()
+  }
+
+  private driveRotary() {
+    const p = this.rotaryPins
+    if (!p) return
+    this.gpio.setExternal(p.A, this.encoder.a, this.t)
+    this.gpio.setExternal(p.B, this.encoder.b, this.t)
+    this.gpio.setExternal(p.SW, (1 - INFO3.rotary.swActiveLevel) as Level, this.t)
+  }
+
+  /** Tourne de `detents` crans (signe = sens), un cran toutes les `stepS` secondes au plus vite */
+  turn(detents: number, stepS = 2 * INFO3.rotary.phaseDelayS, at = this.t) {
+    const dir = detents < 0 ? -1 : 1
+    const stepTicks = Math.max(stepS, 2 * INFO3.rotary.phaseDelayS) * CLK.timeBaseHz
+    let start = Math.max(at, this.rotaryBusyUntil)
+    for (let i = 0; i < Math.abs(detents); i++) {
+      for (const e of this.encoder.step(dir)) {
+        const pin = this.rotaryPins?.[e.channel]
+        if (pin) this.setExternal(pin, e.level, Math.round(start + e.dt * CLK.timeBaseHz))
+      }
+      start += stepTicks
+    }
+    this.rotaryBusyUntil = start
+  }
+
+  /** Rotation continue : `rate` crans/s (signe = sens), 0 = arrêt */
+  spin(rate: number) {
+    this.spinRate = rate
+    const g = ++this.spinGen
+    if (!rate) return
+    const next = () => {
+      if (g !== this.spinGen) return
+      this.turn(Math.sign(rate), 1 / Math.abs(rate))
+      this.events.pushFn(this.rotaryBusyUntil, next)
+    }
+    this.events.pushFn(Math.max(this.t, this.rotaryBusyUntil), next)
+  }
+
+  /** Bouton SW du codeur (non utilisé aux TP2 et TP3) */
+  rotarySw(pressed: boolean) {
+    const lvl = INFO3.rotary.swActiveLevel
+    if (this.rotaryPins) this.gpio.setExternal(this.rotaryPins.SW, (pressed ? lvl : 1 - lvl) as Level, this.t)
+  }
+
+  /* ═════════════ Sondes de l'analyseur logique (ISR, TMRxIF) ═════════════ */
+
+  private probeListeners: ((p: ProbeChange) => void)[] = []
+  private lastPir4 = 0
+
+  onProbe(cb: (p: ProbeChange) => void): () => void {
+    this.probeListeners.push(cb)
+    return () => {
+      this.probeListeners = this.probeListeners.filter((l) => l !== cb)
+    }
+  }
+
+  private probe(name: string, level: Level) {
+    for (const cb of this.probeListeners) cb({ name, t: this.t, level })
+  }
+
+  private probePir4() {
+    const v = this.mem[this.bus.addrOf[INFO3.timers.irq.flag]]
+    const changed = v ^ this.lastPir4
+    this.lastPir4 = v
+    if (!changed || !this.probeListeners.length) return
+    for (const n of INFO3.timers.ids) {
+      const b = this.bus.bit(INFO3.timers.irq.flag, `TMR${n}IF`)
+      if (changed & b.mask) this.probe(`TMR${n}IF`, v & b.mask ? 1 : 0)
+    }
+  }
+
   /** Tcy par seconde à l'horloge courante */
   get fcy() {
     return this.fosc / CLK.foscPerTcy
@@ -196,6 +301,10 @@ export class Vm {
   reset() {
     this.t = 0
     this.events.clear()
+    // Le codeur ne bouge pas : ses sorties reprennent le niveau du cran courant, la rotation continue repart
+    this.rotaryBusyUntil = 0
+    this.driveRotary()
+    if (this.spinRate) this.spin(this.spinRate)
     this.gpio.trace = []
     this.halted = null
     this.analogReads.clear()
@@ -218,6 +327,7 @@ export class Vm {
   /** Reset du cœur (POR ou débordement de pile) : SFR au reset, variables globales initialisées, pc = main */
   private cpuReset(keep: Record<string, number> = {}) {
     this.bus.reset(keep)
+    this.lastPir4 = 0
     for (const tm of Object.values(this.timers)) tm.reset()
     this.updateClock()
     this.gpio.reset()
@@ -649,6 +759,7 @@ export class Vm {
     const meta = p.funcs[p.isrIndex]
     this.frames.push({ retPc: this.pc, fp: this.fp, dsp: this.dsp, isr: true, delay: this.delayLeft })
     this.delayLeft = 0
+    if (this.probeListeners.length) this.probe('ISR', 1)
     this.bus.writeBit(IRQ.gie.sfr, IRQ.gie.bit, 0)
     const lat = CPU.interruptLatencyTcy
     // Latence 3 à 5 Tcy selon la phase de l'instruction en cours (déterministe)
@@ -905,6 +1016,7 @@ export class Vm {
           this.pc = f.retPc
           this.delayLeft = f.delay
           this.bus.writeBit(IRQ.gie.sfr, IRQ.gie.bit, 1)
+          if (this.probeListeners.length) this.probe('ISR', 0)
           break
         }
         case Op.INCDEC: {

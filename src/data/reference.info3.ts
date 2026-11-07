@@ -347,6 +347,32 @@ export const INFO3 = {
     irq: { flag: 'PIR4', enable: 'PIE4' },
     hyp: ['H18', 'H31', 'H32', 'H33'],
   },
+  /** Codeur EC12D de la carte ROTARY O click (CR TP2) */
+  rotary: {
+    /** Crans par tour et impulsions par tour et par voie (CR TP2 §2.1) */
+    detentsPerTurn: 30,
+    pulsesPerTurn: 15,
+    /** Entre deux crans, la seconde voie bascule après la première — s (H35) */
+    phaseDelayS: 2e-3,
+    /** Rotation continue proposée — crans/s */
+    spinRate: { min: 1, max: 10 },
+    /** Signaux du mikroBUS reliés au codeur (annexe 3 : ENCA → PWM, ENCB → AN, SW → INT) — H35 */
+    wiring: { ENCA: 'PWM', ENCB: 'AN', SW: 'INT' },
+    /** SW : tirage 10 kΩ vers la masse, 1 = appuyé */
+    swActiveLevel: 1,
+    hyp: ['H9', 'H35'],
+  },
+  /** Analyseur logique du banc */
+  analyzer: {
+    channels: 4,
+    /** Bases de temps — s/div (1 µs à 1 s, suite 1-2-5) */
+    timebases: [1e-6, 2e-6, 5e-6, 1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 0.1, 0.2, 0.5, 1],
+    divisions: 10,
+    /** Changements conservés par voie (limite du simulateur) */
+    maxChanges: 20000,
+    /** Pseudo-voies : CPU dans l'ISR, drapeaux d'interruption des timers */
+    probes: ['ISR', 'TMR2IF', 'TMR4IF', 'TMR6IF'],
+  },
   /** TP3 : cahier des charges utilisé par le professeur virtuel */
   tp3: {
     /** §1 : période du clignotement attendue — s (1 s ± 1 %) */
@@ -432,6 +458,7 @@ export const INFO3 = {
     { id: 'H31', texte: 'Monostable « Starts on falling edge on TMR2_ers » : T2HLT = 0x12 (MODE = 10010) ; « any edge » : 0x13 ; adresses de TMR2/4/6 et de T2INPPS, codes CS autres que FOSC/4 et LFINTOSC d’après le datasheet', commentVerifier: 'tmr2.c généré en TP3 §2 ; datasheet DS40001802 « Timer2 Operating Modes »' },
     { id: 'H32', texte: 'Fonctions de tmrX.c (Start/StartTimer, Stop/StopTimer, Counter8BitGet/ReadTimer, Counter8BitSet/WriteTimer, Period8BitSet/LoadPeriodRegister, HasPeriodElapsed sans interruption) reconstituées au format MCC 1.81 ; seuls les noms et rôles sont garantis (ModeSet et ExtResetSourceSet non générés)', commentVerifier: 'tmr2.c / tmr4.c générés en TP3' },
     { id: 'H33', texte: 'Monostable et one-shot : un front sur TMRx_ers pendant le comptage est ignoré ; le timer s’arrête à TMRx = 0 et lève TMRxIF à la première égalité TMRx = PRx (one-shot : TMRxON repasse à 0), puis attend le front suivant', commentVerifier: 'oscilloscope sur RC5 et une LED basculée dans IT_Timer2 (TP3 §2)' },
+    { id: 'H35', texte: 'ROTARY O click : ENCA sur PWM, ENCB sur AN, SW sur INT du mikroBUS (mikroBUS 2 : RD1, RA2, RB0) ; entre deux crans la seconde voie bascule 2 ms après la première ; sorties franches, sans rebond', commentVerifier: 'annexe 3 et oscilloscope sur ENCA / ENCB en TP2' },
     { id: 'H29', texte: 'Avec STVREN = OFF, un débordement de pile met STKOVF à 1 sans reset et l’appel se poursuit normalement (la corruption des adresses de retour n’est pas simulée)', commentVerifier: 'datasheet DS40001802, « Stack Overflow/Underflow Reset »' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],

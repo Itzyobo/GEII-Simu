@@ -9,8 +9,8 @@ import type { Program } from '../compiler/bytecode'
 import { formatDiagnostic } from '../compiler/diagnostics'
 import { ALL_PINS, type Level } from '../models/gpio'
 import { gradeTp1, TP1_CHALLENGES, type Tp1Challenge } from '../prof/tp1'
-import { Vm } from '../vm/vm'
-import type { InMsg, OutMsg, WatchRow } from './protocol'
+import { Vm, type RotarySlot } from '../vm/vm'
+import type { InMsg, OutMsg, TraceChange, WatchRow } from './protocol'
 
 const LEDS = INFO3.pins.leds.map((l) => ({ name: l.name, pin: l.pin }))
 const FRAME_MS = INFO3.units.msPerS / INFO3.vm.frameRateHz
@@ -41,13 +41,47 @@ export interface SimState {
   lastDiag: string
   /** Dernier état de l'inspecteur d'interruptions envoyé */
   lastIrq: string
+  /** Carte Rotary : mikroBUS choisi sur le banc */
+  rotary: RotarySlot | null
+  /** Analyseur logique : voies observées et changements en attente d'envoi */
+  channels: Set<string>
+  trace: TraceChange[]
+  traceReset: boolean
 }
 
 export function createSimState(now: () => number = () => performance.now()): SimState {
-  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '' }
+  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, channels: new Set(), trace: [], traceReset: false }
+}
+
+const PROBES = new Set<string>(INFO3.analyzer.probes)
+
+function pushTrace(state: SimState, ch: string, t: number, level: Level) {
+  if (!state.channels.has(ch)) return
+  state.trace.push({ ch, t, level })
+  // Retard d'affichage : seules les dernières modifications sont gardées
+  const max = INFO3.analyzer.maxChanges * INFO3.analyzer.channels
+  if (state.trace.length > max) state.trace.splice(0, state.trace.length - max)
+}
+
+/** Niveaux actuels des voies observées (point de départ des tracés) */
+function traceLevels(state: SimState) {
+  const vm = state.vm
+  if (!vm) return
+  for (const ch of state.channels) {
+    if (PROBES.has(ch)) {
+      const level: Level = ch === 'ISR' ? 0 : vm.bus.readBit(INFO3.timers.irq.flag, ch)
+      pushTrace(state, ch, vm.timeS, level)
+    } else pushTrace(state, ch, vm.timeS, vm.getPin(ch))
+  }
 }
 
 function attach(state: SimState, vm: Vm) {
+  vm.setRotarySlot(state.rotary)
+  vm.onPinChange((c) => pushTrace(state, c.pin, vm.toS(c.t), c.level))
+  vm.onProbe((p) => pushTrace(state, p.name, vm.toS(p.t), p.level))
+  state.trace = []
+  state.traceReset = true
+  traceLevels(state)
   vm.onOutput((l) => state.queue.push({ type: 'output', level: l.level, text: l.text, file: l.file, line: l.line, col: l.col }))
   vm.onPinChange((c) => {
     if (!(c.pin in state.ledLevel)) return
@@ -94,6 +128,11 @@ export function makeFrame(state: SimState, out: OutMsg[]): void {
   }
   state.frameStartT = vm.t
   out.push({ type: 'frame', tSim: vm.timeS, pinsDiff, ledDuty })
+  if (state.trace.length || state.traceReset) {
+    out.push({ type: 'trace', changes: state.trace, reset: state.traceReset })
+    state.trace = []
+    state.traceReset = false
+  }
   const diag = { type: 'diag' as const, analogReads: [...vm.analogReads].sort(), inputWrites: [...vm.inputWrites].sort(), fosc: vm.fosc }
   const key = JSON.stringify(diag)
   if (key !== state.lastDiag) {
@@ -221,6 +260,9 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
       if (!vm) return out
       state.running = false
       vm.reset()
+      state.trace = []
+      state.traceReset = true
+      traceLevels(state)
       resetMeasures(state, vm)
       makeFrame(state, out)
       stopped(vm, out)
@@ -246,6 +288,29 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
       if (!vm || !(msg.button in vm.buttons)) return out
       if (msg.action === 'press') vm.press(msg.button, msg.bounce)
       else vm.release(msg.button, msg.bounce)
+      return out
+    }
+    case 'bench':
+      state.rotary = msg.rotary
+      state.vm?.setRotarySlot(msg.rotary)
+      return out
+    case 'rotary': {
+      const vm = state.vm
+      if (!vm) return out
+      if (msg.action === 'turn') vm.turn(msg.detents)
+      else if (msg.action === 'spin') vm.spin(msg.rate)
+      else vm.rotarySw(msg.pressed)
+      return out
+    }
+    case 'analyzer': {
+      const added = msg.channels.filter((c) => !state.channels.has(c))
+      state.channels = new Set(msg.channels)
+      if (added.length && state.vm) {
+        const keep = state.channels
+        state.channels = new Set(added)
+        traceLevels(state)
+        state.channels = keep
+      }
       return out
     }
     case 'breakpoint': {
