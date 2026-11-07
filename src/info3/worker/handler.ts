@@ -39,10 +39,12 @@ export interface SimState {
   debtMs: number
   /** Dernier Diagnostic envoyé (clé de comparaison) */
   lastDiag: string
+  /** Dernier état de l'inspecteur d'interruptions envoyé */
+  lastIrq: string
 }
 
 export function createSimState(now: () => number = () => performance.now()): SimState {
-  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '' }
+  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '' }
 }
 
 function attach(state: SimState, vm: Vm) {
@@ -61,6 +63,7 @@ function resetMeasures(state: SimState, vm: Vm) {
   state.lastPins = {}
   state.lastDuty = {}
   state.lastDiag = ''
+  state.lastIrq = ''
   for (const l of LEDS) {
     state.ledHigh[l.pin] = 0
     state.ledLevel[l.pin] = vm.getPin(l.pin)
@@ -96,6 +99,12 @@ export function makeFrame(state: SimState, out: OutMsg[]): void {
   if (key !== state.lastDiag) {
     state.lastDiag = key
     out.push(diag)
+  }
+  const irq = { type: 'irq' as const, ...vm.irqStatus() }
+  const irqKey = JSON.stringify(irq)
+  if (irqKey !== state.lastIrq) {
+    state.lastIrq = irqKey
+    out.push(irq)
   }
 }
 

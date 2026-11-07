@@ -158,6 +158,7 @@ export class Vm {
     this.gpio.trace = []
     this.halted = null
     this.analogReads.clear()
+    for (const k of Object.keys(this.irqCalls)) delete this.irqCalls[k]
     this.inputWrites.clear()
     this.powerOn()
   }
@@ -527,6 +528,44 @@ export class Vm {
 
   /* ═════════════ Interruptions ═════════════ */
 
+  /** Inspecteur d'interruptions : nombre d'entrées en ISR attribuées à chaque source (IE·IF au moment de l'entrée) */
+  readonly irqCalls: Record<string, number> = {}
+
+  private countIrqSources() {
+    const peie = this.bus.readBit(IRQ.peie.sfr, IRQ.peie.bit) === 1
+    const pairs = [...IRQ.firstLevel, ...(peie ? IRQ.peripheral : [])]
+    for (const [ie, iflag] of pairs) {
+      const pending = this.bus.read(this.bus.addrOf[ie]) & this.bus.read(this.bus.addrOf[iflag])
+      if (!pending) continue
+      const bits = (INFO3.sfr as Record<string, { bits: readonly (string | null)[] }>)[iflag].bits
+      bits.forEach((b, i) => {
+        if (b && pending & (1 << i)) {
+          const name = b.replace(/IF$/, '')
+          this.irqCalls[name] = (this.irqCalls[name] ?? 0) + 1
+        }
+      })
+    }
+  }
+
+  /** État des interruptions : GIE, PEIE et, par source dont IE, IF ou un appel est non nul, IE, IF, appels */
+  irqStatus(): { gie: number; peie: number; sources: { name: string; ie: number; flag: number; calls: number }[] } {
+    const sources: { name: string; ie: number; flag: number; calls: number }[] = []
+    for (const [ie, iflag] of [...IRQ.firstLevel, ...IRQ.peripheral]) {
+      const bits = (INFO3.sfr as Record<string, { bits: readonly (string | null)[] }>)[iflag].bits
+      const ieV = this.bus.read(this.bus.addrOf[ie])
+      const ifV = this.bus.read(this.bus.addrOf[iflag])
+      bits.forEach((b, i) => {
+        if (!b) return
+        const name = b.replace(/IF$/, '')
+        const e = (ieV >> i) & 1
+        const f = (ifV >> i) & 1
+        const calls = this.irqCalls[name] ?? 0
+        if (e || f || calls) sources.push({ name, ie: e, flag: f, calls })
+      })
+    }
+    return { gie: this.bus.readBit(IRQ.gie.sfr, IRQ.gie.bit), peie: this.bus.readBit(IRQ.peie.sfr, IRQ.peie.bit), sources }
+  }
+
   /** Registres IOCxP, IOCxN, IOCxF par port (A, B, C, E) */
   private readonly iocRegs: Record<string, { P: number; N: number; F: number }> = {}
 
@@ -564,6 +603,7 @@ export class Vm {
       return
     }
     if (this.frames.length >= CPU.hwStackDepth && this.stackOverflow()) return
+    this.countIrqSources()
     const meta = p.funcs[p.isrIndex]
     this.frames.push({ retPc: this.pc, fp: this.fp, dsp: this.dsp, isr: true, delay: this.delayLeft })
     this.delayLeft = 0

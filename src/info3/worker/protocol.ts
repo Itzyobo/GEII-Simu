@@ -52,5 +52,7 @@ export type OutMsg =
   | { type: 'stopped'; file?: string; line?: number }
   | { type: 'snapshot'; func: string | null; locals: WatchRow[]; globals: WatchRow[]; sfrs: WatchRow[] }
   | { type: 'graded'; question: string; ok: boolean; messages: string[] }
+  /** Inspecteur d'interruptions : GIE, PEIE, puis IE, IF et nombre d'appels par source */
+  | { type: 'irq'; gie: number; peie: number; sources: { name: string; ie: number; flag: number; calls: number }[] }
   /** Diagnostic (mode libre) : lu dans les registres et pendant l'exécution */
   | { type: 'diag'; analogReads: string[]; inputWrites: string[]; fosc: number }

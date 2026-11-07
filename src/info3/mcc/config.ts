@@ -53,6 +53,12 @@ export interface MccConfig {
   pins: PinConfig[]
   /** Boîtier du Pin Manager : Grid View (UQFN40 par défaut, comme sur les captures du CR) */
   package?: PackageName
+  /** Interrupt Module : ordre de la table Interrupt Vector (identifiants de source) */
+  interruptOrder?: string[]
+  /** Interrupt Module : sources décochées dans la colonne Enabled */
+  interruptsDisabled?: string[]
+  /** Interrupt Module : « Single ISR per interrupt » (coché par défaut) */
+  singleIsr?: boolean
 }
 
 export const MCC_VERSION = 1 as const
@@ -143,5 +149,16 @@ export function parseMccConfig(x: unknown): MccConfig | null {
     pins.push({ pin: q.pin, direction: q.direction, customName: q.customName, startHigh: !!q.startHigh, analog: !!q.analog, wpu: !!q.wpu, od: !!q.od, ...ioc })
   }
   const pkg = typeof o.package === 'string' && o.package in INFO3.mcc.packages ? (o.package as PackageName) : undefined
-  return { version: MCC_VERSION, system: { oscillator: s.oscillator, hfMHz: s.hfMHz, divider: s.divider, lvp: s.lvp }, pins, ...(pkg ? { package: pkg } : {}) }
+  const strList = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : undefined)
+  const order = strList(o.interruptOrder)
+  const disabled = strList(o.interruptsDisabled)
+  return {
+    version: MCC_VERSION,
+    system: { oscillator: s.oscillator, hfMHz: s.hfMHz, divider: s.divider, lvp: s.lvp },
+    pins,
+    ...(pkg ? { package: pkg } : {}),
+    ...(order ? { interruptOrder: order } : {}),
+    ...(disabled ? { interruptsDisabled: disabled } : {}),
+    ...(typeof o.singleIsr === 'boolean' ? { singleIsr: o.singleIsr } : {}),
+  }
 }

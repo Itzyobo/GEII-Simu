@@ -35,7 +35,7 @@ const rotr4 = (m: number) => ((m >> 1) | (m << 3)) & MASK4
 const ledWords = (vm: Vm) => busValues(vm.gpio.trace, LED_PINS)
 
 describe('fixtures du CR TP1 : compilation', () => {
-  it.each(Object.keys(CR_FIXTURES))('%s compile sans erreur avec mcc-tp1', (id) => {
+  it.each(Object.keys(CR_FIXTURES).filter((id) => id.startsWith('tp1/')))('%s compile sans erreur avec mcc-tp1', (id) => {
     const r = compile(crProject(id))
     expect(r.diagnostics.filter((d) => d.severity === 'error').map(formatDiagnostic)).toEqual([])
     expect(r.ok).toBe(true)

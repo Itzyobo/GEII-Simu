@@ -8,7 +8,7 @@ Mis à jour à chaque bloc terminé. Étape en cours : **3** (TP2 + TP3). Étape
 | --- | --- | --- |
 | B0 | fait | Grid View au boîtier UQFN40 par défaut (numéros des captures du CR), PDIP40 au menu Package ; lignes OSC/CLKOUT (RA6), GPIO input/output, RESET/MCLR (RE3 verrouillée) ; bleu/vert/orange ; deux fonctions par broche ; « Selected Package : UQFN40 » |
 | B1 | fait | IOC : modèle `ioc` (fronts selon IOCxP/IOCxN, ignorés en analogique), IOCIF en lecture seule = OU des IOCxF, colonne IOC de Pin Module (grisée sur le port D), code généré (registres, handlers, PIE0bits.IOCIE, PIN_MANAGER_IOC, ISR/Set/Default) ; format = H34 |
-| B2 | à faire | Interrupt Module, interrupt_manager, inspecteur |
+| B2 | fait | Interrupt Module (Interrupt Vector : Order Up/Down, Single ISR per interrupt, table Order/Module/Interrupt/Enabled), interrupt_manager.c/.h (cours p. 39, macros Global/Peripheral Enable/Disable, include dans mcc.h), ordre à plusieurs sources = H30 ; inspecteur d'interruptions (GIE, PEIE, IE, IF, ordre, appels) ; fixtures du CR TP2/TP3 copiées telles quelles ; test 5 (tp2/q1_1 : 20 appuis → 4, rebonds → au moins un +2, GIE commenté → 0 interruption) |
 | B3 | à faire | TMR2/4/6 (MCC, code généré, modèle timer246) |
 | B4 | à faire | Carte Rotary (ec12d), analyseur logique |
 | B5 | à faire | Pages /info3/tp2 et /info3/tp3, questions, fixtures, Faire vérifier |

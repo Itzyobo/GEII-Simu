@@ -9,6 +9,7 @@ import type { InMsg, OutMsg, Speed } from '../worker/protocol'
 export type Output = Extract<OutMsg, { type: 'output' }>
 export type Snapshot = Extract<OutMsg, { type: 'snapshot' }>
 export type Diag = Extract<OutMsg, { type: 'diag' }>
+export type IrqView = Extract<OutMsg, { type: 'irq' }>
 export type RunMode = 'off' | 'running' | 'debug-running' | 'debug-stopped' | 'halted'
 
 export interface SimView {
@@ -21,11 +22,13 @@ export interface SimView {
   stoppedAt: { file?: string; line?: number } | null
   snapshot: Snapshot | null
   diag: Diag | null
+  /** Inspecteur d'interruptions */
+  irq: IrqView | null
   /** Le programme chargé dans le PIC correspond au dernier Build réussi */
   programmed: boolean
 }
 
-const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, programmed: false }
+const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, irq: null, programmed: false }
 
 type Action = { kind: 'msg'; m: OutMsg } | { kind: 'clear' } | { kind: 'mode'; mode: RunMode } | { kind: 'log'; line: Output } | { kind: 'off' }
 
@@ -59,6 +62,8 @@ function reducer(s: SimView, a: Action): SimView {
           return { ...s, snapshot: m }
         case 'diag':
           return { ...s, diag: m }
+        case 'irq':
+          return { ...s, irq: m }
         case 'built':
           return { ...s, programmed: m.loaded ? m.ok : s.programmed }
         default:

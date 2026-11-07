@@ -5,6 +5,7 @@
  */
 import { lazy, Suspense, useRef, useState, type ReactNode } from 'react'
 import Board from '../board/Board'
+import InterruptInspector from './InterruptInspector'
 import Ide, { type Breakpoint } from '../ide/Ide'
 import { programCheck, projectFiles, runGenerate, setCard, setUsbBlack, setUsbWhite, type Project, type Result } from '../project/project'
 import { useSim, type SimControls } from './useSim'
@@ -159,6 +160,9 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               onCard={(slot, card) => apply(setCard(project, slot, card))}
             />
             {benchExtra}
+            <div className="mt-2">
+              <InterruptInspector irq={powered ? sim.view.irq : null} mcc={project.mcc} />
+            </div>
           </div>
           <div className={on('side')}>{side({ sim })}</div>
         </div>

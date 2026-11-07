@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { INFO3 } from '../../data/reference'
 import { customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, setIoc, systemFosc, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator } from './config'
 import GridView from './GridView'
+import { interruptTable, moveInterrupt, setInterruptEnabled } from './interrupts'
 
 export interface MccProps {
   config: MccConfig
@@ -17,7 +18,65 @@ export interface MccProps {
   dark?: boolean
 }
 
-type Resource = 'system' | 'pins'
+type Resource = 'system' | 'pins' | 'interrupts'
+
+/** Interrupt Module : table « Interrupt Vector » (Order, Module, Interrupt, Enabled) */
+function InterruptPanel({ config, onChange, head }: { config: MccConfig; onChange(cfg: MccConfig): void; head: string }) {
+  const rows = interruptTable(config)
+  const [sel, setSel] = useState<string | null>(null)
+  const current = rows.find((r) => r.id === sel) ?? null
+  return (
+    <>
+      <div className={head}>Interrupt Module — Interrupt Vector</div>
+      <div className="space-y-2 p-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={!current || current.order === 1} onClick={() => current && onChange(moveInterrupt(config, current.id, -1))} className="rounded border border-[#8a8a8a] bg-[#fafafa] px-2 py-0.5 disabled:opacity-40">
+            Order Up
+          </button>
+          <button type="button" disabled={!current || current.order === rows.length} onClick={() => current && onChange(moveInterrupt(config, current.id, 1))} className="rounded border border-[#8a8a8a] bg-[#fafafa] px-2 py-0.5 disabled:opacity-40">
+            Order Down
+          </button>
+          <label className="ml-auto flex items-center gap-1.5">
+            <input type="checkbox" checked={config.singleIsr ?? true} onChange={(e) => onChange({ ...config, singleIsr: e.target.checked })} /> Single ISR per interrupt
+          </label>
+        </div>
+        <div className="max-w-full overflow-x-auto">
+          <table className="w-full min-w-[24rem] text-left">
+            <thead className="bg-[#f5f5f5]">
+              <tr>
+                {['Order', 'Module', 'Interrupt', 'Enabled'].map((h) => (
+                  <th key={h} className="border-b border-[#ddd] px-2 py-1 font-semibold">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-2 py-2 text-[#777]">
+                    Aucune interruption : activer une IOC (Pin Module) ou « Enable Timer Interrupt » (TMRx).
+                  </td>
+                </tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r.id} onClick={() => setSel(r.id)} aria-selected={sel === r.id} className={`cursor-pointer border-b border-[#eee] ${sel === r.id ? 'bg-[#cfe2fb]' : ''}`}>
+                  <td className="px-2 py-1 tabular-nums">{r.order}</td>
+                  <td className="px-2 py-1">{r.module}</td>
+                  <td className="px-2 py-1">{r.interrupt}</td>
+                  <td className="px-2 py-1">
+                    <input type="checkbox" aria-label={`Enabled ${r.module} ${r.interrupt}`} checked={r.enabled} onChange={(e) => onChange(setInterruptEnabled(config, r.id, e.target.checked))} onClick={(e) => e.stopPropagation()} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[#777]">Le gestionnaire teste d’abord les sources de premier niveau (IOC), puis, si PEIE = 1, les périphériques dans l’ordre de la table (H30).</p>
+      </div>
+    </>
+  )
+}
 const fmtHz = (hz: number) => (hz >= 1e6 ? `${hz / 1e6} MHz` : hz >= 1e3 ? `${(hz / 1e3).toLocaleString('fr-FR')} kHz` : `${hz} Hz`)
 
 function Badge({ id }: { id: string }) {
@@ -55,6 +114,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
               <li className="px-1 font-semibold">System</li>
               {(
                 [
+                  ['interrupts', 'Interrupt Module'],
                   ['pins', 'Pin Module'],
                   ['system', 'System Module'],
                 ] as const
@@ -80,7 +140,9 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
 
         {/* Panneau de la ressource */}
         <div className={`${panel} min-w-0`}>
-          {res === 'system' ? (
+          {res === 'interrupts' ? (
+            <InterruptPanel config={config} onChange={onChange} head={head} />
+          ) : res === 'system' ? (
             <>
               <div className={head}>System Module — Easy Setup</div>
               <div className="grid gap-x-4 gap-y-2 p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">

@@ -9,26 +9,11 @@ import { INFO3 } from '../../data/reference'
 import { oscRegisters } from '../models/clock'
 import { implementedMask, parsePin, PORT_NAMES, type PortName } from '../models/gpio'
 import { iocOf, pinOrder, systemFosc, type IocEdge, type MccConfig, type PinConfig } from './config'
+import { interruptManagerFiles } from './interruptManager'
+import { isEnabled } from './interrupts'
+import { DIR, hex2, replaceOnce, tpl, type DriverOutput } from './templates'
 
-const DIR = INFO3.mcc.dir
-const HEX = 16
-const hex2 = (v: number) => `0x${v.toString(HEX).toUpperCase().padStart(2, '0')}`
 const sfrReset = (name: string) => (INFO3.sfr as Record<string, { reset: number }>)[name].reset
-
-const RAW = import.meta.glob('./templates/*.txt', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
-const tpl = (file: string): string => {
-  const t = RAW[`./templates/${file}.txt`]
-  if (t === undefined) throw new Error(`gabarit MCC absent : ${file}`)
-  // Seule normalisation permise : CRLF → LF (dépôt extrait sous Windows)
-  return t.replace(/\r\n/g, '\n')
-}
-
-/** Remplacement d'un passage du gabarit ; échoue si le passage n'existe pas (gabarit altéré) */
-function replaceOnce(text: string, find: string | RegExp, by: string): string {
-  const found = typeof find === 'string' ? text.includes(find) : find.test(text)
-  if (!found) throw new Error(`gabarit MCC : passage introuvable (${String(find)})`)
-  return text.replace(find, () => by)
-}
 
 /** Valeurs des registres de port calculées depuis le Pin Module (règle du cours p. 22) */
 export interface PortRegisters {
@@ -254,7 +239,7 @@ function pinManagerH(cfg: MccConfig): string {
 }
 
 /** Registres IOCx, enregistrement des handlers par défaut et validation d'IOCIE (fin de PIN_MANAGER_Initialize) */
-function iocInitBlock(ioc: IocPin[]): string {
+function iocInitBlock(ioc: IocPin[], enableIoci: boolean): string {
   const regs = ioc.flatMap((p) => {
     const n = p.edge === 'negative' || p.edge === 'any' ? 1 : 0
     const q = p.edge === 'positive' || p.edge === 'any' ? 1 : 0
@@ -281,8 +266,7 @@ function iocInitBlock(ioc: IocPin[]): string {
     '    // register default IOC callback functions at runtime; use these methods to register a custom function',
     ...handlers,
     SP.repeat(3),
-    `    // Enable IOCI interrupt${SP}`,
-    `    PIE0bits.IOCIE = 1;${SP}`,
+    ...(enableIoci ? [`    // Enable IOCI interrupt${SP}`, `    PIE0bits.IOCIE = 1;${SP}`] : []),
     SP.repeat(4),
   ].join('\n')
 }
@@ -325,13 +309,13 @@ void ${p.id}_DefaultInterruptHandler(void){
 const PM_HEAD = /(#include "pin_manager\.h"\n)\n{5}(void PIN_MANAGER_Initialize\(void\))/
 const PM_TAIL = /( {4}INLVLE = 0x[0-9A-F]{2};\n)[\s\S]*?(\n\}\n {2}\nvoid PIN_MANAGER_IOC\(void\)\n\{ {3}\n)(\})/
 
-function withIoc(text: string, ioc: IocPin[]): string {
+function withIoc(text: string, ioc: IocPin[], enableIoci: boolean): string {
   if (!ioc.length) return text
   const ptrs = ioc.map((p) => `void (*${p.id}_InterruptHandler)(void);`).join('\n')
   let out = replaceOnce(text, PM_HEAD, `#include "pin_manager.h"\n\n\n\n\n${ptrs}\n\n\nvoid PIN_MANAGER_Initialize(void)`)
   const inlvlE = out.match(PM_TAIL)![1]
   // Fin de PIN_MANAGER_Initialize, corps de PIN_MANAGER_IOC, puis les fonctions de chaque broche
-  out = replaceOnce(out, PM_TAIL, `${inlvlE}${iocInitBlock(ioc)}\n}\n  \nvoid PIN_MANAGER_IOC(void)\n{   \n${ioc.map(iocDispatch).join('\n')}\n}\n${ioc.map(iocFunctions).join('')}`)
+  out = replaceOnce(out, PM_TAIL, `${inlvlE}${iocInitBlock(ioc, enableIoci)}\n}\n  \nvoid PIN_MANAGER_IOC(void)\n{   \n${ioc.map(iocDispatch).join('\n')}\n}\n${ioc.map(iocFunctions).join('')}`)
   return out
 }
 
@@ -346,7 +330,8 @@ function pinManagerC(cfg: MccConfig): string {
     return `${indent}${reg}${port} = ${hex2(regs[port][reg])};`
   })
   if (count !== PORT_NAMES.length * Object.keys(regs.A).length) throw new Error('gabarit MCC : registres de pin_manager.c incomplets')
-  return withIoc(out, iocPins(cfg))
+  // IOCI décochée dans l'Interrupt Module : PIE0bits.IOCIE n'est pas mis à 1
+  return withIoc(out, iocPins(cfg), isEnabled(cfg, 'IOC'))
 }
 
 const MHZ_LABEL = (mhz: number) => `${mhz}_MHz`
@@ -374,14 +359,31 @@ function deviceConfigC(cfg: MccConfig): string {
 }
 
 /** Fichiers générés, indexés par chemin dans le projet (mcc_generated_files/…) */
+/* ───────────── Pilotes ajoutés (Interrupt Module, timers…), appelés dans cet ordre ───────────── */
+
+const DRIVERS: ((cfg: MccConfig) => DriverOutput | null)[] = [interruptManagerFiles]
+
+const INCLUDE_ANCHOR = '#include <conio.h>\n'
+const INIT_ANCHOR = '    OSCILLATOR_Initialize();\n'
+
 export function generate(cfg: MccConfig): Record<string, string> {
+  const outs = DRIVERS.map((d) => d(cfg)).filter((x): x is DriverOutput => x !== null)
+  let mccH = tpl('mcc.h')
+  let mccCText = mccC(cfg)
+  const includes = outs.flatMap((o) => o.includes)
+  const inits = outs.flatMap((o) => o.inits)
+  if (includes.length) mccH = replaceOnce(mccH, INCLUDE_ANCHOR, INCLUDE_ANCHOR + includes.map((i) => `#include "${i}"\n`).join(''))
+  if (inits.length) mccCText = replaceOnce(mccCText, INIT_ANCHOR, INIT_ANCHOR + inits.map((i) => `    ${i}\n`).join(''))
+  const extra: Record<string, string> = {}
+  for (const o of outs) for (const [f, text] of Object.entries(o.files)) extra[`${DIR}/${f}`] = text
   return {
-    [`${DIR}/mcc.h`]: tpl('mcc.h'),
-    [`${DIR}/mcc.c`]: mccC(cfg),
+    [`${DIR}/mcc.h`]: mccH,
+    [`${DIR}/mcc.c`]: mccCText,
     [`${DIR}/pin_manager.h`]: pinManagerH(cfg),
     [`${DIR}/pin_manager.c`]: pinManagerC(cfg),
     [`${DIR}/device_config.h`]: deviceConfigH(cfg),
     [`${DIR}/device_config.c`]: deviceConfigC(cfg),
+    ...extra,
   }
 }
 
