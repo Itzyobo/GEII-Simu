@@ -6,7 +6,8 @@ import { INFO3 } from '../../data/reference'
 import { configErrors, defaultMccConfig, parseMccConfig, systemFosc, type MccConfig } from '../mcc/config'
 import { generate, MAIN_TEMPLATE, XTAL_FILE, xtalOf } from '../mcc/generator'
 
-export type ProjectKind = 'tp1' | 'libre'
+export type ProjectKind = 'tp1' | 'tp2' | 'tp3' | 'libre'
+const PROJECT_KINDS: readonly ProjectKind[] = ['tp1', 'tp2', 'tp3', 'libre']
 export type SlotId = 'mikrobus1' | 'mikrobus2'
 export type CardId = keyof typeof INFO3.clickBoards
 
@@ -106,7 +107,7 @@ export function parseProject(x: unknown): Project | null {
   if (!x || typeof x !== 'object') return null
   const o = x as Record<string, unknown>
   if (o.version !== PROJECT_VERSION || typeof o.id !== 'string' || typeof o.name !== 'string') return null
-  if (o.kind !== 'tp1' && o.kind !== 'libre') return null
+  if (!PROJECT_KINDS.includes(o.kind as ProjectKind)) return null
   if (!isStrRecord(o.files)) return null
   if (o.generated !== null && !isStrRecord(o.generated)) return null
   const mcc = parseMccConfig(o.mcc)
@@ -126,7 +127,7 @@ export function parseProject(x: unknown): Project | null {
     version: PROJECT_VERSION,
     id: o.id,
     name: o.name,
-    kind: o.kind,
+    kind: o.kind as ProjectKind,
     files: o.files,
     generated: (o.generated as Record<string, string> | null) ?? null,
     generatedFrom: typeof o.generatedFrom === 'string' ? o.generatedFrom : null,

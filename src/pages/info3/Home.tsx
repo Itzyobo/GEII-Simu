@@ -8,8 +8,8 @@ const STATE: Record<CoverageState, { label: string; cls: string }> = {
 }
 const TPS = [
   { tp: 1, title: 'Ports parallèles', to: '/info3/tp1' },
-  { tp: 2, title: 'Interruptions IOC et encodeur' },
-  { tp: 3, title: 'Timer 2' },
+  { tp: 2, title: 'Interruptions IOC et encodeur', to: '/info3/tp2' },
+  { tp: 3, title: 'Timer 2', to: '/info3/tp3' },
   { tp: 4, title: 'SPI et anneau de 16 LED' },
   { tp: 5, title: 'PWM, UART et LED RGB' },
   { tp: 6, title: 'CAN, joystick et matrice 8x8' },

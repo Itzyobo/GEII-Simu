@@ -41,11 +41,11 @@ export function expectedPins(question: Tp1QuestionId): ExpectedPin[] {
 
 const fmtHz = (hz: number) => `${hz} Hz`
 
-/** Liste des erreurs de configuration (vide = validé) */
-export function verifyTp1(p: Project, question: Tp1QuestionId): string[] {
+/** Broches attendues : nom exact, broche, sens, Analog décoché pour une entrée */
+export function pinsErrors(p: Project, expected: ExpectedPin[]): string[] {
   const errors: string[] = []
   const pins = p.mcc.pins
-  for (const exp of expectedPins(question)) {
+  for (const exp of expected) {
     const exact = pins.find((x) => x.customName === exp.name)
     const nearMiss = pins.find((x) => x.customName !== exp.name && x.customName.toUpperCase() === exp.name.toUpperCase())
     if (!exact) {
@@ -55,14 +55,22 @@ export function verifyTp1(p: Project, question: Tp1QuestionId): string[] {
     }
     errors.push(...pinErrors(exact, exp))
   }
-  if (!p.generated) errors.push('Generate n’a pas été fait : les fichiers MCC n’existent pas')
-  else {
-    const { xtal, fosc } = clockCheck(p)
-    if (isGenerateStale(p)) errors.push('La configuration MCC a changé depuis le dernier Generate')
-    else if (xtal === null) errors.push('_XTAL_FREQ absent de mcc.h')
-    else if (xtal !== fosc) errors.push(`_XTAL_FREQ (${fmtHz(xtal)}) différent du Fosc configuré dans le System Module (${fmtHz(fosc)})`)
-  }
   return errors
+}
+
+/** Generate fait, à jour, et _XTAL_FREQ cohérent avec le System Module */
+export function generateErrors(p: Project): string[] {
+  if (!p.generated) return ['Generate n’a pas été fait : les fichiers MCC n’existent pas']
+  const { xtal, fosc } = clockCheck(p)
+  if (isGenerateStale(p)) return ['La configuration MCC a changé depuis le dernier Generate']
+  if (xtal === null) return ['_XTAL_FREQ absent de mcc.h']
+  if (xtal !== fosc) return [`_XTAL_FREQ (${fmtHz(xtal)}) différent du Fosc configuré dans le System Module (${fmtHz(fosc)})`]
+  return []
+}
+
+/** Liste des erreurs de configuration (vide = validé) */
+export function verifyTp1(p: Project, question: Tp1QuestionId): string[] {
+  return [...pinsErrors(p, expectedPins(question)), ...generateErrors(p)]
 }
 
 function pinErrors(x: PinConfig, exp: ExpectedPin): string[] {

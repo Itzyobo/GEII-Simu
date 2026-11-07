@@ -9,6 +9,7 @@ import type { Program } from '../compiler/bytecode'
 import { formatDiagnostic } from '../compiler/diagnostics'
 import { ALL_PINS, type Level } from '../models/gpio'
 import { gradeTp1, TP1_CHALLENGES, type Tp1Challenge } from '../prof/tp1'
+import { gradeTp23, TP23_CHALLENGES, type Tp23Challenge } from '../prof/tp23'
 import { Vm, type RotarySlot } from '../vm/vm'
 import type { InMsg, OutMsg, TraceChange, WatchRow } from './protocol'
 
@@ -326,6 +327,11 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
       return out
     }
     case 'grade': {
+      if ((TP23_CHALLENGES as readonly string[]).includes(msg.question)) {
+        const v = gradeTp23(msg.question as Tp23Challenge, msg.files, state.rotary)
+        out.push({ type: 'graded', question: msg.question, ok: v.ok, messages: v.messages })
+        return out
+      }
       if (!(TP1_CHALLENGES as readonly string[]).includes(msg.question)) {
         out.push({ type: 'graded', question: msg.question, ok: false, messages: ['Question inconnue du professeur virtuel'] })
         return out

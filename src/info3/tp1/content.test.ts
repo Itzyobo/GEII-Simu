@@ -45,9 +45,11 @@ describe('énoncé', () => {
 })
 
 describe('points de validation A1 à A10', () => {
-  it('A1, A2, A4 couverts ; A6 et A9 partiels ; A3, A5, A7, A8, A10 non couverts (rouge)', () => {
+  it('TP1 à TP3 : A1, A2, A4 couverts ; A5 à A10 partiels ; A3 (TP5) non couvert (rouge)', () => {
     const state = Object.fromEntries(INFO3_VALIDATION.map((v) => [v.id, coverage(v).state]))
-    expect(state).toEqual({ A1: 'covered', A2: 'covered', A3: 'none', A4: 'covered', A5: 'none', A6: 'partial', A7: 'none', A8: 'none', A9: 'partial', A10: 'none' })
-    expect(coverage(INFO3_VALIDATION[3]).linked).toEqual(['tp1-3-3', 'tp1-3-4', 'tp1-3-5', 'tp1-3-6', 'tp1-3-7', 'tp1-4-2', 'tp1-4-3'])
+    expect(state).toEqual({ A1: 'covered', A2: 'covered', A3: 'none', A4: 'covered', A5: 'partial', A6: 'partial', A7: 'partial', A8: 'partial', A9: 'partial', A10: 'partial' })
+    expect(coverage(INFO3_VALIDATION[3]).linked).toEqual(['tp1-3-3', 'tp1-3-4', 'tp1-3-5', 'tp1-3-6', 'tp1-3-7', 'tp1-4-2', 'tp1-4-3', 'tp2-1-1', 'tp2-2-2', 'tp2-2-3', 'tp2-2-4', 'tp3-1', 'tp3-2'])
+    // A10 (chronogrammes) : TP2 2.2, 2.3 et TP3 2 disponibles, TP4 à venir
+    expect(coverage(INFO3_VALIDATION[9]).available).toEqual(['tp2-2-2', 'tp2-2-3', 'tp3-2'])
   })
 })

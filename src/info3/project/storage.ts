@@ -7,6 +7,8 @@ import { blankProject, parseProject, runGenerate, type Project } from './project
 export const STORAGE_PREFIX = 'tpsim.info3.v1.'
 export const KEYS = {
   tp1: `${STORAGE_PREFIX}project.tp1`,
+  tp2: `${STORAGE_PREFIX}project.tp2`,
+  tp3: `${STORAGE_PREFIX}project.tp3`,
   libre: `${STORAGE_PREFIX}libre`,
   progress: `${STORAGE_PREFIX}progress`,
   prefs: `${STORAGE_PREFIX}prefs`,
@@ -53,6 +55,20 @@ export function loadTp1(s?: KeyValueStore | null): Project {
 
 export function saveTp1(p: Project, s?: KeyValueStore | null) {
   writeJson(KEYS.tp1, p, s === undefined ? store() : s)
+}
+
+/* ───────────── TP2, TP3 ───────────── */
+
+export type TpNumber = 2 | 3
+
+export function loadTp(n: TpNumber, title: string, s?: KeyValueStore | null): Project {
+  const kind = `tp${n}` as const
+  const p = parseProject(readJson(KEYS[kind], s === undefined ? store() : s))
+  return p && p.kind === kind ? p : blankProject(kind, title, kind)
+}
+
+export function saveTp(n: TpNumber, p: Project, s?: KeyValueStore | null) {
+  writeJson(KEYS[`tp${n}`], p, s === undefined ? store() : s)
 }
 
 /* ───────────── Mode libre : plusieurs projets ───────────── */

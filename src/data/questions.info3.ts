@@ -4,7 +4,7 @@
  * `resume` reprend le résumé du PRD (§2), affiché seulement tant que l'énoncé n'est pas transcrit.
  */
 
-export type Info3QuestionKind = 'qcm' | 'config-qcm' | 'challenge' | 'challenge-numeric' | 'static' | 'order'
+export type Info3QuestionKind = 'qcm' | 'config-qcm' | 'challenge' | 'challenge-numeric' | 'static' | 'order' | 'numeric' | 'checklist'
 
 export interface Info3Question {
   /** Ancre de l'énoncé (clé) */
@@ -33,6 +33,15 @@ export const INFO3_QUESTIONS: Info3Question[] = [
   { id: 'tp1-4-1', tp: 1, numero: '4.1', kind: 'order', challenge: false, hyp: [], resume: 'architecture du programme' },
   { id: 'tp1-4-2', tp: 1, numero: '4.2', kind: 'challenge', challenge: true, hyp: ['H2'], resume: 'code du cahier des charges' },
   { id: 'tp1-4-3', tp: 1, numero: '4.3', kind: 'challenge', challenge: true, bonus: true, hyp: ['H2'], resume: 'clignotements bonus (« Faire valider »)' },
+  { id: 'tp2-1-1', tp: 2, numero: '1.1', kind: 'challenge', challenge: true, hyp: ['H3', 'H34'], resume: 'compteur 4 bits sur IOC (S1 +1, S2 −1), ligne à décommenter, rebonds' },
+  { id: 'tp2-1-2', tp: 2, numero: '1.2', kind: 'order', challenge: false, hyp: ['H34'], resume: 'fonctions générées : PEIE inutile, chaîne d’appel jusqu’au handler' },
+  { id: 'tp2-2-1', tp: 2, numero: '2.1', kind: 'numeric', challenge: false, hyp: [], resume: 'codeur EC12D : crans et impulsions par tour' },
+  { id: 'tp2-2-2', tp: 2, numero: '2.2', kind: 'challenge', challenge: true, hyp: ['H35'], resume: 'ENCA et ENCB sur D3 et D2, positions stables (chronogramme)' },
+  { id: 'tp2-2-3', tp: 2, numero: '2.3', kind: 'challenge', challenge: true, hyp: ['H9', 'H35'], resume: 'sens de rotation sur D3 (IOC sur ENCB, chronogramme)' },
+  { id: 'tp2-2-4', tp: 2, numero: '2.4', kind: 'challenge', challenge: true, hyp: ['H9', 'H35'], resume: 'compteur 4 bits piloté par le codeur' },
+  { id: 'tp3-1', tp: 3, numero: '1', kind: 'challenge', challenge: true, hyp: ['H28', 'H34'], resume: 'Timer2 : clignotement de période 1 s, registres de tmr2.c' },
+  { id: 'tp3-2', tp: 3, numero: '2', kind: 'challenge', challenge: true, hyp: ['H31', 'H33'], resume: 'anti-rebond de S2 par Timer2 monostable (10 ms), chronogramme' },
+  { id: 'tp3-3', tp: 3, numero: '3', kind: 'checklist', challenge: false, hyp: [], resume: 'débogage : points d’arrêt dans les ISR IOC et Timer2' },
 ]
 
 export interface ValidationPoint {
