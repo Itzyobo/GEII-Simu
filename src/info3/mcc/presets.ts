@@ -1,6 +1,6 @@
 /** Configurations MCC de départ, construites comme dans MCC (Grid View puis Pin Module) depuis INFO3.pins */
 import { INFO3 } from '../../data/reference'
-import { addTimer, defaultMccConfig, setIoc, toggleGridPin, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
+import { addMssp, addTimer, defaultMccConfig, setIoc, toggleGridPin, updateMssp, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
 import { periodForRegister } from './timers'
 
 export function namedPin(cfg: MccConfig, pin: string, dir: Direction, name: string, analog?: boolean): MccConfig {
@@ -38,6 +38,29 @@ export function tp22Config(): MccConfig {
 /** TP2 §2.3 : tp2-2 + IOC « any » sur ENCB (pas d'IOC possible sur ENCA, port D) */
 export function tp23Config(): MccConfig {
   return setIoc(tp22Config(), INFO3.pins.rotary.ENCB, 'any')
+}
+
+/** TP4 §1 : LED_D2…D5, BP_S1/S2 (TP1) + MSSP1 en SPI maître, Fosc/4, mode au choix (SCK1 RB1, SDI1 RB2, SDO1 RB3) */
+export function tp41Config(mode = 3): MccConfig {
+  return updateMssp(addMssp(tp1Config()), { mode, clockSource: 'FOSC/4' })
+}
+
+/** TP4 §2 et suite : tp4-1 + RST (RD2) et LATCH (RD3) en sortie numérique (carte Rotary sur le mikroBUS 2) */
+export function tp42Config(mode = 0): MccConfig {
+  const r = INFO3.pins.rotary
+  let c = tp41Config(mode)
+  c = namedPin(c, r.RST, 'output', 'RST')
+  c = namedPin(c, r.LATCH, 'output', 'LATCH')
+  return c
+}
+
+/** TP4 §5 : tp4-2 + ENCA, ENCB en entrée numérique et IOC « any » sur ENCB (comme au TP2) */
+export function tp45Config(mode = 0): MccConfig {
+  const r = INFO3.pins.rotary
+  let c = tp42Config(mode)
+  c = namedPin(c, r.ENCA, 'input', 'ENCA', false)
+  c = namedPin(c, r.ENCB, 'input', 'ENCB', false)
+  return setIoc(c, r.ENCB, 'any')
 }
 
 /** Timer2 en Roll over pulse, interruption activée, Timer Period saisie pour obtenir PR2 = pr */

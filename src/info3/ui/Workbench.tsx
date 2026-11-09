@@ -179,7 +179,7 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
             </label>
             {rotarySlot && (
               <div className="mt-2">
-                <RotaryControl slotLabel={SLOT_NAMES[rotarySlot]} onTurn={(n) => sim.rotary({ action: 'turn', detents: n })} onSpin={(r) => sim.rotary({ action: 'spin', rate: r })} onSw={(p) => sim.rotary({ action: 'sw', pressed: p })} />
+                <RotaryControl slotLabel={SLOT_NAMES[rotarySlot]} onTurn={(n) => sim.rotary({ action: 'turn', detents: n })} onSpin={(r) => sim.rotary({ action: 'spin', rate: r })} onSw={(p) => sim.rotary({ action: 'sw', pressed: p })} ring={powered ? sim.view.ring : []} />
               </div>
             )}
             {benchExtra}

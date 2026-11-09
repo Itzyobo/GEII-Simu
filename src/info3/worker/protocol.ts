@@ -59,6 +59,8 @@ export type OutMsg =
       pinsDiff: Record<string, 0 | 1>
       /** Fraction du temps à 1 sur l'image, pour les LED dont la valeur a changé */
       ledDuty: Record<string, number>
+      /** Anneau de 16 LED de la carte Rotary : fraction du temps allumée (LED 1 à 16), si elle a changé */
+      ringDuty?: number[]
     }
   | { type: 'output'; level: OutputLevel; text: string; file?: string; line?: number; col?: number }
   | { type: 'halted'; reason: string }

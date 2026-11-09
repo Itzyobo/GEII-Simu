@@ -13,6 +13,7 @@ import { kindOf, sizeOf } from '../compiler/types'
 import { Button, type Edge } from '../models/button'
 import { ALL_PINS, Gpio, parsePin, pinName, PORT_NAMES, type Level, type PinChange } from '../models/gpio'
 import { MsspSpi } from '../models/msspSpi'
+import { Hc595x2 } from '../models/hc595x2'
 import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
 import { foscFromRegisters, hfintoscFromRegister } from '../models/clock'
@@ -128,6 +129,7 @@ export class Vm {
     this.gpio.onChange((c) => this.iocPin(c))
     this.createTimers()
     this.createMssp()
+    this.gpio.onChange((c) => this.ringPin(c))
     for (const b of INFO3.pins.buttons) {
       this.buttons[b.name] = { button: new Button({ activeLevel: b.activeLevel as Level, rng: () => this.rng() }), pin: b.pin }
     }
@@ -263,9 +265,53 @@ export class Vm {
   /** Enfiche (ou retire) la carte Rotary : ses sorties pilotent les broches du mikroBUS choisi */
   setRotarySlot(slot: RotarySlot | null) {
     if (this.rotaryPins) for (const p of Object.values(this.rotaryPins)) this.gpio.setExternal(p, null, this.t)
+    if (this.ringPins) this.gpio.setExternal(this.ringPins.Q7S, null, this.t)
     this.rotarySlot = slot
     this.rotaryPins = slot ? Vm.rotaryPinsOf(slot) : null
+    this.ringPins = slot ? Vm.ringPinsOf(slot) : null
     this.driveRotary()
+    this.resetRing()
+  }
+
+  /* ═════════════ Anneau de 16 LED (deux 74HC595) ═════════════ */
+
+  readonly ring = new Hc595x2()
+  private ringPins: Record<keyof typeof INFO3.ring.wiring, string> | null = null
+  private ringListeners: ((t: number, outputs: number) => void)[] = []
+
+  /** Broches de la chaîne de 74HC595 selon le mikroBUS (RST → MR, CS → LATCH, bus SPI) */
+  static ringPinsOf(slot: RotarySlot): Record<keyof typeof INFO3.ring.wiring, string> {
+    const bus = INFO3.pins[slot] as Record<string, string>
+    const w = INFO3.ring.wiring
+    return { MR: bus[w.MR], LATCH: bus[w.LATCH], SER: bus[w.SER], SRCLK: bus[w.SRCLK], Q7S: bus[w.Q7S] }
+  }
+
+  onRing(cb: (t: number, outputs: number) => void): () => void {
+    this.ringListeners.push(cb)
+    return () => {
+      this.ringListeners = this.ringListeners.filter((l) => l !== cb)
+    }
+  }
+
+  /** Mise sous tension de la carte : registre et sorties à 0, MR et LATCH lus sur les broches (H36) */
+  private resetRing() {
+    const p = this.ringPins
+    const before = this.ring.outputs
+    this.ring.reset(p ? this.gpio.level(p.MR) : 0, p ? this.gpio.level(p.LATCH) : 0)
+    if (p) this.gpio.setExternal(p.Q7S, this.ring.q7s, this.tNow)
+    if (before !== this.ring.outputs) for (const cb of this.ringListeners) cb(this.tNow, this.ring.outputs)
+  }
+
+  private ringPin(c: PinChange) {
+    const p = this.ringPins
+    if (!p) return
+    if (c.pin === p.SRCLK && c.level === 1) this.ring.clock(this.gpio.level(p.SER))
+    else if (c.pin === p.MR) this.ring.setMr(c.level)
+    else if (c.pin === p.LATCH) {
+      if (this.ring.setLatch(c.level)) for (const cb of this.ringListeners) cb(c.t, this.ring.outputs)
+      return
+    } else return
+    if (this.gpio.level(p.Q7S) !== this.ring.q7s) this.gpio.setExternal(p.Q7S, this.ring.q7s, c.t)
   }
 
   private driveRotary() {
@@ -369,6 +415,8 @@ export class Vm {
     this.rotaryBusyUntil = 0
     this.driveRotary()
     if (this.spinRate) this.spin(this.spinRate)
+    // Mise sous tension : les 74HC595 repartent de zéro
+    this.resetRing()
     this.gpio.trace = []
     this.halted = null
     this.analogReads.clear()

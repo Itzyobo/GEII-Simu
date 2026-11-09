@@ -1,7 +1,7 @@
 /**
  * Commandes de la carte ROTARY O click : molette (1 cran par cran de molette), flèches ← / →,
  * glisser circulaire (12° par cran), rotation continue de 1 à 10 crans/s, bouton SW (non utilisé aux TP2 et TP3).
- * L'anneau de LED reste éteint jusqu'à l'étape 4.
+ * Anneau de 16 LED (74HC595) : lueur de chaque LED = fraction du temps allumée sur l'image.
  */
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { INFO3 } from '../../data/reference'
@@ -16,9 +16,11 @@ export interface RotaryControlProps {
   onTurn(detents: number): void
   onSpin(rate: number): void
   onSw(pressed: boolean): void
+  /** Anneau : fraction du temps allumée, LED 1 à 16 */
+  ring?: number[]
 }
 
-export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw }: RotaryControlProps) {
+export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw, ring }: RotaryControlProps) {
   const [position, setPosition] = useState(0)
   const [rate, setRate] = useState<number>(R.spinRate.min)
   const [spinning, setSpinning] = useState(0)
@@ -115,8 +117,17 @@ export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw }: Rotar
           onPointerCancel={() => (drag.current = null)}
         >
           {Array.from({ length: RING_LEDS }, (_, i) => {
+            // LED 1 en haut, numérotation dans le sens horaire (H10) ; lueur = fraction du temps allumée
             const a = (2 * Math.PI * i) / RING_LEDS
-            return <circle key={i} cx={44 * Math.sin(a)} cy={-44 * Math.cos(a)} r={3} fill="#3a2a10" stroke="#111" strokeWidth={0.5} />
+            const d = Math.min(1, Math.max(0, ring?.[i] ?? 0))
+            const x = 44 * Math.sin(a)
+            const y = -44 * Math.cos(a)
+            return (
+              <g key={i} className="info3-ring-led" data-on={d > 0.5 ? '1' : '0'} aria-label={`LED ${i + 1} de l’anneau`}>
+                {d > 0 && <circle cx={x} cy={y} r={6} fill="#ffb020" opacity={0.45 * d} />}
+                <circle cx={x} cy={y} r={3} fill={d > 0 ? '#ffd27a' : '#3a2a10'} fillOpacity={d > 0 ? 0.35 + 0.65 * d : 1} stroke="#111" strokeWidth={0.5} />
+              </g>
+            )
           })}
           <circle r={34} fill="#2b2f33" stroke="#111" strokeWidth={2} />
           <g transform={`rotate(${angle})`}>

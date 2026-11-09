@@ -48,10 +48,22 @@ export interface SimState {
   channels: Set<string>
   trace: TraceChange[]
   traceReset: boolean
+  /** Anneau : sorties actuelles, temps allumé par LED sur l'image, dernier changement, dernière image envoyée */
+  ring: { outputs: number; high: number[]; lastT: number; sent: string }
+}
+
+const RING_N = INFO3.ring.leds
+const blankRing = () => ({ outputs: 0, high: new Array<number>(RING_N).fill(0), lastT: 0, sent: '' })
+
+function ringAccumulate(state: SimState, t: number) {
+  const r = state.ring
+  const from = Math.max(r.lastT, state.frameStartT)
+  if (t > from) for (let k = 0; k < RING_N; k++) if ((r.outputs >> k) & 1) r.high[k] += t - from
+  r.lastT = t
 }
 
 export function createSimState(now: () => number = () => performance.now()): SimState {
-  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, channels: new Set(), trace: [], traceReset: false }
+  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
 }
 
 const PROBES = new Set<string>(INFO3.analyzer.probes)
@@ -80,6 +92,11 @@ function attach(state: SimState, vm: Vm) {
   vm.setRotarySlot(state.rotary)
   vm.onPinChange((c) => pushTrace(state, c.pin, vm.toS(c.t), c.level))
   vm.onProbe((p) => pushTrace(state, p.name, vm.toS(p.t), p.level))
+  state.ring = blankRing()
+  vm.onRing((t, outputs) => {
+    ringAccumulate(state, t)
+    state.ring.outputs = outputs
+  })
   state.trace = []
   state.traceReset = true
   traceLevels(state)
@@ -95,6 +112,9 @@ function attach(state: SimState, vm: Vm) {
 
 function resetMeasures(state: SimState, vm: Vm) {
   state.frameStartT = vm.t
+  state.ring.lastT = vm.t
+  state.ring.outputs = vm.ring.outputs
+  state.ring.sent = ''
   state.lastPins = {}
   state.lastDuty = {}
   state.lastDiag = ''
@@ -127,8 +147,14 @@ export function makeFrame(state: SimState, out: OutMsg[]): void {
     state.ledHigh[l.pin] = 0
     state.ledLastT[l.pin] = vm.t
   }
+  ringAccumulate(state, vm.t)
+  const ringDuty = state.ring.high.map((h, k) => (span > 0 ? h / span : (state.ring.outputs >> k) & 1))
+  state.ring.high.fill(0)
+  const ringKey = ringDuty.map((d) => d.toFixed(2)).join(',')
+  const ringChanged = ringKey !== state.ring.sent
+  state.ring.sent = ringKey
   state.frameStartT = vm.t
-  out.push({ type: 'frame', tSim: vm.timeS, pinsDiff, ledDuty })
+  out.push({ type: 'frame', tSim: vm.timeS, pinsDiff, ledDuty, ...(ringChanged ? { ringDuty } : {}) })
   if (state.trace.length || state.traceReset) {
     out.push({ type: 'trace', changes: state.trace, reset: state.traceReset })
     state.trace = []

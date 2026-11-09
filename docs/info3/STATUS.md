@@ -7,7 +7,7 @@ Mis à jour à chaque bloc terminé. Étape en cours : **4** (TP4 : SPI et annea
 | Bloc | État | Contenu |
 | --- | --- | --- |
 | B1 | fait | MSSP1 en SPI maître : SFR (SSP1BUF…CON3, champs SSPM/CKP/SSPEN/WCOL), PPS (RxyPPS, SSP1CLKPPS/DATPPS = H38), sorties PPS dans le modèle gpio ; modèle `mssp-spi` (MSB en premier, 8 périodes, SCK au repos = CKP, changement selon CKE, lecture SMP, SSP1IF + BF, WCOL ; modes 1 et 2 sans présentation anticipée = H14) ; temps des périphériques = instant de l'événement (fronts SCK/MOSI datés exactement) ; MCC : Device Resources › MSSP1, Easy Setup (H37), lignes SCK1/SDI1/SDO1 du Grid View, fréquence de SCK ; spi1.c/.h (format H39), PPS et TRIS/ANSEL dans pin_manager.c ; `<stddef.h>`. Tests 1, 3, 4 (et périodes de SCK par la trace) |
-| B2 | à faire | Anneau de 16 LED (`hc595x2`) |
+| B2 | fait | Modèle `hc595x2` (SER de U2 ← MOSI, Q7S de U3 → MISO, étage 0 = LED 1, décalage au front montant de SCK avec le MOSI d'avant le front, MR = RST actif à 0, front montant de LATCH → sorties ; RST/LATCH en l'air lus à 0 = H36) ; câblage selon le mikroBUS (mikroBUS 1 : RST = RD0, LATCH = RA3 → anneau éteint) ; anneau dessiné sur la carte Rotary, LED 1 en haut puis sens horaire (H10), lueur = fraction du temps allumée (image du Worker) ; presets tp4-1, tp4-2, tp4-5. Tests 5 à 10 |
 | B3 | à faire | Oscilloscope 2 voies, décodage SPI |
 | B4 | à faire | Page /info3/tp4, questions, solutions q1 à q6, Faire vérifier |
 | B5 | à faire | Vérifications finales |

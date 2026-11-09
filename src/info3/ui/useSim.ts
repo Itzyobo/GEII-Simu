@@ -27,9 +27,11 @@ export interface SimView {
   irq: IrqView | null
   /** Le programme chargé dans le PIC correspond au dernier Build réussi */
   programmed: boolean
+  /** Anneau de 16 LED de la carte Rotary : fraction du temps allumée (LED 1 à 16) */
+  ring: number[]
 }
 
-const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, irq: null, programmed: false }
+const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, irq: null, programmed: false, ring: [] }
 
 type Action = { kind: 'msg'; m: OutMsg } | { kind: 'clear' } | { kind: 'mode'; mode: RunMode } | { kind: 'log'; line: Output } | { kind: 'off' }
 
@@ -52,6 +54,7 @@ function reducer(s: SimView, a: Action): SimView {
             tSim: m.tSim,
             duty: Object.keys(m.ledDuty).length ? { ...s.duty, ...m.ledDuty } : s.duty,
             pins: Object.keys(m.pinsDiff).length ? { ...s.pins, ...m.pinsDiff } : s.pins,
+            ring: m.ringDuty ?? s.ring,
           }
         case 'output':
           return { ...s, output: [...s.output, m] }
