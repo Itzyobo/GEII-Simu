@@ -195,13 +195,21 @@ function NumericBlock({ prompt, fields, onDone }: { prompt: string; fields: NumF
   const [checked, setChecked] = useState(false)
   const value = (f: NumField) => {
     const s = answers[f.label] ?? ''
-    return f.register ? parseRegisterAnswer(s) : /^\s*\d+\s*$/.test(s) ? Number(s) : null
+    if (f.register) return parseRegisterAnswer(s)
+    if (f.tolerance !== undefined) return /^\s*\d+(?:[.,]\d+)?\s*$/.test(s) ? Number(s.replace(',', '.')) : null
+    return /^\s*\d+\s*$/.test(s) ? Number(s) : null
+  }
+  /** Valeur exacte, ou mesure dans la tolérance */
+  const correct = (f: NumField) => {
+    const v = value(f)
+    if (v === null) return false
+    return f.tolerance !== undefined ? Math.abs(v - f.expected) / f.expected <= f.tolerance : v === f.expected
   }
   return (
     <div className="space-y-1">
       <p className="text-sm">{prompt}</p>
       {fields.map((f) => {
-        const ok = value(f) === f.expected
+        const ok = correct(f)
         return (
           <label key={f.label} className="flex flex-wrap items-center gap-2 text-sm">
             <span className="min-w-0 font-mono">{f.label}</span>
@@ -214,7 +222,7 @@ function NumericBlock({ prompt, fields, onDone }: { prompt: string; fields: NumF
         type="button"
         onClick={() => {
           setChecked(true)
-          onDone(fields.every((f) => value(f) === f.expected))
+          onDone(fields.every(correct))
         }}
         className="rounded-lg bg-card px-3 py-1 text-sm ring-1 ring-line hover:bg-card-2"
       >

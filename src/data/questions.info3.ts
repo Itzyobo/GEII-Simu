@@ -42,6 +42,12 @@ export const INFO3_QUESTIONS: Info3Question[] = [
   { id: 'tp3-1', tp: 3, numero: '1', kind: 'challenge', challenge: true, hyp: ['H28', 'H34'], resume: 'Timer2 : clignotement de période 1 s, registres de tmr2.c' },
   { id: 'tp3-2', tp: 3, numero: '2', kind: 'challenge', challenge: true, hyp: ['H31', 'H33'], resume: 'anti-rebond de S2 par Timer2 monostable (10 ms), chronogramme' },
   { id: 'tp3-3', tp: 3, numero: '3', kind: 'checklist', challenge: false, hyp: [], resume: 'débogage : points d’arrêt dans les ISR IOC et Timer2' },
+  { id: 'tp4-1', tp: 4, numero: '1', kind: 'challenge', challenge: true, hyp: ['H37', 'H39', 'H40'], resume: 'MSSP1 en SPI : octet 0b00110001 toutes les 100 ms en mode 3, SCK et MOSI à l’oscilloscope' },
+  { id: 'tp4-2', tp: 4, numero: '2', kind: 'challenge', challenge: true, hyp: ['H14', 'H36'], resume: 'motif 00110001 sur les LED 1 à 8 de l’anneau ; quel mode SPI ; WriteByte ou ExchangeByte' },
+  { id: 'tp4-3', tp: 4, numero: '3', kind: 'challenge', challenge: true, hyp: [], resume: 'fonctions led_ring_clear et led_ring_display16' },
+  { id: 'tp4-4', tp: 4, numero: '4', kind: 'challenge', challenge: true, hyp: ['H10'], resume: 'chenillard d’une LED sur l’anneau, 1 s par pas' },
+  { id: 'tp4-5', tp: 4, numero: '5', kind: 'challenge', challenge: true, hyp: ['H9', 'H35'], resume: 'l’anneau suit le codeur, compteur 4 bits sur D5 à D2' },
+  { id: 'tp4-6', tp: 4, numero: '6', kind: 'challenge', challenge: true, hyp: [], resume: 'animations : 0xF0F0 qui tourne, puis une animation libre après un appui sur S1' },
 ]
 
 export interface ValidationPoint {

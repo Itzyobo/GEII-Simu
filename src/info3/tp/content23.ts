@@ -5,6 +5,7 @@
  */
 import { INFO3 } from '../../data/reference'
 import { timerClockHz } from '../models/timer246'
+import { sckFrequency } from '../mcc/spi'
 import { parsePin } from '../models/gpio'
 import type { Project } from '../project/project'
 import type { Tp23QuestionId } from '../project/verify23'
@@ -23,6 +24,8 @@ export interface NumField {
   expected: number
   /** Saisie en hexadécimal acceptée (registres) */
   register?: boolean
+  /** Mesure : nombre décimal accepté, écart relatif toléré */
+  tolerance?: number
 }
 
 export type Part =
@@ -170,6 +173,54 @@ export function debugChecklist(): string[] {
   ]
 }
 
+/* ───────────── TP4 ───────────── */
+
+const US_PER_S = INFO3.units.usPerS
+const bitsOf = (v: number) => Array.from({ length: INFO3.c.bitsPerByte }, (_, i) => (v >> (INFO3.c.bitsPerByte - 1 - i)) & 1)
+
+/** §1 : période de SCK attendue (µs), calculée depuis la configuration MSSP1 du projet */
+export function sckFields(p: Project): NumField[] | null {
+  const m = p.mcc.mssp
+  const f = m ? sckFrequency(p.mcc, m) : null
+  if (!f) return null
+  return [{ label: 'Période de SCK (µs) :', expected: US_PER_S / f, tolerance: INFO3.tp4.sckTolerance }]
+}
+
+export function qcmMsbFirst(): Choice {
+  const b = INFO3.tp4.byte
+  const msb = bitsOf(b).join(', ')
+  const lsb = [...bitsOf(b)].reverse().join(', ')
+  const right = `Bit 7 (MSB) en premier : ${msb}`
+  return {
+    prompt: `Dans quel ordre les bits de 0x${b.toString(16).toUpperCase()} sortent-ils sur MOSI ?`,
+    options: [right, `Bit 0 (LSB) en premier : ${lsb}`, 'Dans l’ordre fixé par le mode SPI choisi', 'Bit 0 en premier en modes 0 et 1, bit 7 en modes 2 et 3'],
+    answers: [right],
+    explanation: 'Le MSSP envoie toujours le bit de poids fort en premier, quel que soit le mode (cours p. 71) : on le lit à l’oscilloscope sur TP16 au front de lecture de SCK.',
+  }
+}
+
+export function qcmSpiMode(): Choice {
+  const modes = INFO3.spi.modes.map((m) => `Mode ${m.mode} (CKP = ${m.ckp}, CKE = ${m.cke})`)
+  return {
+    prompt: 'Quel(s) mode(s) SPI conviennent aux 74HC595 de l’anneau ?',
+    options: modes,
+    answers: INFO3.tp4.goodModes.map((g) => modes[g]),
+    multi: true,
+    explanation:
+      'Le 74HC595 décale au front montant de SCK. En modes 0 et 3, MOSI change sur le front descendant et reste stable au front montant. En modes 1 et 2, MOSI change sur ce même front montant : le 74HC595 lit le bit précédent et le motif est décalé d’un rang (H14 ; cours p. 71 à 74 et 81).',
+  }
+}
+
+export function qcmWriteExchange(): Choice {
+  const right = 'WriteByte écrit SSP1BUF et rend la main aussitôt ; ExchangeByte attend la fin du transfert (SSP1IF), l’efface et renvoie l’octet reçu'
+  return {
+    prompt: 'Quelle différence entre SPI1_WriteByte et SPI1_ExchangeByte ?',
+    options: [right, 'WriteByte attend la fin du transfert, ExchangeByte non', 'ExchangeByte envoie deux octets à la suite', 'Aucune : ExchangeByte est un autre nom de WriteByte'],
+    answers: [right],
+    explanation: 'Deux WriteByte trop rapprochés écrivent SSP1BUF pendant le transfert : WCOL = 1 et le second octet est perdu. ExchangeByte attend SSP1IF, donc on peut enchaîner les octets, puis basculer LATCH une fois le transfert terminé (cours p. 74).',
+  }
+}
+
 /* ───────────── Parties par question ───────────── */
 
 export function partsOf(id: Tp23QuestionId, p: Project): Part[] {
@@ -208,5 +259,18 @@ export function partsOf(id: Tp23QuestionId, p: Project): Part[] {
       return [{ kind: 'grade' }, { kind: 'qcm', qcm: qcmPostscaler() }, { kind: 'qcm', qcm: qcmClockTrap() }]
     case 'tp3-3':
       return [{ kind: 'checklist', items: debugChecklist() }]
+    case 'tp4-1':
+      return [
+        { kind: 'grade' },
+        { kind: 'numeric', prompt: 'Période de SCK relevée aux curseurs de l’oscilloscope (TP17) :', fields: sckFields(p), missing: 'Ajouter MSSP1 dans MCC (Device Resources › MSSP › MSSP1) : la période attendue se calcule depuis votre configuration.' },
+        { kind: 'qcm', qcm: qcmMsbFirst() },
+      ]
+    case 'tp4-2':
+      return [{ kind: 'grade' }, { kind: 'qcm', qcm: qcmSpiMode() }, { kind: 'qcm', qcm: qcmWriteExchange() }]
+    case 'tp4-3':
+    case 'tp4-4':
+    case 'tp4-5':
+    case 'tp4-6':
+      return [{ kind: 'grade' }]
   }
 }

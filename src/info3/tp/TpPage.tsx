@@ -1,5 +1,5 @@
 /**
- * Page d'un TP (2 ou 3) : énoncé, questions, banc, IDE, MCC, « Faire vérifier » de la question choisie.
+ * Page d'un TP (2, 3 ou 4) : énoncé, questions, banc, IDE, MCC, « Faire vérifier » de la question choisie.
  * Même poste de travail que le TP1 (Workbench) ; projet et progression sauvegardés dans localStorage.
  */
 import { useState } from 'react'
@@ -18,9 +18,10 @@ export interface TpPageProps {
   title: string
   first: Tp23QuestionId
   analyzerChannels: string[]
+  scopeProbes?: [string, string]
 }
 
-export default function TpPage({ tp, title, first, analyzerChannels }: TpPageProps) {
+export default function TpPage({ tp, title, first, analyzerChannels, scopeProbes }: TpPageProps) {
   const full = `TP${tp} — ${title}`
   const [project, setProject] = useState<Project>(() => loadTp(tp, full))
   const [progress, setProgress] = useState<Progress>(() => loadProgress())
@@ -81,6 +82,7 @@ export default function TpPage({ tp, title, first, analyzerChannels }: TpPagePro
           savePrefs({ dark: d })
         }}
         analyzerChannels={analyzerChannels}
+        scopeProbes={scopeProbes}
         sideLabel="Questions"
         side={({ sim }) => <TpQuestions tp={tp} project={project} sim={sim} enonce={ENONCE} progress={progress} onResult={result} selected={selected} onSelect={setSelected} />}
         benchExtra={

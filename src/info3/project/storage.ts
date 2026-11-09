@@ -9,6 +9,7 @@ export const KEYS = {
   tp1: `${STORAGE_PREFIX}project.tp1`,
   tp2: `${STORAGE_PREFIX}project.tp2`,
   tp3: `${STORAGE_PREFIX}project.tp3`,
+  tp4: `${STORAGE_PREFIX}project.tp4`,
   libre: `${STORAGE_PREFIX}libre`,
   progress: `${STORAGE_PREFIX}progress`,
   prefs: `${STORAGE_PREFIX}prefs`,
@@ -59,7 +60,7 @@ export function saveTp1(p: Project, s?: KeyValueStore | null) {
 
 /* ───────────── TP2, TP3 ───────────── */
 
-export type TpNumber = 2 | 3
+export type TpNumber = 2 | 3 | 4
 
 export function loadTp(n: TpNumber, title: string, s?: KeyValueStore | null): Project {
   const kind = `tp${n}` as const

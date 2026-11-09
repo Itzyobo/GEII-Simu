@@ -451,6 +451,29 @@ export const INFO3 = {
     ],
     hyp: ['H5', 'H40'],
   },
+  /** TP4 : cahier des charges utilisé par le professeur virtuel (consigne étape 4) */
+  tp4: {
+    /** §1 : octet 0b00110001, toutes les 100 ms ± 1 %, mode SPI 3 */
+    byte: 0x31,
+    byteIntervalS: 0.1,
+    byteTolerance: 0.01,
+    q1Mode: 3,
+    /** §1 : période de SCK relevée aux curseurs, comparée à celle de la configuration (± 1 %) */
+    sckTolerance: 0.01,
+    /** §2 : modes qui conviennent au 74HC595 (lecture au front montant) */
+    goodModes: [0, 3],
+    /** §3 : appels unitaires de led_ring_display16 */
+    displayCases: [0x0001, 0x8000, 0x00ff, 0xa5a5],
+    /** §4 : un pas du chenillard — s (± 0,5 %) */
+    chaseStepS: 1,
+    chaseTolerance: 0.005,
+    /** §5 : crans tournés (dont un retour en arrière) */
+    encoderDetents: 40,
+    encoderBack: 15,
+    /** §6 : motif de la première animation */
+    animation: 0xf0f0,
+    source: 'consigne étape 4 (pas de CR du TP4)',
+  },
   /** TP3 : cahier des charges utilisé par le professeur virtuel */
   tp3: {
     /** §1 : période du clignotement attendue — s (1 s ± 1 %) */

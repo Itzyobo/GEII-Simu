@@ -1,5 +1,5 @@
 /**
- * « Faire vérifier » des TP2 et TP3 : broches et noms (comme au TP1), IOC, Timer2 et carte Rotary.
+ * « Faire vérifier » des TP2, TP3 et TP4 : broches et noms (comme au TP1), IOC, Timer2, MSSP1 et carte Rotary.
  * Exigences cumulées au fil des questions ; broches et réglages attendus tirés de INFO3 (jamais écrits ici).
  */
 import { INFO3 } from '../../data/reference'
@@ -12,7 +12,10 @@ export const TP2_ORDER = ['tp2-1-1', 'tp2-1-2', 'tp2-2-1', 'tp2-2-2', 'tp2-2-3',
 export const TP3_ORDER = ['tp3-1', 'tp3-2', 'tp3-3'] as const
 export type Tp2QuestionId = (typeof TP2_ORDER)[number]
 export type Tp3QuestionId = (typeof TP3_ORDER)[number]
-export type Tp23QuestionId = Tp2QuestionId | Tp3QuestionId
+export const TP4_ORDER = ['tp4-1', 'tp4-2', 'tp4-3', 'tp4-4', 'tp4-5', 'tp4-6'] as const
+export type Tp4QuestionId = (typeof TP4_ORDER)[number]
+/** Questions des TP2 à TP4 (page commune TpPage) */
+export type Tp23QuestionId = Tp2QuestionId | Tp3QuestionId | Tp4QuestionId
 
 const P = INFO3.tp1.namePrefix
 const R = INFO3.pins.rotary
@@ -72,7 +75,35 @@ export function verifyTp3(p: Project, q: Tp3QuestionId): string[] {
   return [...errors, ...generateErrors(p)]
 }
 
-export const verifyTp23 = (p: Project, q: Tp23QuestionId): string[] => (q.startsWith('tp2') ? verifyTp2(p, q as Tp2QuestionId) : verifyTp3(p, q as Tp3QuestionId))
+/** TP4 : Rotary sur le mikroBUS 2, MSSP1 en SPI maître sur le bus SPI du mikroBUS, RST et LATCH en sortie (§2 et suite), codeur et IOC (§5) */
+export function verifyTp4(p: Project, q: Tp4QuestionId): string[] {
+  const idx = TP4_ORDER.indexOf(q)
+  const at = (id: Tp4QuestionId) => idx >= TP4_ORDER.indexOf(id)
+  const errors = rotaryErrors(p)
+  const m = p.mcc.mssp
+  const bus = INFO3.pins.mikrobus2
+  if (!m) errors.push('MSSP1 absent : l’ajouter depuis Device Resources (MSSP › MSSP1), Serial Protocol SPI, Mode Master')
+  else {
+    const want = { SCK1: bus.SCK, SDO1: bus.MOSI, SDI1: bus.MISO } as const
+    for (const [sig, pin] of Object.entries(want) as [keyof typeof want, string][]) {
+      if (m.pins[sig] !== pin) errors.push(`MSSP1 ${sig} : ${pin} attendue dans le Grid View, ${m.pins[sig] ?? 'aucune broche'} choisie`)
+    }
+  }
+  if (at('tp4-2')) {
+    for (const [name, pin] of [['RST', R.RST], ['LATCH', R.LATCH]] as const) {
+      const x = p.mcc.pins.find((c) => c.pin === pin)
+      if (!x || x.direction !== 'output') errors.push(`${name} (${pin}) : sortie numérique attendue dans le Pin Module (${name === 'RST' ? 'MR des 74HC595, actif à 0' : 'verrouillage des sorties'})`)
+    }
+  }
+  if (at('tp4-5')) {
+    errors.push(...pinsErrors(p, [...leds(), ...encoder()]))
+    errors.push(...iocErrors(p, R.ENCB, 'ENCB', 'any'))
+  }
+  return [...errors, ...generateErrors(p)]
+}
+
+export const verifyTp23 = (p: Project, q: Tp23QuestionId): string[] =>
+  q.startsWith('tp2') ? verifyTp2(p, q as Tp2QuestionId) : q.startsWith('tp3') ? verifyTp3(p, q as Tp3QuestionId) : verifyTp4(p, q as Tp4QuestionId)
 
 export function runVerifyTp23(p: Project, q: Tp23QuestionId): { project: Project; errors: string[] } {
   const errors = verifyTp23(p, q)
