@@ -13,6 +13,7 @@ import Oscilloscope from './Oscilloscope'
 import Ide, { type Breakpoint } from '../ide/Ide'
 import { programCheck, projectFiles, runGenerate, setCard, setUsbBlack, setUsbWhite, type Project, type Result, type SlotId } from '../project/project'
 import { useSim, type SimControls } from './useSim'
+import type { Speed } from '../worker/protocol'
 
 const Mcc = lazy(() => import('../mcc/Mcc'))
 
@@ -51,6 +52,8 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
   const [benchMsg, setBenchMsg] = useState<string | null>(null)
   /** Rebonds des boutons (H3) : comme sur la carte réelle, activés par défaut */
   const [bounce, setBounce] = useState(true)
+  /** Vitesse de simulation (×1 au lancement par Program / Debug) */
+  const [speed, setSpeed] = useState<Speed>(1)
   const [genMsg, setGenMsg] = useState<{ ok: boolean; text: string } | null>(null)
   /** Programme en mémoire flash : redémarre à chaque mise sous tension */
   const flash = useRef<Record<string, string> | null>(null)
@@ -89,7 +92,11 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
 
   const program = async () => {
     if (!guard()) return
-    if (await sim.program(files)) flash.current = files
+    if (await sim.program(files)) {
+      flash.current = files
+      // Program lance à ×1 : la vitesse choisie sur le banc est réappliquée
+      if (speed !== 1) sim.run(speed)
+    }
   }
   const debug = async (bp: Breakpoint | null) => {
     if (!guard()) return
@@ -179,9 +186,30 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               onUsbWhite={(v) => apply(setUsbWhite(project, v))}
               onCard={(slot, card) => apply(setCard(project, slot, card))}
             />
-            <label className="mt-1 flex items-center gap-1.5 text-xs text-muted" title={INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
-              <input type="checkbox" checked={bounce} onChange={(e) => setBounce(e.target.checked)} /> Rebonds des boutons S1 et S2 (H3)
-            </label>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+              <label className="flex items-center gap-1.5" title={INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
+                <input type="checkbox" checked={bounce} onChange={(e) => setBounce(e.target.checked)} /> Rebonds des boutons S1 et S2 (H3)
+              </label>
+              <label className="flex items-center gap-1.5">
+                Vitesse
+                <select
+                  aria-label="Vitesse de simulation"
+                  className="rounded border border-line bg-card px-1 py-0.5"
+                  value={speed}
+                  onChange={(e) => {
+                    const s = Number(e.target.value) as Speed
+                    setSpeed(s)
+                    if (sim.view.mode === 'running' || sim.view.mode === 'debug-running') sim.run(s)
+                  }}
+                >
+                  {INFO3.vm.speeds.map((s) => (
+                    <option key={s} value={s}>
+                      ×{String(s).replace('.', ',')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             {rotarySlot && (
               <div className="mt-2">
                 <RotaryControl slotLabel={SLOT_NAMES[rotarySlot]} onTurn={(n) => sim.rotary({ action: 'turn', detents: n })} onSpin={(r) => sim.rotary({ action: 'spin', rate: r })} onSw={(p) => sim.rotary({ action: 'sw', pressed: p })} ring={powered ? sim.view.ring : []} />

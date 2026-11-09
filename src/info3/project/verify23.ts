@@ -95,7 +95,8 @@ export function verifyTp4(p: Project, q: Tp4QuestionId): string[] {
       if (!x || x.direction !== 'output') errors.push(`${name} (${pin}) : sortie numérique attendue dans le Pin Module (${name === 'RST' ? 'MR des 74HC595, actif à 0' : 'verrouillage des sorties'})`)
     }
   }
-  if (at('tp4-5')) {
+  // Codeur et compteur : question 5 seulement (la question 6 n'en a pas besoin)
+  if (q === 'tp4-5') {
     errors.push(...pinsErrors(p, [...leds(), ...encoder()]))
     errors.push(...iocErrors(p, R.ENCB, 'ENCB', 'any'))
   }

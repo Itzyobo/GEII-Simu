@@ -10,7 +10,26 @@ Mis à jour à chaque bloc terminé. Étape en cours : **4** (TP4 : SPI et annea
 | B2 | fait | Modèle `hc595x2` (SER de U2 ← MOSI, Q7S de U3 → MISO, étage 0 = LED 1, décalage au front montant de SCK avec le MOSI d'avant le front, MR = RST actif à 0, front montant de LATCH → sorties ; RST/LATCH en l'air lus à 0 = H36) ; câblage selon le mikroBUS (mikroBUS 1 : RST = RD0, LATCH = RA3 → anneau éteint) ; anneau dessiné sur la carte Rotary, LED 1 en haut puis sens horaire (H10), lueur = fraction du temps allumée (image du Worker) ; presets tp4-1, tp4-2, tp4-5. Tests 5 à 10 |
 | B3 | fait | Oscilloscope 2 voies (canvas, src/info3/ui/Oscilloscope.tsx) reprenant `acquire` et `measure` de src/lib/scope.ts : sondes TP17 (SCK), TP16 (MOSI), TP19 (ENC_A), TP20 (ENC_B) ou toute broche ; 200 ns à 1 s/div ; signaux 0 à 3,3 V, fronts de 20 ns (H40) ; déclenchement sur front (voie, sens, niveau, Trig'd / Auto) ; Run/Stop ; curseurs ΔT et 1/ΔT ; période automatique ; décodage SPI (mode au choix, octet au-dessus de la trame). Voies demandées au Worker par instrument (union analyseur + oscilloscope). L'analyseur logique reste disponible. Test 2 (périodes de SCK par l'oscilloscope) et décodage de 0x31 |
 | B4 | fait | Page /info3/tp4 (TpPage, analyseur SCK/MOSI/LATCH/RST, oscilloscope TP17/TP16), 6 questions par ancre : défis notés (prof/tp4.ts), période de SCK relevée aux curseurs (attendue calculée depuis la configuration, ± 1 %), QCM MSB en premier, « quel mode SPI » (0 et 3 ; leurres 1 et 2 avec le décalage d'un rang), WriteByte / ExchangeByte ; Faire vérifier TP4 (Rotary sur le mikroBUS 2, MSSP1 et broches SCK1/SDO1/SDI1, RST/LATCH en sortie dès §2, LED + codeur + IOC pour §5) ; solutions de référence src/info3/solutions/tp4/q1.c à q6.c ; question 6 : l'animation 2 démarre après un appui sur S1 (choix du simulateur, énoncé absent) ; carte TP4 de l'accueil ; A6 et A10 couverts. Tests 11 et 12 |
-| B5 | à faire | Vérifications finales |
+| B5 | fait sauf C1 | Vérifications finales (ci-dessous). Ajouts : temps de retenue du déclenchement de l'oscilloscope (premier front d'une salve, comme un oscilloscope réarmé : la trame 0x31 entière à l'écran) ; sélecteur « Vitesse » (×0,1, ×1, ×10) sous le banc, réappliqué après Program ; Faire vérifier TP4 : codeur et IOC exigés pour la question 5 seulement |
+
+### Résultats de l'étape 4 (HEAD + B5 vérifiés dans un worktree propre, sans le travail ENER3 non commité)
+
+- Tests : 494 réussis, 1 ignoré (F9), 0 échec INFO3. `src/models/stepper.test.ts` (ENER3, non modifié) échoue 2 fois sur 5 passages complets, toujours l'assertion de temps réel « recalcul < 50 ms » (56,2 et 65,5 ms) ; seul : 20/20.
+- TypeScript, `npm run build` : 0 erreur, 0 warning. oxlint : 23 avertissements comme à e91a015 et d6e41e4, 0 dans INFO3.
+- 375 px strict : 31 routes conformes (/info3/tp4 comprise).
+- Navigateur /info3/tp4, 0 erreur console :
+  - Q1 (tp4-1, mode 3, Fosc/4) : Generate, Faire vérifier conforme, Program ; oscilloscope TP17/TP16 à 2 µs/div, Stop, curseurs sur deux fronts montants : ΔT = 1 µs (1/ΔT = 1 000 000 Hz), période automatique 1 000 ns, trame décodée 0x31 ;
+  - Q2 (mode 0) : LED 1, 5, 6 allumées (plus LED 9, 13, 14 après le 2e envoi, comportement réel de la chaîne) ;
+  - Q5 : LED de l'anneau 1 → 2 → 3 → 4 → 5 → 6 → 5 → 4 pour 0, +1…+5, −1, −2 crans ;
+  - Q4 et Q6 à ×10 pendant 6 s réelles : 61,1 s et 61,0 s simulées, 0 tâche longue > 50 ms.
+
+| Chunk (gzip, worktree propre) | Étape 4 | Budget |
+| --- | --- | --- |
+| Bundle initial (index-*.js) | 79,96 Ko (79,93 à l'étape 3) | ≤ base + 3 Ko |
+| /info3/tp4 hors éditeur | 54,2 Ko | — |
+| Worker (compilateur, VM, MSSP, 74HC595, professeurs TP1–TP4) | 53,0 Ko | — |
+| /info3/tp4 hors éditeur, Worker compris | 107,2 Ko | ≤ 150 Ko |
+| CodeMirror (CodeEditor) | 103,3 Ko | ≤ 120 Ko |
 
 Point hérité — test ENER `src/models/stepper.test.ts` (non modifié) : seul, 20 réussites sur 20 (6,5 à 7,8 s) ; en parallèle avec les tests INFO3 les plus lourds (`src/models src/info3/models src/info3/mcc`), 15 échecs sur 20, toujours la même assertion « performance : recalcul < 50 ms » (50,6 à 97,6 ms mesurés). Cause : mesure de temps réel (`performance.now()`) sensible à la charge du processeur, pas un défaut du modèle.
 

@@ -43,17 +43,22 @@ const crossing = (c: TraceChange, level: number) => c.t + S.riseTime * (c.level 
 
 /**
  * Déclenchement : dernier front du type demandé dont la fenêtre [t − span/2, t + span/2] est entièrement
- * acquise (t + span/2 ≤ tEnd). null : pas de front → l'écran défile (mode auto).
+ * acquise (t + span/2 ≤ tEnd), avec un temps de retenue d'une demi-fenêtre : on retient le premier front
+ * d'une salve (aucun front du même type dans la demi-fenêtre qui précède), comme un oscilloscope réarmé.
+ * Sans salve isolée, le dernier front convenable. null : pas de front → l'écran défile (mode auto).
  */
 export function findTriggerTime(a: readonly TraceChange[], edge: TriggerEdge, level: number, tEnd: number, span: number): number | null {
   const want = edge === 'rising' ? 1 : 0
-  for (let i = a.length - 1; i > 0; i--) {
-    const c = a[i]
-    if (c.level !== want || a[i - 1].level === want) continue
-    const t = crossing(c, level)
-    if (t + span / 2 <= tEnd) return t
+  const fronts: number[] = []
+  for (let i = 1; i < a.length; i++) if (a[i].level === want && a[i - 1].level !== want) fronts.push(crossing(a[i], level))
+  let fallback: number | null = null
+  for (let i = fronts.length - 1; i >= 0; i--) {
+    const t = fronts[i]
+    if (t + span / 2 > tEnd) continue
+    fallback ??= t
+    if (i === 0 || t - fronts[i - 1] > span / 2) return t
   }
-  return null
+  return fallback
 }
 
 /** Période mesurée automatiquement sur [t0, t0 + span] (s), NaN s'il n'y a pas deux fronts de même sens */
