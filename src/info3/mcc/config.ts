@@ -61,6 +61,51 @@ export interface MccConfig {
   singleIsr?: boolean
   /** Timers ajoutés depuis Device Resources (TMR2, TMR4, TMR6) */
   timers?: Partial<Record<TimerId, TimerConfig>>
+  /** MSSP1 en SPI maître (Device Resources › MSSP1) */
+  mssp?: MsspConfig
+}
+
+/* ───────────── MSSP1 (SPI) ───────────── */
+
+export type SpiSignal = 'SCK1' | 'SDI1' | 'SDO1'
+export const SPI_SIGNALS: readonly SpiSignal[] = ['SCK1', 'SDI1', 'SDO1']
+
+export interface MsspConfig {
+  /** SPI Mode 0 à 3 */
+  mode: number
+  /** Input Data Sampled at : Middle ou End */
+  sample: string
+  /** Clock Source (libellé MCC) */
+  clockSource: string
+  /** Clock Divider = SSP1ADD (Clock Source FOSC/4_SSPxADD) */
+  divider: number
+  /** Broches choisies dans le Grid View (PPS) */
+  pins: Record<SpiSignal, string | null>
+}
+
+export const defaultMsspConfig = (): MsspConfig => ({ ...INFO3.spi.mccDefault, pins: { ...INFO3.spi.defaultPins } })
+export const addMssp = (cfg: MccConfig): MccConfig => (cfg.mssp ? cfg : { ...cfg, mssp: defaultMsspConfig() })
+export const removeMssp = (cfg: MccConfig): MccConfig => {
+  const rest = { ...cfg }
+  delete rest.mssp
+  return rest
+}
+export const updateMssp = (cfg: MccConfig, patch: Partial<MsspConfig>): MccConfig => (cfg.mssp ? { ...cfg, mssp: { ...cfg.mssp, ...patch } } : cfg)
+
+function parseMssp(x: unknown): MsspConfig | null {
+  if (!x || typeof x !== 'object') return null
+  const o = x as Record<string, unknown>
+  const d = defaultMsspConfig()
+  const pins = { ...d.pins }
+  const op = (o.pins ?? {}) as Record<string, unknown>
+  for (const s of SPI_SIGNALS) if (op[s] === null || (typeof op[s] === 'string' && /^R[A-E][0-7]$/.test(op[s] as string))) pins[s] = op[s] as string | null
+  return {
+    mode: typeof o.mode === 'number' && INFO3.spi.modes.some((m) => m.mode === o.mode) ? o.mode : d.mode,
+    sample: typeof o.sample === 'string' && (INFO3.spi.sampleOptions as readonly string[]).includes(o.sample) ? o.sample : d.sample,
+    clockSource: typeof o.clockSource === 'string' && INFO3.spi.clockSources.some((c) => c.label === o.clockSource) ? o.clockSource : d.clockSource,
+    divider: typeof o.divider === 'number' ? o.divider : d.divider,
+    pins,
+  }
 }
 
 /* ───────────── Timers 2, 4, 6 (Device Resources) ───────────── */
@@ -228,5 +273,6 @@ export function parseMccConfig(x: unknown): MccConfig | null {
     ...(disabled ? { interruptsDisabled: disabled } : {}),
     ...(typeof o.singleIsr === 'boolean' ? { singleIsr: o.singleIsr } : {}),
     ...(Object.keys(timers).length ? { timers } : {}),
+    ...(o.mssp ? { mssp: parseMssp(o.mssp) ?? defaultMsspConfig() } : {}),
   }
 }

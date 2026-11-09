@@ -248,6 +248,11 @@ export class Timer246 {
     this.reschedule()
   }
 
+  /** Durée d'une période (PRx + 1 incréments, sans postscaler) — ticks ; Infinity si le timer ne compte pas */
+  periodTicks(): number {
+    return this.on ? (this.pr + 1) * this.countTicks : Infinity
+  }
+
   /** État lisible (inspecteur, tests) */
   get state() {
     return { tmr: this.tmr, counting: this.counting, on: this.on, mode: this.mode, prescaler: this.prescaler, postscaler: this.postscaler, pr: this.pr }

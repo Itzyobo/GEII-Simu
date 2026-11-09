@@ -24,6 +24,9 @@ export interface PortState {
   ext: (Level | null)[]
   /** Niveaux actuels des broches (masque) */
   levels: number
+  /** Broches dont la sortie est confiée à un périphérique par PPS (masque) et niveaux qu'il impose */
+  PPS: number
+  PER: number
 }
 
 export type GpioState = Record<PortName, PortState>
@@ -62,6 +65,8 @@ export function createGpioState(): GpioState {
       ODCON: sfrOf(`ODCON${p}`).reset,
       ext: Array.from({ length: BITS }, () => null),
       levels: 0,
+      PPS: 0,
+      PER: 0,
     }
     st[p].levels = computeLevels(st[p], p)
   }
@@ -73,7 +78,8 @@ export function pinLevel(ps: PortState, port: PortName, bit: number): Level {
   const m = 1 << bit
   const isOutput = (OUT_MASK[port] & m) !== 0 && (ps.TRIS & m) === 0
   if (isOutput) {
-    const lat = (ps.LAT & m) !== 0
+    // Sortie confiée à un périphérique (PPS) : son niveau remplace LATx
+    const lat = ((ps.PPS & m ? ps.PER : ps.LAT) & m) !== 0
     // Push-pull : la sortie impose son niveau ; drain ouvert : seul le 0 est imposé
     if (!lat) return 0
     if ((ps.ODCON & m) === 0) return 1
@@ -152,6 +158,22 @@ export class Gpio {
   level(pin: string): Level {
     const { port, bit } = parsePin(pin)
     return ((this.state[port].levels >> bit) & 1) as Level
+  }
+
+  /** Confie (ou rend) la sortie d'une broche à un périphérique (PPS) */
+  setPeripheral(pin: string, owned: boolean, t: number) {
+    const { port, bit } = parsePin(pin)
+    const ps = this.state[port]
+    ps.PPS = owned ? ps.PPS | (1 << bit) : ps.PPS & ~(1 << bit)
+    this.update(port, t)
+  }
+
+  /** Niveau imposé par le périphérique sur une broche qu'il possède */
+  setPeripheralLevel(pin: string, level: Level, t: number) {
+    const { port, bit } = parsePin(pin)
+    const ps = this.state[port]
+    ps.PER = level ? ps.PER | (1 << bit) : ps.PER & ~(1 << bit)
+    this.update(port, t)
   }
 
   private update(port: PortName, t: number) {

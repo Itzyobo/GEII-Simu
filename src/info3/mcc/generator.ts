@@ -13,6 +13,7 @@ import { interruptManagerFiles } from './interruptManager'
 import { isEnabled } from './interrupts'
 import { DIR, hex2, replaceOnce, tpl, type DriverOutput } from './templates'
 import { ppsLines, TIMER_DRIVERS } from './timers'
+import { spiDriver, spiPortBits, spiPpsLines } from './spi'
 
 const sfrReset = (name: string) => (INFO3.sfr as Record<string, { reset: number }>)[name].reset
 
@@ -44,6 +45,15 @@ export function portRegisters(cfg: MccConfig): Record<PortName, PortRegisters> {
       else r.ANSEL &= ~m
       if (pc.wpu) r.WPU |= m
       if (pc.od) r.ODCON |= m
+    }
+    // MSSP1 : SCK1 et SDO1 en sortie, SDI1 en entrée, broches numériques
+    for (const sp of spiPortBits(cfg)) {
+      const { port, bit } = parsePin(sp.pin)
+      if (port !== p) continue
+      const m = 1 << bit
+      if (sp.output) r.TRIS &= ~m
+      else r.TRIS |= m
+      r.ANSEL &= ~m
     }
     for (const reg of ['LAT', 'TRIS', 'ANSEL', 'WPU', 'ODCON', 'SLRCON', 'INLVL'] as const) r[reg] &= implementedMask(`${reg}${p}`)
     out[p] = r
@@ -332,7 +342,7 @@ function pinManagerC(cfg: MccConfig): string {
   })
   if (count !== PORT_NAMES.length * Object.keys(regs.A).length) throw new Error('gabarit MCC : registres de pin_manager.c incomplets')
   // IOCI décochée dans l'Interrupt Module : PIE0bits.IOCIE n'est pas mis à 1
-  return withPps(withIoc(out, iocPins(cfg), isEnabled(cfg, 'IOC')), ppsLines(cfg))
+  return withPps(withIoc(out, iocPins(cfg), isEnabled(cfg, 'IOC')), [...ppsLines(cfg), ...spiPpsLines(cfg)])
 }
 
 /** Entrées PPS (TxIN…) : dernières lignes de PIN_MANAGER_Initialize (format = H34) */
@@ -369,7 +379,7 @@ function deviceConfigC(cfg: MccConfig): string {
 /** Fichiers générés, indexés par chemin dans le projet (mcc_generated_files/…) */
 /* ───────────── Pilotes ajoutés (Interrupt Module, timers…), appelés dans cet ordre ───────────── */
 
-const DRIVERS: ((cfg: MccConfig) => DriverOutput | null)[] = [interruptManagerFiles, ...TIMER_DRIVERS]
+const DRIVERS: ((cfg: MccConfig) => DriverOutput | null)[] = [interruptManagerFiles, spiDriver, ...TIMER_DRIVERS]
 
 const INCLUDE_ANCHOR = '#include <conio.h>\n'
 const INIT_ANCHOR = '    OSCILLATOR_Initialize();\n'

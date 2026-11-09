@@ -5,11 +5,13 @@
  */
 import { useState } from 'react'
 import { INFO3 } from '../../data/reference'
-import { addTimer, customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, removeTimer, setIoc, systemFosc, TIMER_IDS, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator, type TimerId } from './config'
+import { addMssp, addTimer, customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, removeMssp, removeTimer, setIoc, systemFosc, TIMER_IDS, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator, type TimerId } from './config'
 import GridView from './GridView'
 import { interruptTable, moveInterrupt, setInterruptEnabled } from './interrupts'
 import TimerPanel from './TimerPanel'
 import { timerGridRows } from './timers'
+import { spiGridRows } from './spi'
+import MsspPanel from './MsspPanel'
 
 export interface MccProps {
   config: MccConfig
@@ -20,7 +22,7 @@ export interface MccProps {
   dark?: boolean
 }
 
-type Resource = 'system' | 'pins' | 'interrupts' | TimerId
+type Resource = 'system' | 'pins' | 'interrupts' | 'MSSP1' | TimerId
 
 /** Interrupt Module : table « Interrupt Vector » (Order, Module, Interrupt, Enabled) */
 function InterruptPanel({ config, onChange, head }: { config: MccConfig; onChange(cfg: MccConfig): void; head: string }) {
@@ -95,7 +97,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
   const s = config.system
   const setSys = (patch: Partial<MccConfig['system']>) => onChange({ ...config, system: { ...s, ...patch } })
   const pins = [...config.pins].sort((a, b) => pinOrder(a.pin, b.pin))
-  const added = TIMER_IDS.filter((id) => config.timers?.[id])
+  const added: (TimerId | 'MSSP1')[] = [...(config.mssp ? (['MSSP1'] as const) : []), ...TIMER_IDS.filter((id) => config.timers?.[id])]
 
   const panel = 'rounded-lg border border-[#c8c8c8] bg-white text-[#1e1e1e]'
   const head = 'border-b border-[#c8c8c8] bg-[#e8e8e8] px-2 py-1 text-xs font-semibold'
@@ -139,7 +141,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
                     aria-label={`Retirer ${id} du projet`}
                     title={`Retirer ${id}`}
                     onClick={() => {
-                      onChange(removeTimer(config, id))
+                      onChange(id === 'MSSP1' ? removeMssp(config) : removeTimer(config, id))
                       if (res === id) setRes('pins')
                     }}
                     className="px-1.5 text-[#b71c1c] hover:bg-[#ffebee]"
@@ -153,6 +155,22 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
           <div className={panel}>
             <div className={head}>Device Resources</div>
             <ul className="p-1 text-xs">
+              <li className="px-1 font-semibold">MSSP</li>
+              <li className="flex items-center justify-between px-3 py-0.5">
+                <span>MSSP1</span>
+                <button
+                  type="button"
+                  aria-label="Ajouter MSSP1 au projet"
+                  disabled={!!config.mssp}
+                  onClick={() => {
+                    onChange(addMssp(config))
+                    setRes('MSSP1')
+                  }}
+                  className="rounded border border-[#8a8a8a] bg-[#fafafa] px-1.5 font-semibold text-[#1b5e20] disabled:opacity-40"
+                >
+                  +
+                </button>
+              </li>
               <li className="px-1 font-semibold">Timer</li>
               {TIMER_IDS.map((id) => (
                 <li key={id} className="flex items-center justify-between px-3 py-0.5">
@@ -184,6 +202,8 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
         <div className={`${panel} min-w-0`}>
           {res === 'interrupts' ? (
             <InterruptPanel config={config} onChange={onChange} head={head} />
+          ) : res === 'MSSP1' ? (
+            <MsspPanel config={config} onChange={onChange} head={head} field={field} />
           ) : res.startsWith('TMR') ? (
             <TimerPanel key={res} id={res as TimerId} config={config} onChange={onChange} head={head} field={field} />
           ) : res === 'system' ? (
@@ -321,7 +341,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
       </div>
 
       {/* Pin Manager: Grid View */}
-      <GridView config={config} onChange={onChange} extraRows={timerGridRows(config)} />
+      <GridView config={config} onChange={onChange} extraRows={[...spiGridRows(config), ...timerGridRows(config)]} />
     </section>
   )
 }

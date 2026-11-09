@@ -11,7 +11,8 @@ import { Op, type FuncMeta, type Program } from '../compiler/bytecode'
 import type { CType } from '../compiler/types'
 import { kindOf, sizeOf } from '../compiler/types'
 import { Button, type Edge } from '../models/button'
-import { Gpio, parsePin, PORT_NAMES, type Level, type PinChange } from '../models/gpio'
+import { ALL_PINS, Gpio, parsePin, pinName, PORT_NAMES, type Level, type PinChange } from '../models/gpio'
+import { MsspSpi } from '../models/msspSpi'
 import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
 import { foscFromRegisters, hfintoscFromRegister } from '../models/clock'
@@ -126,6 +127,7 @@ export class Vm {
     for (const p of IRQ.iocPorts) this.iocRegs[p] = { P: this.bus.addrOf[`IOC${p}P`], N: this.bus.addrOf[`IOC${p}N`], F: this.bus.addrOf[`IOC${p}F`] }
     this.gpio.onChange((c) => this.iocPin(c))
     this.createTimers()
+    this.createMssp()
     for (const b of INFO3.pins.buttons) {
       this.buttons[b.name] = { button: new Button({ activeLevel: b.activeLevel as Level, rng: () => this.rng() }), pin: b.pin }
     }
@@ -151,7 +153,7 @@ export class Vm {
     const sfrName = (n: number, r: TimerReg) => `T${n}${r}`
     for (const n of INFO3.timers.ids) {
       const tm = new Timer246({
-        now: () => this.t,
+        now: () => this.tNow,
         clockHz: (cs) => timerClockHz(cs, this.fosc, hfintoscFromRegister(this.mem[this.bus.addrOf.OSCFRQ])),
         schedule: (t, fn) => this.events.pushFn(t, fn),
         raiseFlag: () => this.bus.writeBit(INFO3.timers.irq.flag, `TMR${n}IF`, 1),
@@ -178,6 +180,68 @@ export class Vm {
   }
 
   private readonly ersPps: Record<number, number> = {}
+
+  /* ═════════════ MSSP1 en SPI maître ═════════════ */
+
+  readonly mssp: MsspSpi = new MsspSpi({
+    now: () => this.tNow,
+    schedule: (t, fn) => this.events.pushFn(t, fn),
+    sckPeriodTicks: (sspm, add) => {
+      const src = INFO3.spi.clockSources.find((s) => s.sspm === sspm)
+      if (!src) return Infinity
+      if (src.tcy) return src.tcy * this.ticksPerTcy
+      if (src.label === 'FOSC/4_SSPxADD') return (add + 1) * this.ticksPerTcy
+      // T2_match_PR2/2 : SCK bascule à chaque égalité TMR2 = PR2
+      return 2 * this.timers[INFO3.timers.ids[0]].periodTicks()
+    },
+    setSck: (l) => this.spiPins.SCK1 && this.gpio.setPeripheralLevel(this.spiPins.SCK1, l, this.tNow),
+    setSdo: (l) => this.spiPins.SDO1 && this.gpio.setPeripheralLevel(this.spiPins.SDO1, l, this.tNow),
+    readSdi: () => (this.spiPins.SDI1 ? this.gpio.level(this.spiPins.SDI1) : (INFO3.floatingInputLevel as Level)),
+    raiseFlag: () => this.bus.writeBit(INFO3.spi.irq.flag, INFO3.spi.irq.bit, 1),
+  })
+  /** Broches attribuées par PPS (SCK1, SDO1 en sortie ; SDI1 en entrée) */
+  readonly spiPins: { SCK1: string | null; SDO1: string | null; SDI1: string | null } = { SCK1: null, SDO1: null, SDI1: null }
+
+  private createMssp() {
+    const a = this.bus.addrOf
+    const m = this.mssp
+    this.bus.readHooks.set(a.SSP1STAT, () => m.stat)
+    this.bus.readHooks.set(a.SSP1CON1, () => m.con1)
+    this.bus.readHooks.set(a.SSP1BUF, () => m.readBuf())
+    this.bus.readHooks.set(a.SSP1ADD, () => m.add)
+    this.bus.writeHooks.set(a.SSP1STAT, (v) => m.writeStat(v))
+    this.bus.writeHooks.set(a.SSP1CON1, (v) => m.writeCon1(v))
+    this.bus.writeHooks.set(a.SSP1BUF, (v) => m.writeBuf(v))
+    this.bus.writeHooks.set(a.SSP1ADD, (v) => m.writeAdd(v))
+    const remap = () => this.mapSpiPins()
+    for (const pin of ALL_PINS) {
+      const addr = a[`${pin}PPS`]
+      if (addr !== undefined) this.bus.writeHooks.set(addr, remap)
+    }
+    this.bus.writeHooks.set(a.SSP1DATPPS, remap)
+  }
+
+  /** Relit les registres PPS : broches de SCK1, SDO1 (sorties confiées à MSSP1) et SDI1 */
+  private mapSpiPins() {
+    const out = INFO3.spi.ppsOut
+    const find = (code: number) => ALL_PINS.find((p) => this.bus.addrOf[`${p}PPS`] !== undefined && this.mem[this.bus.addrOf[`${p}PPS`]] === code) ?? null
+    const next = { SCK1: find(out.SCK1), SDO1: find(out.SDO1) }
+    for (const k of ['SCK1', 'SDO1'] as const) {
+      const prev = this.spiPins[k]
+      if (prev === next[k]) continue
+      if (prev) this.gpio.setPeripheral(prev, false, this.t)
+      this.spiPins[k] = next[k]
+      if (next[k]) {
+        this.gpio.setPeripheralLevel(next[k]!, k === 'SCK1' ? this.mssp.sck : this.mssp.sdo, this.t)
+        this.gpio.setPeripheral(next[k]!, true, this.t)
+      }
+    }
+    const dat = this.mem[this.bus.addrOf.SSP1DATPPS]
+    const port = PORT_NAMES[dat >> INFO3.timers.ppsPortShift]
+    const bit = dat & ((1 << INFO3.timers.ppsPortShift) - 1)
+    this.spiPins.SDI1 = port ? pinName(port, bit) : null
+    if (this.spiPins.SDI1 && !ALL_PINS.includes(this.spiPins.SDI1)) this.spiPins.SDI1 = null
+  }
 
   /* ═════════════ Carte ROTARY O click (codeur EC12D) ═════════════ */
 
@@ -259,7 +323,7 @@ export class Vm {
   }
 
   private probe(name: string, level: Level) {
-    for (const cb of this.probeListeners) cb({ name, t: this.t, level })
+    for (const cb of this.probeListeners) cb({ name, t: this.tNow, level })
   }
 
   private probePir4() {
@@ -331,6 +395,9 @@ export class Vm {
     for (const tm of Object.values(this.timers)) tm.reset()
     this.updateClock()
     this.gpio.reset()
+    // PPS au reset : aucune sortie confiée à MSSP1
+    this.spiPins.SCK1 = this.spiPins.SDO1 = this.spiPins.SDI1 = null
+    this.mssp.reset()
     this.gpio.settle(this.t)
     this.sp = 0
     this.frames = []
@@ -814,11 +881,20 @@ export class Vm {
     this.pc = meta.entry
   }
 
+  /** Instant d'un événement en cours de traitement (les périphériques datent leurs fronts à cet instant) */
+  private evT: number | null = null
+  /** Temps vu par les périphériques : instant de l'événement traité, sinon temps courant */
+  get tNow(): number {
+    return this.evT ?? this.t
+  }
+
   private processEvents() {
     while (this.events.size && this.events.peekTime() <= this.t) {
       const e = this.events.pop()!
+      this.evT = e.t
       if (e.fn) e.fn()
       else this.gpio.setExternal(e.pin, e.level, e.t)
+      this.evT = null
     }
   }
 

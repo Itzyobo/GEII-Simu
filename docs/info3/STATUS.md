@@ -1,6 +1,22 @@
 # INFO3 — état d'avancement
 
-Mis à jour à chaque bloc terminé. Étape 3 (TP2 + TP3) terminée ; étape 4 non commencée. Étape 2 terminée (commit e91a015).
+Mis à jour à chaque bloc terminé. Étape en cours : **4** (TP4 : SPI et anneau de 16 LED). Étape 3 terminée (commit d6e41e4), étape 2 (e91a015).
+
+## Étape 4
+
+| Bloc | État | Contenu |
+| --- | --- | --- |
+| B1 | fait | MSSP1 en SPI maître : SFR (SSP1BUF…CON3, champs SSPM/CKP/SSPEN/WCOL), PPS (RxyPPS, SSP1CLKPPS/DATPPS = H38), sorties PPS dans le modèle gpio ; modèle `mssp-spi` (MSB en premier, 8 périodes, SCK au repos = CKP, changement selon CKE, lecture SMP, SSP1IF + BF, WCOL ; modes 1 et 2 sans présentation anticipée = H14) ; temps des périphériques = instant de l'événement (fronts SCK/MOSI datés exactement) ; MCC : Device Resources › MSSP1, Easy Setup (H37), lignes SCK1/SDI1/SDO1 du Grid View, fréquence de SCK ; spi1.c/.h (format H39), PPS et TRIS/ANSEL dans pin_manager.c ; `<stddef.h>`. Tests 1, 3, 4 (et périodes de SCK par la trace) |
+| B2 | à faire | Anneau de 16 LED (`hc595x2`) |
+| B3 | à faire | Oscilloscope 2 voies, décodage SPI |
+| B4 | à faire | Page /info3/tp4, questions, solutions q1 à q6, Faire vérifier |
+| B5 | à faire | Vérifications finales |
+
+Point hérité — test ENER `src/models/stepper.test.ts` (non modifié) : seul, 20 réussites sur 20 (6,5 à 7,8 s) ; en parallèle avec les tests INFO3 les plus lourds (`src/models src/info3/models src/info3/mcc`), 15 échecs sur 20, toujours la même assertion « performance : recalcul < 50 ms » (50,6 à 97,6 ms mesurés). Cause : mesure de temps réel (`performance.now()`) sensible à la charge du processeur, pas un défaut du modèle.
+
+C1 : toujours bloquée (docs/sources/INFO3_TP.pdf absent).
+
+## Étape 3 (terminée)
 
 ## Étape 3
 

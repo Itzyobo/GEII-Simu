@@ -69,6 +69,13 @@ const IOC_ADDR = {
   E: { P: 0xf69, N: 0xf6a, F: 0xf6b },
 } as const
 
+/** MSSP1 (banque 3) : SSP1BUF, ADD, MSK, STAT, CON1, CON2, CON3 consécutifs — H18 */
+const MSSP1_ADDR = 0x18c
+/** PPS de sortie RxyPPS (banque 30) : RA0PPS, puis 8 registres par port — H38 */
+const PPS_OUT_ADDR = { A: 0xf10, B: 0xf18, C: 0xf20, D: 0xf28, E: 0xf30 } as const
+/** PPS d'entrée de MSSP1 : SSP1CLKPPS, SSP1DATPPS, SSP1SSPPS — H38 */
+const SSP1_PPS_IN_ADDR = 0xec5
+
 /** Timers 2, 4, 6 : adresse de TMRx (PRx, TxCON, TxHLT, TxCLKCON, TxRST suivent) — H18 */
 const TIMER_ADDR = { 2: 0x28c, 4: 0x292, 6: 0x298 } as const
 /** Entrée externe (T2IN…) : registres PPS d'entrée — H18 */
@@ -140,6 +147,20 @@ function buildSfrs(): Record<string, SfrDef> {
     out[`${t}CLKCON`] = { ...sfr(base + 4, 0, namedBits(`${t}CS0 ${t}CS1 ${t}CS2 ${t}CS3 - - - -`), ['H18', 'H19']), fields: f(['CS', 4], [null, 4]) }
     out[`${t}RST`] = { ...sfr(base + 5, 0, namedBits(`${t}RSEL0 ${t}RSEL1 ${t}RSEL2 ${t}RSEL3 - - - -`), ['H18', 'H19']), fields: f(['RSEL', 4], [null, 4]) }
     out[`${t}INPPS`] = sfr(TIMER_PPS_ADDR[Number(n) as keyof typeof TIMER_PPS_ADDR], 0, namedBits(`${t}INPPS0 ${t}INPPS1 ${t}INPPS2 ${t}INPPS3 ${t}INPPS4 - - -`), ['H18', 'H19'])
+  }
+  // MSSP1 (SPI) : SSP1STAT SMP<7> CKE<6> … BF<0> ; SSP1CON1 WCOL<7> SSPOV<6> SSPEN<5> CKP<4> SSPM<3:0>
+  const f = (...xs: [string | null, number][]) => xs.map(([name, width]) => ({ name, width }))
+  out.SSP1BUF = sfr(MSSP1_ADDR, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.SSP1ADD = sfr(MSSP1_ADDR + 1, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.SSP1MSK = sfr(MSSP1_ADDR + 2, 0xff, sfrBits('', 0), ['H18', 'H19'])
+  out.SSP1STAT = sfr(MSSP1_ADDR + 3, 0, namedBits('BF UA R_nW S P D_nA CKE SMP'), ['H18', 'H19'])
+  out.SSP1CON1 = { ...sfr(MSSP1_ADDR + 4, 0, namedBits('SSPM0 SSPM1 SSPM2 SSPM3 CKP SSPEN SSPOV WCOL'), ['H18', 'H19']), fields: f(['SSPM', 4], ['CKP', 1], ['SSPEN', 1], ['SSPOV', 1], ['WCOL', 1]) }
+  out.SSP1CON2 = sfr(MSSP1_ADDR + 5, 0, namedBits('SEN RSEN PEN RCEN ACKEN ACKDT ACKSTAT GCEN'), ['H18', 'H19'])
+  out.SSP1CON3 = sfr(MSSP1_ADDR + 6, 0, namedBits('DHEN AHEN SBCDE SDAHT BOEN SCIE PCIE ACKTIM'), ['H18', 'H19'])
+  ;['SSP1CLKPPS', 'SSP1DATPPS', 'SSP1SSPPS'].forEach((name, i) => (out[name] = sfr(SSP1_PPS_IN_ADDR + i, 0, namedBits(`${name}0 ${name}1 ${name}2 ${name}3 ${name}4 - - -`), ['H38', 'H19'])))
+  for (const p of PORTS) {
+    const n = p === 'E' ? 3 : 8
+    for (let b = 0; b < n; b++) out[`R${p}${b}PPS`] = sfr(PPS_OUT_ADDR[p] + b, 0, namedBits(`R${p}${b}PPS0 R${p}${b}PPS1 R${p}${b}PPS2 R${p}${b}PPS3 R${p}${b}PPS4 R${p}${b}PPS5 - -`), ['H38', 'H19'])
   }
   return out
 }
@@ -347,6 +368,42 @@ export const INFO3 = {
     irq: { flag: 'PIR4', enable: 'PIE4' },
     hyp: ['H18', 'H31', 'H32', 'H33'],
   },
+  /** MSSP1 en SPI maître (cours p. 71 à 74) */
+  spi: {
+    /** Mode SPI → CKP, CKE (CPHA = complément de CKE) */
+    modes: [
+      { mode: 0, ckp: 0, cke: 1 },
+      { mode: 1, ckp: 0, cke: 0 },
+      { mode: 2, ckp: 1, cke: 1 },
+      { mode: 3, ckp: 1, cke: 0 },
+    ],
+    /** Clock Source → SSPM<3:0> ; période de SCK en Tcy (ADD : SSP1ADD + 1 ; TMR2 : 2 périodes de TMR2) */
+    clockSources: [
+      { label: 'FOSC/4', sspm: 0b0000, tcy: 1 },
+      { label: 'FOSC/16', sspm: 0b0001, tcy: 4 },
+      { label: 'FOSC/64', sspm: 0b0010, tcy: 16 },
+      { label: 'T2_match_PR2/2', sspm: 0b0011, tcy: 0 },
+      { label: 'FOSC/4_SSPxADD', sspm: 0b1010, tcy: 0 },
+    ],
+    sampleOptions: ['Middle', 'End'],
+    /** Codes PPS de sortie (H38) */
+    ppsOut: { SCK1: 0x14, SDO1: 0x15 },
+    /** Ports proposés pour SCK1, SDI1, SDO1 dans le Grid View (H38) */
+    ppsPorts: ['B', 'C'],
+    /** Broches par défaut (annexe 1 : bus SPI des deux mikroBUS) */
+    defaultPins: { SCK1: 'RB1', SDI1: 'RB2', SDO1: 'RB3' },
+    /** Réglages d'un MSSP1 ajouté (horloge par défaut Fosc/4 : H7) */
+    mccDefault: { mode: 0, sample: 'Middle', clockSource: 'FOSC/4', divider: 0 },
+    irq: { flag: 'PIR3', bit: 'SSP1IF' },
+    hyp: ['H7', 'H14', 'H37', 'H38', 'H39'],
+  },
+  /** Chaîne de deux 74HC595 de la carte Rotary : 16 LED (annexe 3, cours p. 81 et 82) */
+  ring: {
+    leds: 16,
+    /** Signaux du mikroBUS : RST → MR (actif à 0), CS → RCLK (LATCH) ; SDI → SER de U2, Q7S de U3 → SDO */
+    wiring: { MR: 'RST', LATCH: 'CS', SER: 'MOSI', SRCLK: 'SCK', Q7S: 'MISO' },
+    hyp: ['H10', 'H14', 'H36'],
+  },
   /** Codeur EC12D de la carte ROTARY O click (CR TP2) */
   rotary: {
     /** Crans par tour et impulsions par tour et par voie (CR TP2 §2.1) */
@@ -439,7 +496,7 @@ export const INFO3 = {
     { id: 'H11', texte: 'Matrice : DIG0 = colonne de droite, segment DP = ligne du haut ; détail des registres MAX7219 (annexe 6 non exploitée)', commentVerifier: 'annexe 6' },
     { id: 'H12', texte: 'Sans USB blanc, printf n’affiche rien ; LED RGB alimentée par le 5 V de l’USB noir', commentVerifier: 'TP5' },
     { id: 'H13', texte: 'Débogueur à l’arrêt : temps figé, un appui pendant l’arrêt mémorise un seul flag IOC', commentVerifier: 'TP3 §3' },
-    { id: 'H14', texte: 'SPI en mode 1 ou 2 avec le 74HC595 : motif décalé d’un rang', commentVerifier: 'TP4 2' },
+    { id: 'H14', texte: 'SPI en mode 1 ou 2 avec le 74HC595 : motif décalé d’un rang. Modèle : dans ces modes MOSI change au front montant où le 74HC595 décale (y compris le premier bit, sans présentation anticipée en mode 2) et le 74HC595 lit le bit précédent', commentVerifier: 'TP4 2 (anneau avec chaque mode)' },
     { id: 'H15', texte: 'Messages d’erreur imitant XC8 (texte approché)', commentVerifier: 'MPLAB X' },
     { id: 'H16', texte: 'Apparence et couleurs de la carte Curiosity et des cartes Click', commentVerifier: 'photos du banc' },
     { id: 'H17', texte: 'Couleur affichée de la LED RGB = rapports cycliques pondérés, sans calibration colorimétrique', commentVerifier: 'TP5' },
@@ -459,6 +516,11 @@ export const INFO3 = {
     { id: 'H32', texte: 'Fonctions de tmrX.c (Start/StartTimer, Stop/StopTimer, Counter8BitGet/ReadTimer, Counter8BitSet/WriteTimer, Period8BitSet/LoadPeriodRegister, HasPeriodElapsed sans interruption) reconstituées au format MCC 1.81 ; seuls les noms et rôles sont garantis (ModeSet et ExtResetSourceSet non générés)', commentVerifier: 'tmr2.c / tmr4.c générés en TP3' },
     { id: 'H33', texte: 'Monostable et one-shot : un front sur TMRx_ers pendant le comptage est ignoré ; le timer s’arrête à TMRx = 0 et lève TMRxIF à la première égalité TMRx = PRx (one-shot : TMRxON repasse à 0), puis attend le front suivant', commentVerifier: 'oscilloscope sur RC5 et une LED basculée dans IT_Timer2 (TP3 §2)' },
     { id: 'H35', texte: 'ROTARY O click : ENCA sur PWM, ENCB sur AN, SW sur INT du mikroBUS (mikroBUS 2 : RD1, RA2, RB0) ; entre deux crans la seconde voie bascule 2 ms après la première ; sorties franches, sans rebond', commentVerifier: 'annexe 3 et oscilloscope sur ENCA / ENCB en TP2' },
+    { id: 'H36', texte: 'Entrées MR (RST) et RCLK (LATCH) des 74HC595 en l’air (broche du PIC en entrée) : lues à 0, donc registre vidé et anneau éteint tant que RST n’est pas une sortie à 1', commentVerifier: 'annexe 3 (résistances de tirage de la carte Rotary)' },
+    { id: 'H37', texte: 'Libellés de l’Easy Setup MSSP1 (Serial Protocol, Mode, SPI Mode, Input Data Sampled at, Clock Source, Clock Divider) et valeurs proposées', commentVerifier: 'capture MCC du TP4' },
+    { id: 'H38', texte: 'PPS : adresses RxyPPS (0xF10…) et SSP1CLKPPS/SSP1DATPPS (0xEC5…), codes de sortie SCK1 = 0x14 et SDO1 = 0x15, MSSP1 sur les ports B et C', commentVerifier: 'pin_manager.c généré en TP4 ; datasheet DS40001802, « PPS »' },
+    { id: 'H39', texte: 'Format de spi1.c / spi1.h (table spi1_configuration, SPI1_Open, ExchangeByte attend SSP1IF) reconstitué d’après le driver MCC « SPI » ; seuls signatures et rôles (cours p. 74) sont garantis', commentVerifier: 'spi1.c généré en TP4' },
+    { id: 'H40', texte: 'Oscilloscope : signaux logiques 0 à 3,3 V, temps de montée et de descente de 20 ns', commentVerifier: 'oscilloscope sur TP16 et TP17 en TP4' },
     { id: 'H29', texte: 'Avec STVREN = OFF, un débordement de pile met STKOVF à 1 sans reset et l’appel se poursuit normalement (la corruption des adresses de retour n’est pas simulée)', commentVerifier: 'datasheet DS40001802, « Stack Overflow/Underflow Reset »' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],

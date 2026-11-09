@@ -96,6 +96,16 @@ char getche(void);
 #endif
 `
 
+/** <stddef.h> : size_t vient de <stdint.h> du simulateur */
+const STDDEF = `#ifndef _STDDEF_H_
+#define _STDDEF_H_
+#include <stdint.h>
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+#endif
+`
+
 const STDLIB = `#ifndef _STDLIB_H_
 #define _STDLIB_H_
 int abs(int x);
@@ -104,7 +114,7 @@ int abs(int x);
 
 /** En-têtes virtuels, résolus par #include <…> (et "…" en dernier recours) */
 export function virtualHeaders(): Record<string, string> {
-  return { 'xc.h': generateXcH(), 'stdint.h': STDINT, 'stdbool.h': STDBOOL, 'stdio.h': STDIO, 'stdlib.h': STDLIB, 'conio.h': CONIO }
+  return { 'xc.h': generateXcH(), 'stdint.h': STDINT, 'stdbool.h': STDBOOL, 'stdio.h': STDIO, 'stdlib.h': STDLIB, 'conio.h': CONIO, 'stddef.h': STDDEF }
 }
 
 /** Nom de l'unité d'exécution (définitions faibles : remplacées par celles du projet) */
