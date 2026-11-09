@@ -22,7 +22,7 @@ export default function LogicAnalyzer({ sim, defaults }: { sim: SimControls; def
   const { setAnalyzer } = sim
 
   useEffect(() => {
-    setAnalyzer(channels)
+    setAnalyzer('analyzer', channels)
   }, [channels, setAnalyzer])
 
   const tb = A.timebases[tbIndex]

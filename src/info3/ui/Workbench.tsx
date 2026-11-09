@@ -9,6 +9,7 @@ import Board from '../board/Board'
 import RotaryControl from '../board/RotaryControl'
 import InterruptInspector from './InterruptInspector'
 import LogicAnalyzer from './LogicAnalyzer'
+import Oscilloscope from './Oscilloscope'
 import Ide, { type Breakpoint } from '../ide/Ide'
 import { programCheck, projectFiles, runGenerate, setCard, setUsbBlack, setUsbWhite, type Project, type Result, type SlotId } from '../project/project'
 import { useSim, type SimControls } from './useSim'
@@ -27,14 +28,18 @@ export interface WorkbenchProps {
   benchExtra?: ReactNode
   /** Voies proposées au départ par l'analyseur logique */
   analyzerChannels?: string[]
+  /** Sondes de l'oscilloscope au départ (CH1, CH2) */
+  scopeProbes?: [string, string]
   dark: boolean
   onDarkChange(dark: boolean): void
 }
 
 const SLOT_NAMES: Record<SlotId, string> = { mikrobus1: 'mikroBUS 1', mikrobus2: 'mikroBUS 2' }
 const DEFAULT_CHANNELS = ['RA4', 'RB4', 'RC5', 'ISR']
+/** TP17 (SCK) et TP16 (MOSI) */
+const DEFAULT_PROBES: [string, string] = [INFO3.scope.testPoints[0].pin, INFO3.scope.testPoints[1].pin]
 
-export default function Workbench({ project, onProject, sideLabel, side, benchExtra, analyzerChannels = DEFAULT_CHANNELS, dark, onDarkChange }: WorkbenchProps) {
+export default function Workbench({ project, onProject, sideLabel, side, benchExtra, analyzerChannels = DEFAULT_CHANNELS, scopeProbes = DEFAULT_PROBES, dark, onDarkChange }: WorkbenchProps) {
   const sim = useSim()
   const rotarySlot = (Object.keys(project.bench.slots) as SlotId[]).find((s) => project.bench.slots[s] === 'rotary') ?? null
   const { setBench } = sim
@@ -188,6 +193,9 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
             </div>
             <div className="mt-2">
               <LogicAnalyzer sim={sim} defaults={analyzerChannels} />
+            </div>
+            <div className="mt-2">
+              <Oscilloscope sim={sim} defaults={scopeProbes} />
             </div>
           </div>
           <div className={on('side')}>{side({ sim })}</div>

@@ -430,6 +430,27 @@ export const INFO3 = {
     /** Pseudo-voies : CPU dans l'ISR, drapeaux d'interruption des timers */
     probes: ['ISR', 'TMR2IF', 'TMR4IF', 'TMR6IF'],
   },
+  /** Oscilloscope 2 voies (PRD §3.3) : sondes sur les points de test de la carte fille ou sur une broche */
+  scope: {
+    channels: 2,
+    /** Bases de temps — s/div (200 ns à 1 s, suite 1-2-5) */
+    timebases: [2e-7, 5e-7, 1e-6, 2e-6, 5e-6, 1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 0.1, 0.2, 0.5, 1],
+    divisions: 10,
+    verticalDivisions: 8,
+    /** Signaux logiques : 0 à VDD (H5), temps de montée et de descente (H40) — V, s */
+    vHigh: 3.3,
+    riseTime: 20e-9,
+    /** Niveau de déclenchement par défaut — V */
+    triggerLevel: 1.65,
+    /** Points de test de la carte fille GEII (PRD §3.3) */
+    testPoints: [
+      { tp: 'TP17', signal: 'SCK', pin: 'RB1' },
+      { tp: 'TP16', signal: 'MOSI', pin: 'RB3' },
+      { tp: 'TP19', signal: 'ENC_A', pin: 'RD1' },
+      { tp: 'TP20', signal: 'ENC_B', pin: 'RA2' },
+    ],
+    hyp: ['H5', 'H40'],
+  },
   /** TP3 : cahier des charges utilisé par le professeur virtuel */
   tp3: {
     /** §1 : période du clignotement attendue — s (1 s ± 1 %) */

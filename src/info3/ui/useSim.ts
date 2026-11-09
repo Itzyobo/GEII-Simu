@@ -98,7 +98,7 @@ export interface SimControls {
   /** Codeur : crans, rotation continue, bouton SW */
   rotary(msg: { action: 'turn'; detents: number } | { action: 'spin'; rate: number } | { action: 'sw'; pressed: boolean }): void
   /** Analyseur logique : voies observées, changements reçus (tSim en s) */
-  setAnalyzer(channels: string[]): void
+  setAnalyzer(owner: string, channels: string[]): void
   trace: TraceStore
 }
 
@@ -125,13 +125,17 @@ export class TraceStore {
   }
 }
 
+/** Union des voies demandées par les instruments */
+const unionOf = (r: Record<string, string[]>) => [...new Set(Object.values(r).flat())]
+
 export function useSim(): SimControls {
   const [view, dispatch] = useReducer(reducer, initial)
   const client = useRef<SimClient | null>(null)
   const waiters = useRef<{ built: ((m: Extract<OutMsg, { type: 'built' }>) => void)[]; graded: Map<string, (m: Extract<OutMsg, { type: 'graded' }>) => void> }>({ built: [], graded: new Map() })
   const debugging = useRef(false)
   const bench = useRef<'mikrobus1' | 'mikrobus2' | null>(null)
-  const channels = useRef<string[]>([])
+  /** Voies demandées par instrument (analyseur, oscilloscope) : le Worker reçoit leur union */
+  const channels = useRef<Record<string, string[]>>({})
   const [traceStore] = useState(() => new TraceStore())
 
   const ensure = useCallback((): SimClient => {
@@ -139,7 +143,7 @@ export function useSim(): SimControls {
     const c = createSimClient()
     // Le Worker naît au premier Build ou Program : il reçoit l'état du banc et de l'analyseur
     c.send({ type: 'bench', rotary: bench.current })
-    c.send({ type: 'analyzer', channels: channels.current })
+    c.send({ type: 'analyzer', channels: unionOf(channels.current) })
     c.onMessage((m) => {
       if (m.type === 'trace') traceStore.add(m.changes, m.reset)
       dispatch({ kind: 'msg', m })
@@ -215,9 +219,9 @@ export function useSim(): SimControls {
     client.current?.send({ type: 'bench', rotary: r })
   }, [])
   const rotary = useCallback((msg: Parameters<SimControls['rotary']>[0]) => client.current?.send({ type: 'rotary', ...msg }), [])
-  const setAnalyzer = useCallback((chs: string[]) => {
-    channels.current = chs
-    client.current?.send({ type: 'analyzer', channels: chs })
+  const setAnalyzer = useCallback((owner: string, chs: string[]) => {
+    channels.current = { ...channels.current, [owner]: chs }
+    client.current?.send({ type: 'analyzer', channels: unionOf(channels.current) })
   }, [])
 
   return {
