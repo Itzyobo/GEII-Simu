@@ -472,6 +472,13 @@ export const INFO3 = {
     encoderBack: 15,
     /** §6 : motif de la première animation */
     animation: 0xf0f0,
+    /**
+     * §6 : fenêtre d'observation — s simulées. La seconde animation peut démarrer seule (enchaînement) ;
+     * sinon le professeur appuie sur S1, puis sur S2 (énoncé : déclenchement non précisé), appui de 300 ms
+     */
+    animationWindowS: 60,
+    animationStimuli: ['S1', 'S2'],
+    pressMs: 300,
     source: 'consigne étape 4 (pas de CR du TP4)',
   },
   /** TP3 : cahier des charges utilisé par le professeur virtuel */

@@ -92,6 +92,43 @@ describe('refus attendus', () => {
     expect(v.ok).toBe(false)
     expect(v.messages.join(' ')).toContain('octets sont inversés')
   })
+  it('Q6 (R2) : deux animations enchaînées sans bouton → validé, déclenchement « sans action »', () => {
+    const chained = `#include "mcc_generated_files/mcc.h"
+void led_ring_display16(uint16_t led_state)
+{
+    SPI1_ExchangeByte(led_state >> 8);
+    SPI1_ExchangeByte(led_state & 0xFF);
+    LATCH_SetHigh();
+    LATCH_SetLow();
+}
+void main(void)
+{
+    uint16_t motif;
+    uint8_t i;
+    SYSTEM_Initialize();
+    RST_SetHigh();
+    SPI1_Open(SPI1_DEFAULT);
+    while (1)
+    {
+        motif = 0xF0F0;
+        for (i = 0; i < 32; i++) { led_ring_display16(motif); motif = (motif << 1) | (motif >> 15); __delay_ms(100); }
+        motif = 0x0001;
+        for (i = 0; i < 16; i++) { led_ring_display16(motif); motif = motif << 1; __delay_ms(100); }
+    }
+}
+`
+    const v = grade('tp4-6', chained)
+    expect(v, v.messages.join(' | ')).toMatchObject({ ok: true })
+    expect(v.messages.join(' ')).toContain('sans action')
+    // La solution de référence (S1) reste validée, avec l'appui indiqué
+    expect(grade('tp4-6').messages.join(' ')).toContain('après un appui sur S1')
+  })
+  it('Q6 : une seule animation (0xF0F0 qui tourne) → refusé', () => {
+    const only = SOLUTIONS['tp4/q6'].replace('animation = 2;', 'animation = 1;')
+    const v = grade('tp4-6', only)
+    expect(v.ok).toBe(false)
+    expect(v.messages.join(' ')).toContain('Animation 2 : aucune autre animation')
+  })
   it('Q4 sur le mikroBUS 1 : refusé, anneau éteint', () => {
     expect(grade('tp4-4', undefined, undefined, 'mikrobus1').ok).toBe(false)
   })
