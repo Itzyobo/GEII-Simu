@@ -4,7 +4,10 @@ import { INFO3 } from '../../data/reference'
 import { tp1Config } from '../mcc/presets'
 import { blankProject, runGenerate } from '../project/project'
 // Le test lit le fichier de l'énoncé tel quel
-import ENONCE from '../../../docs/info3/enonce.md?raw'
+import RAW_ENONCE from '../../../docs/info3/enonce.md?raw'
+
+/** Fins de ligne CRLF → LF (dépôt extrait sous Windows) */
+const ENONCE = RAW_ENONCE.replace(/\r\n/g, '\n')
 import { enonceAnchors, enonceSection, parseRegisterAnswer, qcm31, qcm32, questionLabel, questionTitle, registersOf } from './content'
 
 

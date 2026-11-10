@@ -8,5 +8,6 @@ export const PERF_TESTS = '**/*.perf.test.ts'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  test: { exclude: [...configDefaults.exclude, PERF_TESTS] },
+  // Délai par test large : les tests du professeur (20 exécutions) ne doivent pas échouer sur une machine chargée
+  test: { exclude: [...configDefaults.exclude, PERF_TESTS], testTimeout: 60_000 },
 })
