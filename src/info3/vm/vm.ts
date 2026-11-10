@@ -13,6 +13,7 @@ import { kindOf, sizeOf } from '../compiler/types'
 import { Button, type Edge } from '../models/button'
 import { ALL_PINS, Gpio, parsePin, pinName, PORT_NAMES, type Level, type PinChange } from '../models/gpio'
 import { MsspSpi } from '../models/msspSpi'
+import { PwmChannel } from '../models/pwm'
 import { Hc595x2 } from '../models/hc595x2'
 import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
@@ -129,6 +130,7 @@ export class Vm {
     this.gpio.onChange((c) => this.iocPin(c))
     this.createTimers()
     this.createMssp()
+    this.createPwm()
     this.gpio.onChange((c) => this.ringPin(c))
     for (const b of INFO3.pins.buttons) {
       this.buttons[b.name] = { button: new Button({ activeLevel: b.activeLevel as Level, rng: () => this.rng() }), pin: b.pin }
@@ -163,6 +165,7 @@ export class Vm {
           const b = this.bus.bit(sfrName(n, 'CON'), `TMR${n}ON`)
           this.mem[b.addr] &= ~b.mask
         },
+        onChange: () => this.timerChanged(n),
       })
       this.timers[n] = tm
       for (const r of regs) {
@@ -196,8 +199,8 @@ export class Vm {
       // T2_match_PR2/2 : SCK bascule à chaque égalité TMR2 = PR2
       return 2 * this.timers[INFO3.timers.ids[0]].periodTicks()
     },
-    setSck: (l) => this.spiPins.SCK1 && this.gpio.setPeripheralLevel(this.spiPins.SCK1, l, this.tNow),
-    setSdo: (l) => this.spiPins.SDO1 && this.gpio.setPeripheralLevel(this.spiPins.SDO1, l, this.tNow),
+    setSck: (l) => this.drivePps(INFO3.spi.ppsOut.SCK1, l),
+    setSdo: (l) => this.drivePps(INFO3.spi.ppsOut.SDO1, l),
     readSdi: () => (this.spiPins.SDI1 ? this.gpio.level(this.spiPins.SDI1) : (INFO3.floatingInputLevel as Level)),
     raiseFlag: () => this.bus.writeBit(INFO3.spi.irq.flag, INFO3.spi.irq.bit, 1),
   })
@@ -215,7 +218,7 @@ export class Vm {
     this.bus.writeHooks.set(a.SSP1CON1, (v) => m.writeCon1(v))
     this.bus.writeHooks.set(a.SSP1BUF, (v) => m.writeBuf(v))
     this.bus.writeHooks.set(a.SSP1ADD, (v) => m.writeAdd(v))
-    const remap = () => this.mapSpiPins()
+    const remap = () => this.mapPps()
     for (const pin of ALL_PINS) {
       const addr = a[`${pin}PPS`]
       if (addr !== undefined) this.bus.writeHooks.set(addr, remap)
@@ -223,26 +226,125 @@ export class Vm {
     this.bus.writeHooks.set(a.SSP1DATPPS, remap)
   }
 
-  /** Relit les registres PPS : broches de SCK1, SDO1 (sorties confiées à MSSP1) et SDI1 */
-  private mapSpiPins() {
-    const out = INFO3.spi.ppsOut
-    const find = (code: number) => ALL_PINS.find((p) => this.bus.addrOf[`${p}PPS`] !== undefined && this.mem[this.bus.addrOf[`${p}PPS`]] === code) ?? null
-    const next = { SCK1: find(out.SCK1), SDO1: find(out.SDO1) }
-    for (const k of ['SCK1', 'SDO1'] as const) {
-      const prev = this.spiPins[k]
-      if (prev === next[k]) continue
-      if (prev) this.gpio.setPeripheral(prev, false, this.t)
-      this.spiPins[k] = next[k]
-      if (next[k]) {
-        this.gpio.setPeripheralLevel(next[k]!, k === 'SCK1' ? this.mssp.sck : this.mssp.sdo, this.t)
-        this.gpio.setPeripheral(next[k]!, true, this.t)
+  /* ═════════════ PPS de sortie (SCK1, SDO1, CCP1, PWM6, PWM7…) ═════════════ */
+
+  /** Code PPS de sortie de chaque broche qui en a un connu (0 = LATx) */
+  private ppsOwner: Record<string, number> = {}
+  /** Broches de chaque code de sortie */
+  private ppsPins = new Map<number, string[]>()
+
+  /** Niveau imposé par la source d'un code de sortie PPS ; null = code non simulé (la broche reste sur LATx) */
+  private ppsLevel(code: number): Level | null {
+    if (code === INFO3.spi.ppsOut.SCK1) return this.mssp.sck
+    if (code === INFO3.spi.ppsOut.SDO1) return this.mssp.sdo
+    const m = INFO3.pwm.modules.find((x) => x.ppsOut === code)
+    if (m) return this.pwm[m.id].level
+    return null
+  }
+
+  /** Niveau d'une source sur toutes les broches qui lui sont confiées */
+  private drivePps(code: number, level: Level) {
+    const pins = this.ppsPins.get(code)
+    if (pins) for (const pin of pins) this.gpio.setPeripheralLevel(pin, level, this.tNow)
+  }
+
+  /** Relit les registres PPS : sorties confiées aux périphériques, puis SDI1 (entrée) */
+  private mapPps() {
+    for (const pin of ALL_PINS) {
+      const addr = this.bus.addrOf[`${pin}PPS`]
+      if (addr === undefined) continue
+      const raw = this.mem[addr]
+      const level = raw ? this.ppsLevel(raw) : null
+      const code = level === null ? 0 : raw
+      if ((this.ppsOwner[pin] ?? 0) === code) continue
+      if (code) {
+        this.ppsOwner[pin] = code
+        this.gpio.setPeripheralLevel(pin, level!, this.t)
+        this.gpio.setPeripheral(pin, true, this.t)
+      } else {
+        delete this.ppsOwner[pin]
+        this.gpio.setPeripheral(pin, false, this.t)
       }
     }
-    const dat = this.mem[this.bus.addrOf.SSP1DATPPS]
-    const port = PORT_NAMES[dat >> INFO3.timers.ppsPortShift]
-    const bit = dat & ((1 << INFO3.timers.ppsPortShift) - 1)
-    this.spiPins.SDI1 = port ? pinName(port, bit) : null
-    if (this.spiPins.SDI1 && !ALL_PINS.includes(this.spiPins.SDI1)) this.spiPins.SDI1 = null
+    this.ppsPins = new Map()
+    for (const [pin, code] of Object.entries(this.ppsOwner)) this.ppsPins.set(code, [...(this.ppsPins.get(code) ?? []), pin])
+    this.spiPins.SCK1 = this.ppsPins.get(INFO3.spi.ppsOut.SCK1)?.[0] ?? null
+    this.spiPins.SDO1 = this.ppsPins.get(INFO3.spi.ppsOut.SDO1)?.[0] ?? null
+    this.spiPins.SDI1 = this.ppsInput(this.mem[this.bus.addrOf.SSP1DATPPS])
+  }
+
+  /** Broche désignée par un registre PPS d'entrée (port << 3 | bit), null si inexistante */
+  private ppsInput(v: number): string | null {
+    const port = PORT_NAMES[v >> INFO3.timers.ppsPortShift]
+    const pin = port ? pinName(port, v & ((1 << INFO3.timers.ppsPortShift) - 1)) : null
+    return pin && ALL_PINS.includes(pin) ? pin : null
+  }
+
+  /** Broches confiées à un module PPS (inspecteur, tests) */
+  ppsPinsOf(code: number): string[] {
+    return this.ppsPins.get(code) ?? []
+  }
+
+  /* ═════════════ PWM : CCP1, PWM6, PWM7 (cours p. 85 à 90) ═════════════ */
+
+  readonly pwm = {} as Record<string, PwmChannel>
+
+  private createPwm() {
+    const a = this.bus.addrOf
+    for (const m of INFO3.pwm.modules) {
+      const ch = new PwmChannel({
+        now: () => this.tNow,
+        schedule: (t, fn) => this.events.pushFn(t, fn),
+        timebase: () => this.timers[this.pwmTimer(m.id)]?.timebase() ?? null,
+        tickS: 1 / CLK.timeBaseHz,
+        setLevel: (l) => this.drivePps(m.ppsOut, l),
+      })
+      this.pwm[m.id] = ch
+      const regs = m.kind === 'ccp' ? ['CCPR1L', 'CCPR1H', 'CCP1CON'] : [`${m.id}DCL`, `${m.id}DCH`, `${m.id}CON`]
+      for (const r of [...regs, m.tsel.sfr]) {
+        const prev = this.bus.writeHooks.get(a[r])
+        this.bus.writeHooks.set(a[r], (v) => {
+          prev?.(v)
+          this.configurePwm(m.id)
+        })
+      }
+    }
+  }
+
+  /** Numéro du timer choisi par CCPTMRSx pour un module (0 = aucun) */
+  pwmTimer(id: string): number {
+    const m = INFO3.pwm.modules.find((x) => x.id === id)!
+    const code = (this.mem[this.bus.addrOf[m.tsel.sfr]] >> m.tsel.shift) & INFO3.pwm.tselMask
+    return INFO3.pwm.timerSelect[code] ?? 0
+  }
+
+  /** Relit les registres d'un module PWM : marche, rapport cyclique 10 bits, polarité */
+  private configurePwm(id: string) {
+    const ch = this.pwm[id]
+    if (!ch) return
+    const r = (n: string) => this.mem[this.bus.addrOf[n]]
+    const B = INFO3.c.bitsPerByte
+    const two = INFO3.pwm.dutyBits - B
+    if (id === 'CCP1') {
+      const con = r('CCP1CON')
+      const en = (con >> (B - 1)) & 1
+      const mode = con & INFO3.pwm.ccpPwmMode
+      const fmt = this.bus.readBit('CCP1CON', 'CCP1FMT')
+      const h = r('CCPR1H')
+      const l = r('CCPR1L')
+      const duty = fmt ? (h << two) | (l >> (B - two)) : ((h & ((1 << two) - 1)) << B) | l
+      ch.configure(en === 1 && mode === INFO3.pwm.ccpPwmMode, duty, false)
+    } else {
+      const duty = (r(`${id}DCH`) << two) | (r(`${id}DCL`) >> (B - two))
+      ch.configure(this.bus.readBit(`${id}CON`, `${id}EN`) === 1, duty, this.bus.readBit(`${id}CON`, `${id}POL`) === 1)
+    }
+    ch.resync()
+  }
+
+  /** Base de temps d'un timer modifiée : les PWM qui l'utilisent recalculent leurs fronts */
+  private timerChanged(n: number) {
+    if (!this.pwm) return
+    for (const m of INFO3.pwm.modules) if (this.pwm[m.id] && this.pwmTimer(m.id) === n) this.pwm[m.id].resync()
   }
 
   /* ═════════════ Carte ROTARY O click (codeur EC12D) ═════════════ */
@@ -443,9 +545,12 @@ export class Vm {
     for (const tm of Object.values(this.timers)) tm.reset()
     this.updateClock()
     this.gpio.reset()
-    // PPS au reset : aucune sortie confiée à MSSP1
+    // PPS au reset : aucune sortie confiée à un périphérique
     this.spiPins.SCK1 = this.spiPins.SDO1 = this.spiPins.SDI1 = null
+    this.ppsOwner = {}
+    this.ppsPins = new Map()
     this.mssp.reset()
+    for (const ch of Object.values(this.pwm)) ch.reset()
     this.gpio.settle(this.t)
     this.sp = 0
     this.frames = []

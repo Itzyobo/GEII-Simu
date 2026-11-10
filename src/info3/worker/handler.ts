@@ -14,7 +14,9 @@ import { gradeTp4, TP4_CHALLENGES, type Tp4Challenge } from '../prof/tp4'
 import { Vm, type RotarySlot } from '../vm/vm'
 import type { InMsg, OutMsg, TraceChange, WatchRow } from './protocol'
 
-const LEDS = INFO3.pins.leds.map((l) => ({ name: l.name, pin: l.pin }))
+const RGB = INFO3.pins.rgb
+/** LED dont le Worker mesure le rapport cyclique par image : D2 à D5, puis les trois puces de la LED RGB (RGB_R…) */
+const LEDS = [...INFO3.pins.leds.map((l) => ({ name: l.name, pin: l.pin })), ...(['r', 'g', 'b'] as const).map((k) => ({ name: INFO3.rgb.signals[k], pin: RGB[k] }))]
 const FRAME_MS = INFO3.units.msPerS / INFO3.vm.frameRateHz
 const HEX = 16
 /** SFR affichés dans la fenêtre SFR */
@@ -385,6 +387,9 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
         stopIfHalted(state, r, out)
         if (state.now() - start > INFO3.vm.tickBudgetMs) break
       }
+      // Trace des broches : seules les plus récentes sont gardées (mémoire bornée en marche prolongée)
+      const tr = vm.gpio.trace
+      if (tr.length > INFO3.vm.maxPinTrace) tr.splice(0, tr.length - INFO3.vm.maxPinTrace / 2)
       // Retard plafonné à une tranche : si le calcul est trop lent, le temps simulé ralentit
       const lagMs = vm.toS(Math.max(0, target - vm.t)) * INFO3.units.msPerS
       state.debtMs = state.running ? Math.min(lagMs, INFO3.vm.sliceMs) : 0

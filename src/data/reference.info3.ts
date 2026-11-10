@@ -76,6 +76,16 @@ const PPS_OUT_ADDR = { A: 0xf10, B: 0xf18, C: 0xf20, D: 0xf28, E: 0xf30 } as con
 /** PPS d'entrée de MSSP1 : SSP1CLKPPS, SSP1DATPPS, SSP1SSPPS — H38 */
 const SSP1_PPS_IN_ADDR = 0xec5
 
+/** CCP1 : CCPR1L, CCPR1H, CCP1CON consécutifs (banque 6) ; CCPTMRS0, CCPTMRS1 — H18 */
+const CCP1_ADDR = 0x30c
+const CCPTMRS_ADDR = 0x31f
+/** PWM6, PWM7 : PWMxDCL, PWMxDCH, PWMxCON consécutifs (banque 12) — H18 */
+const PWM_ADDR = { 6: 0x617, 7: 0x61b } as const
+/** EUSART : RC1REG, TX1REG, SP1BRGL, SP1BRGH, RC1STA, TX1STA, BAUD1CON (banque 2) — H18 */
+const EUSART_ADDR = 0x119
+/** RXPPS (entrée RX de l'EUSART) — H44 */
+const RX_PPS_ADDR = 0xecb
+
 /** Timers 2, 4, 6 : adresse de TMRx (PRx, TxCON, TxHLT, TxCLKCON, TxRST suivent) — H18 */
 const TIMER_ADDR = { 2: 0x28c, 4: 0x292, 6: 0x298 } as const
 /** Entrée externe (T2IN…) : registres PPS d'entrée — H18 */
@@ -158,6 +168,30 @@ function buildSfrs(): Record<string, SfrDef> {
   out.SSP1CON2 = sfr(MSSP1_ADDR + 5, 0, namedBits('SEN RSEN PEN RCEN ACKEN ACKDT ACKSTAT GCEN'), ['H18', 'H19'])
   out.SSP1CON3 = sfr(MSSP1_ADDR + 6, 0, namedBits('DHEN AHEN SBCDE SDAHT BOEN SCIE PCIE ACKTIM'), ['H18', 'H19'])
   ;['SSP1CLKPPS', 'SSP1DATPPS', 'SSP1SSPPS'].forEach((name, i) => (out[name] = sfr(SSP1_PPS_IN_ADDR + i, 0, namedBits(`${name}0 ${name}1 ${name}2 ${name}3 ${name}4 - - -`), ['H38', 'H19'])))
+  // CCP1 (banque 6) : CCPR1L, CCPR1H, CCP1CON (EN<7>, OUT<5>, FMT<4>, MODE<3:0>) ; sélection du timer CCPTMRS0/1
+  out.CCPR1L = sfr(CCP1_ADDR, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.CCPR1H = sfr(CCP1_ADDR + 1, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.CCP1CON = { ...sfr(CCP1_ADDR + 2, 0, namedBits('CCP1MODE0 CCP1MODE1 CCP1MODE2 CCP1MODE3 CCP1FMT CCP1OUT - CCP1EN'), ['H18', 'H19']), fields: f(['CCP1MODE', 4], ['CCP1FMT', 1], ['CCP1OUT', 1], [null, 1], ['CCP1EN', 1]) }
+  // Timer de chaque module : 01 = Timer2, 10 = Timer4, 11 = Timer6 (CxTSEL, PxTSEL)
+  out.CCPTMRS0 = { ...sfr(CCPTMRS_ADDR, 0x55, namedBits('C1TSEL0 C1TSEL1 C2TSEL0 C2TSEL1 C3TSEL0 C3TSEL1 C4TSEL0 C4TSEL1'), ['H18', 'H19']), fields: f(['C1TSEL', 2], ['C2TSEL', 2], ['C3TSEL', 2], ['C4TSEL', 2]) }
+  out.CCPTMRS1 = { ...sfr(CCPTMRS_ADDR + 1, 0x15, namedBits('C5TSEL0 C5TSEL1 P6TSEL0 P6TSEL1 P7TSEL0 P7TSEL1 - -'), ['H18', 'H19']), fields: f(['C5TSEL', 2], ['P6TSEL', 2], ['P7TSEL', 2], [null, 2]) }
+  // PWM6 et PWM7 (banque 12) : PWMxDCL (DC<1:0> en bits 7:6), PWMxDCH (DC<9:2>), PWMxCON (EN<7>, OUT<5>, POL<4>)
+  for (const [n, base] of Object.entries(PWM_ADDR)) {
+    out[`PWM${n}DCL`] = { ...sfr(base, 0, namedBits(`- - - - - - PWM${n}DC0 PWM${n}DC1`), ['H18', 'H19']), fields: f([null, 6], [`PWM${n}DC`, 2]) }
+    out[`PWM${n}DCH`] = sfr(base + 1, 0, sfrBits('', 0), ['H18', 'H19'])
+    out[`PWM${n}CON`] = sfr(base + 2, 0, namedBits(`- - - - PWM${n}POL PWM${n}OUT - PWM${n}EN`), ['H18', 'H19'])
+  }
+  // EUSART (banque 2) : RC1REG, TX1REG, SP1BRGL, SP1BRGH, RC1STA, TX1STA, BAUD1CON consécutifs ; TRMT = 1 au reset
+  const E = EUSART_ADDR
+  out.RC1REG = { ...sfr(E, 0, sfrBits('', 0), ['H18', 'H19']), alias: 'RCREG' }
+  out.TX1REG = { ...sfr(E + 1, 0, sfrBits('', 0), ['H18', 'H19']), alias: 'TXREG' }
+  out.SP1BRGL = { ...sfr(E + 2, 0, sfrBits('', 0), ['H18', 'H19']), alias: 'SPBRGL' }
+  out.SP1BRGH = { ...sfr(E + 3, 0, sfrBits('', 0), ['H18', 'H19']), alias: 'SPBRGH' }
+  out.RC1STA = { ...sfr(E + 4, 0, namedBits('RX9D OERR FERR ADDEN CREN SREN RX9 SPEN'), ['H18', 'H19']), alias: 'RCSTA' }
+  out.TX1STA = { ...sfr(E + 5, 0x02, namedBits('TX9D TRMT BRGH SENDB SYNC TXEN TX9 CSRC'), ['H18', 'H19']), alias: 'TXSTA' }
+  out.BAUD1CON = { ...sfr(E + 6, 0, namedBits('ABDEN WUE - BRG16 SCKP - RCIDL ABDOVF'), ['H18', 'H19']), alias: 'BAUDCON' }
+  // Entrée RX de l'EUSART par PPS (RXPPS) — H44
+  out.RXPPS = sfr(RX_PPS_ADDR, 0, namedBits('RXPPS0 RXPPS1 RXPPS2 RXPPS3 RXPPS4 - - -'), ['H44', 'H19'])
   for (const p of PORTS) {
     const n = p === 'E' ? 3 : 8
     for (let b = 0; b < n; b++) out[`R${p}${b}PPS`] = sfr(PPS_OUT_ADDR[p] + b, 0, namedBits(`R${p}${b}PPS0 R${p}${b}PPS1 R${p}${b}PPS2 R${p}${b}PPS3 R${p}${b}PPS4 R${p}${b}PPS5 - -`), ['H38', 'H19'])
@@ -397,6 +431,113 @@ export const INFO3 = {
     irq: { flag: 'PIR3', bit: 'SSP1IF' },
     hyp: ['H7', 'H14', 'H37', 'H38', 'H39'],
   },
+  /** PWM du TP5 : CCP1 en mode PWM, PWM6 et PWM7, base de temps TMR2 (cours p. 85 à 90) */
+  pwm: {
+    /** Modules : nom MCC, registres, sélection du timer (CCPTMRSx.champ) et code PPS de sortie (H44) */
+    modules: [
+      { id: 'CCP1', kind: 'ccp', tsel: { sfr: 'CCPTMRS0', field: 'C1TSEL', shift: 0 }, ppsOut: 0x09 },
+      { id: 'PWM6', kind: 'pwm', tsel: { sfr: 'CCPTMRS1', field: 'P6TSEL', shift: 2 }, ppsOut: 0x0e },
+      { id: 'PWM7', kind: 'pwm', tsel: { sfr: 'CCPTMRS1', field: 'P7TSEL', shift: 4 }, ppsOut: 0x0f },
+    ],
+    /** Code CxTSEL / PxTSEL → timer (01 = TMR2, 10 = TMR4, 11 = TMR6) */
+    timerSelect: { 1: 2, 2: 4, 3: 6 } as Record<number, number>,
+    tselMask: 0b11,
+    /** Mode PWM de CCP1CON.MODE (MCC écrit CCP1CON = 0x8F : EN, MODE = 1111) */
+    ccpPwmMode: 0b1111,
+    /** Bits du rapport cyclique, et facteur entre la base 10 bits et TMR2 (2 bits de plus : 4 × (PR2 + 1)) */
+    dutyBits: 10,
+    dutyPerCount: 4,
+    /** Source d'horloge imposée par le cours (p. 85) pour le timer de la PWM ; sinon notification MCC (H41) */
+    requiredClock: 'FOSC/4',
+    /** En dessous de cette période, les fronts ne sont plus émis un à un (limite du simulateur) : niveau moyen seul — s */
+    minEdgePeriodS: 10e-6,
+    /** Broches de la LED RGB par module (TP5 : PWM6 → R, PWM7 → G, CCP1 → B, énoncé §1 ; annexe 2) */
+    defaultPins: { PWM6: 'RD4', PWM7: 'RC0', CCP1: 'RC1' } as Record<string, string>,
+    /** Ports proposés dans le Grid View pour les sorties CCP1/PWM6/PWM7 (H44) */
+    ppsPorts: ['A', 'B', 'C', 'D'],
+    /** Réglages d'un module ajouté : Timer2, rapport cyclique initial 0 (MCC : Duty Cycle 0 %) */
+    mccDefault: { timer: 'TMR2', dutyCycle: 0, polarity: 'active_hi', enabled: true },
+    hyp: ['H18', 'H41', 'H42', 'H44'],
+  },
+  /** LED RGB de la carte fille (annexe 2) : anode commune, broche à 1 = couleur allumée (transistor PDTC114) */
+  rgb: {
+    /** Couleur affichée = rapports cycliques pondérés, sans calibration (H17) ; teinte de chaque puce */
+    /** Noms des voies dans les images du Worker (mêmes noms que les points de test) */
+    signals: { r: 'RGB_R', g: 'RGB_G', b: 'RGB_B' },
+    tints: { r: [255, 0, 0], g: [0, 255, 0], b: [0, 0, 255] } as Record<'r' | 'g' | 'b', [number, number, number]>,
+    /** Sans le cache : halo d'éblouissement si l'intensité totale dépasse ce seuil (0 à 3) */
+    glareThreshold: 0.15,
+    /** Intensité totale à partir de laquelle le halo est maximal */
+    glareFull: 1.5,
+    hyp: ['H12', 'H17'],
+  },
+  /** EUSART (cours p. 104 à 110) et terminal du PC */
+  eusart: {
+    /** Baud = Fosc / (diviseur × (SPBRG + 1)) ; diviseur selon BRG16 et BRGH (cours p. 107 et 108) */
+    divider: { brg16brgh: 4, one: 16, none: 64 },
+    /** 8N1 : 1 bit de start, 8 bits de données (LSB en premier), 1 bit de stop */
+    dataBits: 8,
+    stopBits: 1,
+    /** Bauds proposés (MCC et terminal) */
+    bauds: [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200],
+    /** Écart toléré entre baud demandé et baud réel, et entre émetteur et récepteur (cours p. 107) */
+    maxErrorRatio: 0.05,
+    /** FIFO de réception de l'EUSART (2 octets, cours p. 105) */
+    rxFifo: 2,
+    /** Tampons logiciels de eusart.c avec interruptions (MCC 1.81, H43) */
+    swBufferSize: 8,
+    /** Broches de la carte fille et codes PPS (TX = 0x10 ; RXPPS = port << 3 | bit) — H44 */
+    defaultPins: { TX1: 'RC6', RX1: 'RC7' },
+    ppsOutTx: 0x10,
+    ppsPorts: ['B', 'C'],
+    /** Réglages d'un EUSART ajouté (9600 bauds : H6) */
+    mccDefault: { baud: 9600, enable: true, transmit: true, receive: true, redirectStdio: false, interrupts: false },
+    irq: { flag: 'PIR3', tx: 'TXIF', rx: 'RCIF', enable: 'PIE3' },
+    hyp: ['H6', 'H18', 'H43', 'H44'],
+  },
+  /** Terminal série du PC (port COM virtuel de l'USB blanc, H12) */
+  terminal: {
+    formats: [
+      { id: '8N1', dataBits: 8, parity: 'none', stopBits: 1 },
+      { id: '8E1', dataBits: 8, parity: 'even', stopBits: 1 },
+      { id: '8O1', dataBits: 8, parity: 'odd', stopBits: 1 },
+      { id: '7N1', dataBits: 7, parity: 'none', stopBits: 1 },
+      { id: '8N2', dataBits: 8, parity: 'none', stopBits: 2 },
+    ],
+    defaultBaud: 9600,
+    defaultFormat: '8N1',
+    /** Caractères conservés à l'écran (limite du simulateur) */
+    maxChars: 20000,
+    /** Instant d'échantillonnage dans un bit (milieu) */
+    samplePoint: 0.5,
+    hyp: ['H12', 'H47'],
+  },
+  /** TP5 : cahier des charges utilisé par le professeur virtuel (consigne étape 5) */
+  tp5: {
+    /** §1 : période de la PWM « environ 4 ms » (prescaler à choisir) ; écart toléré pour « environ » */
+    periodS: 4e-3,
+    periodAbout: 0.1,
+    /** Mesure à l'oscilloscope : écart relatif toléré */
+    scopeTolerance: 0.005,
+    /** §1 : rouge = PWM6 ≥ 99 %, PWM7 = CCP1 = 0 % ; texte attendu au terminal */
+    redMinDuty: 0.99,
+    redLine: '(R,G,B) = (255,0,0)',
+    /** §2 : couleurs de l'énoncé (R, G, B) */
+    colors: [[255, 0, 0], [44, 117, 255], [253, 63, 146]] as [number, number, number][],
+    /** §2 : couleur 8 bits → 10 bits (× 4, décalage de 2) */
+    colorShift: 2,
+    /** §2 : une ligne par seconde, ± 2 % */
+    lineIntervalS: 1,
+    lineTolerance: 0.02,
+    /** §2 : rapport cyclique maximal sans conversion (255 / 1023 ≈ 25 %) */
+    unconvertedMaxDuty: 0.25,
+    /** §3 : pas d'incrément (énoncé : « par pas de 16 ») et LED de chaque état (D5 rouge, D4 vert, D3 bleu) */
+    step: 16,
+    stateLeds: ['D5', 'D4', 'D3'],
+    /** §4 : crans tournés dans chaque sens */
+    encoderDetents: 4,
+    source: 'énoncé TP5 et consigne étape 5 (pas de CR du TP5)',
+  },
   /** Chaîne de deux 74HC595 de la carte Rotary : 16 LED (annexe 3, cours p. 81 et 82) */
   ring: {
     leds: 16,
@@ -448,8 +589,11 @@ export const INFO3 = {
       { tp: 'TP16', signal: 'MOSI', pin: 'RB3' },
       { tp: 'TP19', signal: 'ENC_A', pin: 'RD1' },
       { tp: 'TP20', signal: 'ENC_B', pin: 'RA2' },
+      { tp: 'TP10', signal: 'RGB_R', pin: 'RD4' },
+      { tp: 'TP11', signal: 'RGB_G', pin: 'RC0' },
+      { tp: 'TP12', signal: 'RGB_B', pin: 'RC1' },
     ],
-    hyp: ['H5', 'H40'],
+    hyp: ['H5', 'H40', 'H45'],
   },
   /** TP4 : cahier des charges utilisé par le professeur virtuel (consigne étape 4) */
   tp4: {
@@ -513,6 +657,8 @@ export const INFO3 = {
     operandStackSize: 4096,
     /** Tolérance numérique sur les instants calculés en ticks (périphériques à horloge non entière) */
     tickEpsilon: 1e-6,
+    /** Changements de broche gardés dans la trace de la VM du Worker (la PWM en produit ~1 500 par seconde) — limite du simulateur */
+    maxPinTrace: 200_000,
     /** Graine par défaut du générateur des rebonds (H3) */
     defaultSeed: 1,
   },
@@ -541,7 +687,7 @@ export const INFO3 = {
     { id: 'H5', texte: 'VDD = 3,3 V (cavalier J12)', commentVerifier: 'cavalier J12' },
     { id: 'H6', texte: 'UART 9600 bauds 8N1', commentVerifier: 'réglage MCC au TP5' },
     { id: 'H7', texte: 'Horloge SPI par défaut Fosc/4', commentVerifier: 'réglage MCC au TP4' },
-    { id: 'H8', texte: 'Prescaler PWM 1:4', commentVerifier: 'réglage MCC au TP5' },
+    { id: 'H8', texte: 'Prescaler PWM 1:4', commentVerifier: 'réglage MCC au TP5', statut: 'partielle', preuve: 'Fosc = 4 MHz (fichiers MCC TP1, H1 réfutée) : « environ 4 ms » avec PR2 = 0xFF donne 1:16 (4,096 ms) ; 1:4 ne convient qu’à Fosc = 1 MHz' },
     { id: 'H9', texte: 'Sens horaire = ENCA en avance sur ENCB (d’après le chronogramme du CR TP2)', commentVerifier: 'annexe 4' },
     { id: 'H10', texte: 'LED 1 de l’anneau en haut, numérotation dans le sens horaire', commentVerifier: 'photo de la carte Rotary' },
     { id: 'H11', texte: 'Matrice : DIG0 = colonne de droite, segment DP = ligne du haut ; détail des registres MAX7219 (annexe 6 non exploitée)', commentVerifier: 'annexe 6' },
@@ -573,6 +719,13 @@ export const INFO3 = {
     { id: 'H39', texte: 'Format de spi1.c / spi1.h (table spi1_configuration, SPI1_Open, ExchangeByte attend SSP1IF) reconstitué d’après le driver MCC « SPI » ; seuls signatures et rôles (cours p. 74) sont garantis', commentVerifier: 'spi1.c généré en TP4' },
     { id: 'H40', texte: 'Oscilloscope : signaux logiques 0 à 3,3 V, temps de montée et de descente de 20 ns', commentVerifier: 'oscilloscope sur TP16 et TP17 en TP4' },
     { id: 'H29', texte: 'Avec STVREN = OFF, un débordement de pile met STKOVF à 1 sans reset et l’appel se poursuit normalement (la corruption des adresses de retour n’est pas simulée)', commentVerifier: 'datasheet DS40001802, « Stack Overflow/Underflow Reset »' },
+    { id: 'H41', texte: 'PWM avec un TMR2 dont la source n’est pas FOSC/4 (contraire au cours p. 85) : le modèle utilise l’horloge réellement choisie, période = (PR2 + 1) × prescaler / Fclk et seuil = rapport cyclique / 4 incréments ; MCC affiche une notification', commentVerifier: 'TMR2 en LFINTOSC avec PWM6 en TP5, oscilloscope sur TP10' },
+    { id: 'H42', texte: 'Format de ccp1.c, pwm6.c, pwm7.c et de leurs .h (commentaires, ordre, PWMx_Initialize) reconstitué d’après MCC 1.81 ; corps de PWM1_LoadDutyValue (cours p. 89) et PWMx_LoadDutyValue (cours p. 90) écrits d’après le driver MCC, cours absent du dépôt', commentVerifier: 'cours p. 89 et 90, fichiers générés en TP5' },
+    { id: 'H43', texte: 'Format de eusart.c / eusart.h (variante sans et avec interruptions, tampons de 8 octets) et des fonctions putch / getch de la redirection STDIO reconstitué d’après MCC 1.81 ; seules la liste et le rôle des fonctions (cours p. 110) sont garantis', commentVerifier: 'eusart.c généré en TP5 (« Redirect STDIO to USART »)' },
+    { id: 'H44', texte: 'PPS du TP5 : codes de sortie CCP1 = 0x09, PWM6 = 0x0E, PWM7 = 0x0F, TX = 0x10 ; RXPPS à 0xECB ; adresses de CCP1, CCPTMRS0/1, PWM6/7 et de l’EUSART d’après le datasheet', commentVerifier: 'pin_manager.c généré en TP5 ; datasheet DS40001802, « PPS »' },
+    { id: 'H45', texte: 'Points de test de la LED RGB : TP10 = RGB_R (RD4), TP11 = RGB_G (RC0), TP12 = RGB_B (RC1)', commentVerifier: 'sérigraphie de la carte fille GEII (annexe 2)' },
+    { id: 'H46', texte: 'TP5 §3 : au-delà de 255, l’incrément de 16 peut revenir à 0 (débordement d’un uint8_t) ou rester bloqué à 255 ; l’énoncé ne tranche pas, les deux sont acceptés', commentVerifier: 'question à l’enseignant' },
+    { id: 'H47', texte: 'Terminal : chaque trame est rééchantillonnée au milieu des bits du baud du terminal, à partir du front descendant du start ; un octet mal encadré (stop à 0, parité fausse) est affiché quand même, comme un terminal sans contrôle d’erreur', commentVerifier: 'terminal à 19 200 bauds face à un PIC à 9600 bauds en TP5' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],
 } as const

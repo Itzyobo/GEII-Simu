@@ -184,6 +184,7 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               onButton={(name, action) => sim.view.mode !== 'off' && sim.send({ type: 'stimulus', action, button: name, bounce })}
               onUsbBlack={usbBlack}
               onUsbWhite={(v) => apply(setUsbWhite(project, v))}
+              onCover={(v) => onProject({ ...project, bench: { ...project.bench, cover: v } })}
               onCard={(slot, card) => apply(setCard(project, slot, card))}
             />
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">

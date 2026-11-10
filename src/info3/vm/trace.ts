@@ -32,5 +32,44 @@ export function busValues(trace: readonly PinChange[], pins: readonly string[], 
   return out
 }
 
+/**
+ * Signal périodique d'une broche entre t0 et t1 (ticks) : période moyenne entre fronts montants et rapport
+ * cyclique (temps à 1 / durée). Sans front montant : période null, rapport cyclique = niveau constant.
+ */
+export function periodicOf(trace: readonly PinChange[], pin: string, t0: number, t1: number, initial: Level = 0): { period: number | null; duty: number } {
+  let level: Level = initial
+  for (const c of trace) {
+    if (c.t > t0) break
+    if (c.pin === pin) level = c.level
+  }
+  let high = 0
+  let last = t0
+  const rises: number[] = []
+  for (const c of trace) {
+    if (c.pin !== pin || c.t <= t0) continue
+    if (c.t > t1) break
+    if (level) high += c.t - last
+    if (c.level && !level) rises.push(c.t)
+    level = c.level
+    last = c.t
+  }
+  if (level) high += t1 - last
+  if (rises.length < 2) return { period: null, duty: t1 > t0 ? high / (t1 - t0) : level }
+  // Périodes entières : temps à 1 entre le premier et le dernier front montant
+  const a = rises[0]
+  const z = rises[rises.length - 1]
+  let lv: Level = 1
+  let from = a
+  let on = 0
+  for (const c of trace) {
+    if (c.pin !== pin || c.t <= a) continue
+    if (c.t > z) break
+    if (lv) on += c.t - from
+    lv = c.level
+    from = c.t
+  }
+  return { period: (z - a) / (rises.length - 1), duty: on / (z - a) }
+}
+
 /** Écarts successifs entre instants */
 export const intervals = (times: readonly number[]) => times.slice(1).map((t, i) => t - times[i])

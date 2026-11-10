@@ -1,6 +1,6 @@
 /** Configurations MCC de départ, construites comme dans MCC (Grid View puis Pin Module) depuis INFO3.pins */
 import { INFO3 } from '../../data/reference'
-import { addMssp, addTimer, defaultMccConfig, setIoc, toggleGridPin, updateMssp, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
+import { addMssp, addPwm, addTimer, defaultMccConfig, PWM_IDS, setIoc, toggleGridPin, updateMssp, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
 import { periodForRegister } from './timers'
 
 export function namedPin(cfg: MccConfig, pin: string, dir: Direction, name: string, analog?: boolean): MccConfig {
@@ -61,6 +61,17 @@ export function tp45Config(mode = 0): MccConfig {
   c = namedPin(c, r.ENCA, 'input', 'ENCA', false)
   c = namedPin(c, r.ENCB, 'input', 'ENCB', false)
   return setIoc(c, r.ENCB, 'any')
+}
+
+/**
+ * TP5 §1 : TMR2 en FOSC/4, prescaler au choix (1:16 → 4,096 ms à 4 MHz), PR2 = 0xFF, sans interruption ;
+ * PWM6 → RD4 (R), PWM7 → RC0 (G), CCP1 → RC1 (B) sur TMR2, rapport cyclique initial 0.
+ */
+export function tp51PwmConfig(prescaler = 16): MccConfig {
+  let c = updateTimer(addTimer(defaultMccConfig(), 'TMR2'), 'TMR2', { clockSource: 'FOSC/4', prescaler, postscaler: 1, interrupt: false })
+  c = updateTimer(c, 'TMR2', { periodS: periodForRegister(c, c.timers!.TMR2!, (1 << INFO3.c.bitsPerByte) - 1) })
+  for (const id of PWM_IDS) c = addPwm(c, id)
+  return c
 }
 
 /** Timer2 en Roll over pulse, interruption activée, Timer Period saisie pour obtenir PR2 = pr */

@@ -63,6 +63,96 @@ export interface MccConfig {
   timers?: Partial<Record<TimerId, TimerConfig>>
   /** MSSP1 en SPI maître (Device Resources › MSSP1) */
   mssp?: MsspConfig
+  /** CCP1 en mode PWM, PWM6, PWM7 (Device Resources › CCP, PWM) */
+  pwm?: Partial<Record<PwmId, PwmConfig>>
+  /** EUSART asynchrone (Device Resources › EUSART) */
+  eusart?: EusartConfig
+}
+
+/* ───────────── CCP1 (PWM), PWM6, PWM7 ───────────── */
+
+export type PwmId = 'CCP1' | 'PWM6' | 'PWM7'
+export const PWM_IDS: readonly PwmId[] = INFO3.pwm.modules.map((m) => m.id as PwmId)
+export type PwmPolarity = 'active_hi' | 'active_lo'
+
+export interface PwmConfig {
+  /** Enable PWM (PWM6/7) ; CCP1 : toujours actif en mode PWM */
+  enabled: boolean
+  /** Timer Select (TMR2, TMR4, TMR6) */
+  timer: TimerId
+  /** Duty Cycle initial — % */
+  dutyCycle: number
+  /** Output Polarity (PWM6/7) */
+  polarity: PwmPolarity
+  /** CCPR Alignment (CCP1) : right_aligned (CCP1FMT = 0) ou left_aligned */
+  alignment?: 'right_aligned' | 'left_aligned'
+  /** Broche de sortie (PPS), Grid View */
+  pin: string | null
+}
+
+export const defaultPwmConfig = (id: PwmId): PwmConfig => {
+  const d = INFO3.pwm.mccDefault
+  return { enabled: d.enabled, timer: d.timer as TimerId, dutyCycle: d.dutyCycle, polarity: d.polarity as PwmPolarity, ...(id === 'CCP1' ? { alignment: 'right_aligned' as const } : {}), pin: INFO3.pwm.defaultPins[id] ?? null }
+}
+export const addPwm = (cfg: MccConfig, id: PwmId): MccConfig => (cfg.pwm?.[id] ? cfg : { ...cfg, pwm: { ...cfg.pwm, [id]: defaultPwmConfig(id) } })
+export function removePwm(cfg: MccConfig, id: PwmId): MccConfig {
+  const pwm = { ...cfg.pwm }
+  delete pwm[id]
+  return { ...cfg, pwm }
+}
+export const updatePwm = (cfg: MccConfig, id: PwmId, patch: Partial<PwmConfig>): MccConfig => (cfg.pwm?.[id] ? { ...cfg, pwm: { ...cfg.pwm, [id]: { ...cfg.pwm[id]!, ...patch } } } : cfg)
+
+function parsePwm(id: PwmId, x: unknown): PwmConfig | null {
+  if (!x || typeof x !== 'object') return null
+  const o = x as Record<string, unknown>
+  const d = defaultPwmConfig(id)
+  return {
+    enabled: typeof o.enabled === 'boolean' ? o.enabled : d.enabled,
+    timer: TIMER_IDS.includes(o.timer as TimerId) ? (o.timer as TimerId) : d.timer,
+    dutyCycle: typeof o.dutyCycle === 'number' && o.dutyCycle >= 0 && o.dutyCycle <= 100 ? o.dutyCycle : d.dutyCycle,
+    polarity: o.polarity === 'active_lo' ? 'active_lo' : 'active_hi',
+    ...(id === 'CCP1' ? { alignment: o.alignment === 'left_aligned' ? ('left_aligned' as const) : ('right_aligned' as const) } : {}),
+    pin: o.pin === null || (typeof o.pin === 'string' && /^R[A-E][0-7]$/.test(o.pin)) ? (o.pin as string | null) : d.pin,
+  }
+}
+
+/* ───────────── EUSART ───────────── */
+
+export interface EusartConfig {
+  /** Enable EUSART (SPEN), Enable Transmit (TXEN), Enable Receive (CREN) */
+  enable: boolean
+  transmit: boolean
+  receive: boolean
+  /** Baud Rate demandé */
+  baud: number
+  /** « Redirect STDIO to USART » (cours p. 110) */
+  redirectStdio: boolean
+  /** Enable EUSART Interrupts */
+  interrupts: boolean
+  /** TX1 et RX1 (PPS), Grid View */
+  pins: { TX1: string | null; RX1: string | null }
+}
+
+export const defaultEusartConfig = (): EusartConfig => ({ ...INFO3.eusart.mccDefault, pins: { ...INFO3.eusart.defaultPins } })
+export const addEusart = (cfg: MccConfig): MccConfig => (cfg.eusart ? cfg : { ...cfg, eusart: defaultEusartConfig() })
+export function removeEusart(cfg: MccConfig): MccConfig {
+  const rest = { ...cfg }
+  delete rest.eusart
+  return rest
+}
+export const updateEusart = (cfg: MccConfig, patch: Partial<EusartConfig>): MccConfig => (cfg.eusart ? { ...cfg, eusart: { ...cfg.eusart, ...patch } } : cfg)
+
+function parseEusart(x: unknown): EusartConfig | null {
+  if (!x || typeof x !== 'object') return null
+  const o = x as Record<string, unknown>
+  const d = defaultEusartConfig()
+  const out = { ...d } as unknown as Record<string, unknown>
+  for (const [k, v] of Object.entries(d)) if (k !== 'pins' && typeof o[k] === typeof v) out[k] = o[k]
+  const op = (o.pins ?? {}) as Record<string, unknown>
+  const pins = { ...d.pins }
+  for (const k of ['TX1', 'RX1'] as const) if (op[k] === null || (typeof op[k] === 'string' && /^R[A-E][0-7]$/.test(op[k] as string))) pins[k] = op[k] as string | null
+  out.pins = pins
+  return out as unknown as EusartConfig
 }
 
 /* ───────────── MSSP1 (SPI) ───────────── */
@@ -274,5 +364,15 @@ export function parseMccConfig(x: unknown): MccConfig | null {
     ...(typeof o.singleIsr === 'boolean' ? { singleIsr: o.singleIsr } : {}),
     ...(Object.keys(timers).length ? { timers } : {}),
     ...(o.mssp ? { mssp: parseMssp(o.mssp) ?? defaultMsspConfig() } : {}),
+    ...(() => {
+      const pwm: Partial<Record<PwmId, PwmConfig>> = {}
+      const op = (o.pwm ?? {}) as Record<string, unknown>
+      for (const id of PWM_IDS) {
+        const v = parsePwm(id, op[id])
+        if (v) pwm[id] = v
+      }
+      return Object.keys(pwm).length ? { pwm } : {}
+    })(),
+    ...(o.eusart ? { eusart: parseEusart(o.eusart) ?? defaultEusartConfig() } : {}),
   }
 }

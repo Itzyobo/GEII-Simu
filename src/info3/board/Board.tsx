@@ -3,12 +3,14 @@
  * - LED D2 à D5 : lueur = rapport cyclique (variable CSS --duty), animée en CSS ;
  * - S1, S2 : souris, toucher (maintien possible) ou touches 1 et 2 ;
  * - USB noir (PKOB : alimentation et programmation) et USB blanc (UART de la carte fille) : clic pour brancher ;
+ * - LED RGB : couleur = mélange des trois rapports cycliques (H17) ; sans le cache, halo d'éblouissement ;
  * - MODULE 1 et 2 (mikroBUS) : glisser une carte Click, ou la sélectionner puis cliquer l'emplacement.
  * Le verrouillage sous tension est décidé par le modèle du projet (setCard), pas ici.
  */
 import { useEffect, useState, type CSSProperties, type DragEvent } from 'react'
 import { INFO3 } from '../../data/reference'
 import type { Bench, CardId, SlotId } from '../project/project'
+import { cssColor, rgbDuty, rgbGlare, rgbIntensity, rgbMix } from '../models/rgbLed'
 
 export interface BoardProps {
   duty: Record<string, number>
@@ -16,6 +18,8 @@ export interface BoardProps {
   onButton(name: string, action: 'press' | 'release'): void
   onUsbBlack(plugged: boolean): void
   onUsbWhite(plugged: boolean): void
+  /** Cache en plastique sur la LED RGB (manipulable sous tension : pièce mécanique) */
+  onCover?(on: boolean): void
   onCard(slot: SlotId, card: CardId | null): void
   /** Message du banc (verrouillage, programmation…) */
   message: string | null
@@ -31,7 +35,11 @@ const BOARD_CSS = `.info3-led-on{opacity:var(--duty);transition:opacity 40ms lin
 
 const isEditable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || !!t.closest('.cm-editor'))
 
-export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCard, message }: BoardProps) {
+export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message }: BoardProps) {
+  const rgb = rgbDuty(duty)
+  const rgbOn = rgbIntensity(rgb) > 0
+  const rgbColor = cssColor(rgbMix(rgb))
+  const glare = rgbGlare(rgb, bench.cover)
   const [held, setHeld] = useState<Record<string, boolean>>({})
   const [selected, setSelected] = useState<CardId | null>(null)
   const [over, setOver] = useState<SlotId | null>(null)
@@ -229,9 +237,10 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
         {/* Carte fille GEII */}
         <rect x={430} y={60} width={120} height={254} rx={8} fill="#2c3e64" stroke="#141d31" strokeWidth={2} />
         <text x={442} y={80} className="fill-[#e9eefc] text-[10px] font-semibold">Carte GEII</text>
-        <g aria-label="LED RGB (éteinte)">
-          <circle cx={490} cy={118} r={11} fill="#3b3f46" stroke="#111" />
-          {bench.cover && <circle cx={490} cy={118} r={15} fill="#eceff1" opacity={0.85} />}
+        <g aria-label={`LED RGB (${rgbOn ? `R ${Math.round(rgb.r * 100)} %, G ${Math.round(rgb.g * 100)} %, B ${Math.round(rgb.b * 100)} %` : 'éteinte'})`} data-rgb={rgbColor}>
+          {glare > 0 && <circle cx={490} cy={118} r={46} fill={rgbColor} opacity={0.55 * glare} style={{ filter: 'blur(10px)' }} />}
+          <circle cx={490} cy={118} r={11} fill={rgbOn ? rgbColor : '#3b3f46'} stroke="#111" />
+          {bench.cover && <circle cx={490} cy={118} r={15} fill="#eceff1" opacity={rgbOn ? 0.6 : 0.85} />}
           <text x={490} y={142} textAnchor="middle" className="fill-[#e9eefc] text-[8px]">LED RGB</text>
         </g>
         <g aria-label="Joystick">
@@ -276,6 +285,11 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
         <label className="flex items-center gap-1.5 text-xs">
           <input type="checkbox" checked={bench.usbWhite} onChange={(e) => onUsbWhite(e.target.checked)} /> USB blanc
         </label>
+        {onCover && (
+          <label className="flex items-center gap-1.5 text-xs">
+            <input type="checkbox" checked={bench.cover} onChange={(e) => onCover(e.target.checked)} /> Cache LED RGB
+          </label>
+        )}
       </div>
       {selected && <p className="text-xs text-muted">Glisser la carte ou cliquer sur MODULE 1 ou MODULE 2 pour l’enficher.</p>}
       {message && (

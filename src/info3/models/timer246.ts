@@ -52,6 +52,8 @@ export interface TimerHost {
   raiseFlag(): void
   /** One-shot terminé : TMRxON repasse à 0 dans TxCON */
   clearOn(): void
+  /** Après tout changement qui déplace la base de temps (PWM) */
+  onChange?(): void
 }
 
 export type TimerReg = 'TMR' | 'PR' | 'CON' | 'HLT' | 'CLKCON' | 'RST'
@@ -97,6 +99,17 @@ export class Timer246 {
     this.updateClock()
   }
 
+  /**
+   * Base de temps de la PWM : début de la période en cours, durée d'une période et d'un incrément (ticks).
+   * null si le timer ne compte pas en continu (arrêté, source non simulée, one-shot ou monostable).
+   */
+  timebase(): { periodStart: number; periodTicks: number; countTicks: number; counts: number } | null {
+    this.sync()
+    if (!this.counting || !this.on || this.stopsAtMatch || !Number.isFinite(this.countTicks)) return null
+    const counts = this.pr + 1
+    return { periodStart: this.lastT - this.phase - this.tmr * this.countTicks, periodTicks: counts * this.countTicks, countTicks: this.countTicks, counts }
+  }
+
   get on() {
     return (this.con & CON_ON) !== 0
   }
@@ -127,6 +140,7 @@ export class Timer246 {
     const hz = this.host.clockHz(this.clk)
     this.countTicks = hz > 0 ? (INFO3.clock.timeBaseHz / hz) * this.prescaler : Infinity
     this.reschedule()
+    this.host.onChange?.()
   }
 
   /** Avance le compteur jusqu'à maintenant */
@@ -234,7 +248,10 @@ export class Timer246 {
         break
     }
     if (reg === 'CON') this.updateClock()
-    else this.reschedule()
+    else {
+      this.reschedule()
+      this.host.onChange?.()
+    }
   }
 
   /** Front sur l'entrée TMRx_ers (broche choisie par TxINPPS) ; ignoré pendant le comptage (H33) */
@@ -246,6 +263,7 @@ export class Timer246 {
     this.counting = true
     this.phase = 0
     this.reschedule()
+    this.host.onChange?.()
   }
 
   /** Durée d'une période (PRx + 1 incréments, sans postscaler) — ticks ; Infinity si le timer ne compte pas */
