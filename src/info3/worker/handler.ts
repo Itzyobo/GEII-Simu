@@ -57,11 +57,28 @@ export interface SimState {
   terminal: SerialTerminal
   /** Fin du dernier octet envoyé par le clavier du terminal — ticks */
   sendBusyUntil: number
+  /** Carte 8x8 R click : mikroBUS ; lueur des 64 LED (actuelle, cumulée sur l'image), dernier instant, dernière image envoyée */
+  matrixSlot: RotarySlot | null
+  mx: { now: number[]; acc: number[]; lastT: number; sent: string }
   /** Banc analogique (repris par chaque nouveau PIC programmé) */
   analog: { pot: number; joy: [number, number]; joySw: boolean }
 }
 
 const RING_N = INFO3.ring.leds
+const MX_N = INFO3.max7219.digits ** 2
+const blankMx = () => ({ now: new Array<number>(MX_N).fill(0), acc: new Array<number>(MX_N).fill(0), lastT: 0, sent: '' })
+
+function mxAccumulate(state: SimState, t: number) {
+  const m = state.mx
+  const from = Math.max(m.lastT, state.frameStartT)
+  if (t > from) for (let k = 0; k < MX_N; k++) m.acc[k] += m.now[k] * (t - from)
+  m.lastT = t
+}
+
+function mxRead(state: SimState, vm: Vm) {
+  const duty = vm.matrix.ledDuty
+  state.mx.now = vm.matrix.matrix().flat().map((on) => (on ? duty : 0))
+}
 const blankRing = () => ({ outputs: 0, high: new Array<number>(RING_N).fill(0), lastT: 0, sent: '' })
 
 function ringAccumulate(state: SimState, t: number) {
@@ -72,7 +89,7 @@ function ringAccumulate(state: SimState, t: number) {
 }
 
 export function createSimState(now: () => number = () => performance.now()): SimState {
-  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, analog: { pot: INFO3.analog.potStart, joy: [0, 0], joySw: false }, usbWhite: false, terminal: new SerialTerminal(INFO3.clock.timeBaseHz), sendBusyUntil: 0, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
+  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, matrixSlot: null, mx: blankMx(), analog: { pot: INFO3.analog.potStart, joy: [0, 0], joySw: false }, usbWhite: false, terminal: new SerialTerminal(INFO3.clock.timeBaseHz), sendBusyUntil: 0, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
 }
 
 const PROBES = new Set<string>(INFO3.analyzer.probes)
@@ -117,6 +134,12 @@ function plugUsbWhite(state: SimState) {
 
 function attach(state: SimState, vm: Vm) {
   vm.setRotarySlot(state.rotary)
+  vm.setMatrixSlot(state.matrixSlot)
+  state.mx = blankMx()
+  vm.onMatrix((t) => {
+    mxAccumulate(state, t)
+    mxRead(state, vm)
+  })
   vm.onPinChange((c) => c.pin === UART.tx && state.terminal.edge(c.t, c.level))
   plugUsbWhite(state)
   applyAnalog(state)
@@ -145,6 +168,9 @@ function resetMeasures(state: SimState, vm: Vm) {
   state.ring.lastT = vm.t
   state.ring.outputs = vm.ring.outputs
   state.ring.sent = ''
+  state.mx.lastT = vm.t
+  state.mx.sent = ''
+  mxRead(state, vm)
   state.lastPins = {}
   state.lastDuty = {}
   state.lastDiag = ''
@@ -183,8 +209,14 @@ export function makeFrame(state: SimState, out: OutMsg[]): void {
   const ringKey = ringDuty.map((d) => d.toFixed(2)).join(',')
   const ringChanged = ringKey !== state.ring.sent
   state.ring.sent = ringKey
+  mxAccumulate(state, vm.t)
+  const matrixGlow = state.mx.acc.map((h, k) => (span > 0 ? h / span : state.mx.now[k]))
+  state.mx.acc.fill(0)
+  const mxKey = matrixGlow.map((d) => d.toFixed(3)).join(',')
+  const mxChanged = mxKey !== state.mx.sent
+  state.mx.sent = mxKey
   state.frameStartT = vm.t
-  out.push({ type: 'frame', tSim: vm.timeS, pinsDiff, ledDuty, ...(ringChanged ? { ringDuty } : {}) })
+  out.push({ type: 'frame', tSim: vm.timeS, pinsDiff, ledDuty, ...(ringChanged ? { ringDuty } : {}), ...(mxChanged ? { matrixGlow } : {}) })
   if (state.trace.length || state.traceReset) {
     out.push({ type: 'trace', changes: state.trace, reset: state.traceReset })
     state.trace = []
@@ -352,6 +384,10 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
     case 'bench':
       state.rotary = msg.rotary
       state.vm?.setRotarySlot(msg.rotary)
+      if (msg.matrix !== undefined && msg.matrix !== state.matrixSlot) {
+        state.matrixSlot = msg.matrix
+        state.vm?.setMatrixSlot(msg.matrix)
+      }
       if (msg.usbWhite !== undefined && msg.usbWhite !== state.usbWhite) {
         state.usbWhite = msg.usbWhite
         plugUsbWhite(state)

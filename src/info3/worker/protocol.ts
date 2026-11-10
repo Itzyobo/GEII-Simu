@@ -27,7 +27,7 @@ export type InMsg =
   /** Horloge interne du Worker : temps réel écoulé depuis le tick précédent */
   | { type: 'tick'; wallMs: number }
   /** Banc : mikroBUS où la carte Rotary est enfichée, USB blanc (port COM du terminal) — appliqués au PIC courant et aux suivants */
-  | { type: 'bench'; rotary: 'mikrobus1' | 'mikrobus2' | null; usbWhite?: boolean }
+  | { type: 'bench'; rotary: 'mikrobus1' | 'mikrobus2' | null; usbWhite?: boolean; matrix?: 'mikrobus1' | 'mikrobus2' | null }
   /** Terminal série : baud et format (8N1…), octets tapés au clavier */
   | { type: 'terminal'; baud: number; format: string }
   | { type: 'terminalSend'; bytes: number[] }
@@ -66,6 +66,8 @@ export type OutMsg =
       ledDuty: Record<string, number>
       /** Anneau de 16 LED de la carte Rotary : fraction du temps allumée (LED 1 à 16), si elle a changé */
       ringDuty?: number[]
+      /** Matrice 8x8 R click : lueur moyenne de chaque LED (ligne 0 en haut, 64 valeurs), si elle a changé */
+      matrixGlow?: number[]
     }
   | { type: 'output'; level: OutputLevel; text: string; file?: string; line?: number; col?: number }
   | { type: 'halted'; reason: string }

@@ -25,6 +25,8 @@ export interface BoardProps {
   message: string | null
   /** Potentiomètre (0 à 1) et joystick (x vers la droite, y vers le haut, -1 à 1) */
   analog?: { pot: number; joy: [number, number] }
+  /** Matrice 8x8 R click : lueur des 64 LED (ligne 0 en haut) */
+  matrix?: number[]
   onAnalog?(m: { pot?: number; joy?: [number, number]; joySw?: boolean }): void
 }
 
@@ -52,7 +54,7 @@ const BOARD_CSS = `.info3-led-on{opacity:var(--duty);transition:opacity 40ms lin
 
 const isEditable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || !!t.closest('.cm-editor'))
 
-export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message, analog, onAnalog }: BoardProps) {
+export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message, analog, onAnalog, matrix = [] }: BoardProps) {
   const pot = analog?.pot ?? 0.5
   const [jx, jy] = analog?.joy ?? [0, 0]
   const potAngle = (pot - 0.5) * POT_SWEEP
@@ -197,7 +199,7 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
         <text x={x + 46} y={y + 98} textAnchor="middle" className="fill-[#f2f2f2] text-[9px] font-semibold tracking-wide">
           {SLOT_LABEL[slot]}
         </text>
-        {card && <ClickCard card={card} x={x + 4} y={y - 6} />}
+        {card && <ClickCard card={card} x={x + 4} y={y - 6} matrix={matrix} />}
       </g>
     )
   }
@@ -380,7 +382,7 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
 }
 
 /** Carte Click dessinée sur son emplacement */
-function ClickCard({ card, x, y }: { card: CardId; x: number; y: number }) {
+function ClickCard({ card, x, y, matrix = [] }: { card: CardId; x: number; y: number; matrix?: number[] }) {
   const name = INFO3.clickBoards[card].name
   return (
     <g pointerEvents="none">
@@ -394,7 +396,11 @@ function ClickCard({ card, x, y }: { card: CardId; x: number; y: number }) {
           <circle cx={x + 42} cy={y + 44} r={14} fill="#c8ccd0" stroke="#555" />
         </>
       ) : (
-        Array.from({ length: 64 }, (_, i) => <circle key={i} cx={x + 14 + (i % 8) * 8} cy={y + 16 + Math.floor(i / 8) * 8} r={2.6} fill="#3a1010" />)
+        Array.from({ length: 64 }, (_, i) => {
+          // Lueur : rapport cyclique de la LED rapporté au plus fort possible (1/8 : 8 digits balayés), plafonné à 1
+          const g = Math.min(1, (matrix[i] ?? 0) * 8)
+          return <circle key={i} className="info3-mx-led" data-on={g > 0 ? '1' : '0'} cx={x + 14 + (i % 8) * 8} cy={y + 16 + Math.floor(i / 8) * 8} r={2.6} fill={g > 0 ? `rgba(255, ${Math.round(60 + 140 * g)}, ${Math.round(60 * g)}, ${0.35 + 0.65 * g})` : '#3a1010'} />
+        })
       )}
       <text x={x + 42} y={y + 88} textAnchor="middle" className="fill-white text-[7px] font-semibold">
         {name}

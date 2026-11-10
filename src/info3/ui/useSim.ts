@@ -31,9 +31,11 @@ export interface SimView {
   ring: number[]
   /** Terminal : octets reçus et instant de chaque start (s simulées) */
   serial: { bytes: number[]; t: number[] }
+  /** Matrice 8x8 : lueur des 64 LED */
+  matrix: number[]
 }
 
-const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, irq: null, programmed: false, ring: [], serial: { bytes: [], t: [] } }
+const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, irq: null, programmed: false, ring: [], serial: { bytes: [], t: [] }, matrix: [] }
 
 type Action = { kind: 'msg'; m: OutMsg } | { kind: 'clear' } | { kind: 'mode'; mode: RunMode } | { kind: 'log'; line: Output } | { kind: 'off' } | { kind: 'clearSerial' }
 
@@ -61,6 +63,7 @@ function reducer(s: SimView, a: Action): SimView {
             duty: Object.keys(m.ledDuty).length ? { ...s.duty, ...m.ledDuty } : s.duty,
             pins: Object.keys(m.pinsDiff).length ? { ...s.pins, ...m.pinsDiff } : s.pins,
             ring: m.ringDuty ?? s.ring,
+            matrix: m.matrixGlow ?? s.matrix,
           }
         case 'output':
           return { ...s, output: [...s.output, m] }
@@ -102,7 +105,7 @@ export interface SimControls {
   log(line: Output): void
   clearOutput(): void
   /** Banc : mikroBUS de la carte Rotary et USB blanc (envoyés au Worker dès qu'il existe) */
-  setBench(rotary: 'mikrobus1' | 'mikrobus2' | null, usbWhite?: boolean): void
+  setBench(rotary: 'mikrobus1' | 'mikrobus2' | null, usbWhite?: boolean, matrix?: 'mikrobus1' | 'mikrobus2' | null): void
   /** Terminal : baud et format, envoi d'octets, effacement de l'écran */
   setTerminal(baud: number, format: string): void
   sendSerial(bytes: number[]): void
@@ -147,6 +150,7 @@ export function useSim(): SimControls {
   const debugging = useRef(false)
   const bench = useRef<'mikrobus1' | 'mikrobus2' | null>(null)
   const usbWhite = useRef(false)
+  const matrixSlot = useRef<'mikrobus1' | 'mikrobus2' | null>(null)
   const term = useRef<{ baud: number; format: string }>({ baud: INFO3.terminal.defaultBaud, format: INFO3.terminal.defaultFormat })
   /** Voies demandées par instrument (analyseur, oscilloscope) : le Worker reçoit leur union */
   const channels = useRef<Record<string, string[]>>({})
@@ -156,7 +160,7 @@ export function useSim(): SimControls {
     if (client.current) return client.current
     const c = createSimClient()
     // Le Worker naît au premier Build ou Program : il reçoit l'état du banc et de l'analyseur
-    c.send({ type: 'bench', rotary: bench.current, usbWhite: usbWhite.current })
+    c.send({ type: 'bench', rotary: bench.current, usbWhite: usbWhite.current, matrix: matrixSlot.current })
     c.send({ type: 'terminal', ...term.current })
     c.send({ type: 'analyzer', channels: unionOf(channels.current) })
     c.onMessage((m) => {
@@ -229,10 +233,11 @@ export function useSim(): SimControls {
     [send],
   )
 
-  const setBench = useCallback((r: 'mikrobus1' | 'mikrobus2' | null, white?: boolean) => {
+  const setBench = useCallback((r: 'mikrobus1' | 'mikrobus2' | null, white?: boolean, mx?: 'mikrobus1' | 'mikrobus2' | null) => {
     bench.current = r
     if (white !== undefined) usbWhite.current = white
-    client.current?.send({ type: 'bench', rotary: r, usbWhite: usbWhite.current })
+    if (mx !== undefined) matrixSlot.current = mx
+    client.current?.send({ type: 'bench', rotary: r, usbWhite: usbWhite.current, matrix: matrixSlot.current })
   }, [])
   const setTerminal = useCallback((baud: number, format: string) => {
     term.current = { baud, format }

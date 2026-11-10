@@ -17,6 +17,7 @@ import { PwmChannel } from '../models/pwm'
 import { baudOf, EusartTx, FORMAT_8N1, UartDecoder } from '../models/eusart'
 import { channelOf, conversionS, joystickRaw, noisyCode, resultRegisters, tadOf, voltsOf } from '../models/adcc'
 import { Hc595x2 } from '../models/hc595x2'
+import { Max7219 } from '../models/max7219'
 import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
 import { foscFromRegisters, hfintoscFromRegister } from '../models/clock'
@@ -571,6 +572,48 @@ export class Vm {
     if (this.gpio.level(p.Q7S) !== this.ring.q7s) this.gpio.setExternal(p.Q7S, this.ring.q7s, c.t)
   }
 
+  /* ═════════════ Carte 8x8 R click (MAX7219) ═════════════ */
+
+  readonly matrix = new Max7219()
+  matrixSlot: RotarySlot | null = null
+  private matrixPins: Record<keyof typeof INFO3.max7219.wiring, string> | null = null
+  private matrixListeners: ((t: number) => void)[] = []
+  private matrixHooked = false
+
+  /** Broches du MAX7219 selon le mikroBUS (LOAD ← CS, CLK ← SCK, DIN ← MOSI) */
+  static matrixPinsOf(slot: RotarySlot): Record<keyof typeof INFO3.max7219.wiring, string> {
+    const bus = INFO3.pins[slot] as Record<string, string>
+    const w = INFO3.max7219.wiring
+    return { LOAD: bus[w.LOAD], CLK: bus[w.CLK], DIN: bus[w.DIN] }
+  }
+
+  /** Enfiche (ou retire) la carte 8x8 R click ; la carte se met sous tension avec le PIC */
+  setMatrixSlot(slot: RotarySlot | null) {
+    this.matrixSlot = slot
+    this.matrixPins = slot ? Vm.matrixPinsOf(slot) : null
+    this.matrix.reset()
+    this.notifyMatrix(this.tNow)
+    if (this.matrixHooked) return
+    this.matrixHooked = true
+    this.gpio.onChange((c) => {
+      const p = this.matrixPins
+      if (!p || c.level !== 1) return
+      if (c.pin === p.CLK) this.matrix.clock(this.gpio.level(p.DIN))
+      else if (c.pin === p.LOAD && this.matrix.load()) this.notifyMatrix(c.t)
+    })
+  }
+
+  onMatrix(cb: (t: number) => void): () => void {
+    this.matrixListeners.push(cb)
+    return () => {
+      this.matrixListeners = this.matrixListeners.filter((l) => l !== cb)
+    }
+  }
+
+  private notifyMatrix(t: number) {
+    for (const cb of this.matrixListeners) cb(t)
+  }
+
   private driveRotary() {
     const p = this.rotaryPins
     if (!p) return
@@ -672,8 +715,10 @@ export class Vm {
     this.rotaryBusyUntil = 0
     this.driveRotary()
     if (this.spinRate) this.spin(this.spinRate)
-    // Mise sous tension : les 74HC595 repartent de zéro
+    // Mise sous tension : les 74HC595 et le MAX7219 repartent de zéro
     this.resetRing()
+    this.matrix.reset()
+    this.notifyMatrix(0)
     this.gpio.trace = []
     this.halted = null
     this.analogReads.clear()

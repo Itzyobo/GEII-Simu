@@ -604,6 +604,21 @@ export const INFO3 = {
     encoderDetents: 4,
     source: 'énoncé TP5 et consigne étape 5 (pas de CR du TP5)',
   },
+  /** MAX7219 de la carte 8x8 R click (annexe 6) et câblage sur le mikroBUS (annexe 5) */
+  max7219: {
+    digits: 8,
+    frameBits: 16,
+    addressBits: 4,
+    reg: { noop: 0x00, digit0: 0x01, decode: 0x09, intensity: 0x0a, scanLimit: 0x0b, shutdown: 0x0c, test: 0x0f },
+    /** Police Code B (table 5) : 0 à 9, -, E, H, L, P, blanc ; bits DP A B C D E F G = 7 … 0 */
+    codeB: [0x7e, 0x30, 0x6d, 0x79, 0x33, 0x5b, 0x5f, 0x70, 0x7f, 0x7b, 0x01, 0x4f, 0x37, 0x0e, 0x67, 0x00],
+    /** Intensité : (2n+1)/32 ; Display Test : 31/32 sur 8 digits */
+    intensitySteps: 32,
+    testIntensity: 31 / 32,
+    /** Signaux du mikroBUS reliés au MAX7219 : LOAD ← CS, CLK ← SCK, DIN ← MOSI (annexe 5) */
+    wiring: { LOAD: 'CS', CLK: 'SCK', DIN: 'MOSI' },
+    hyp: ['H11', 'H53'],
+  },
   /** TP6 : cahier des charges utilisé par le professeur virtuel (énoncé TP6 et consigne étape 6) */
   tp6: {
     /** §2 : une conversion X toutes les 10 ms (± 1 %), Y moins de 50 µs après la fin de X, affichage toutes les 1 s (± 2 %) */
@@ -766,7 +781,7 @@ export const INFO3 = {
     { id: 'H8', texte: 'Prescaler PWM 1:4', commentVerifier: 'réglage MCC au TP5', statut: 'partielle', preuve: 'Fosc = 4 MHz (fichiers MCC TP1, H1 réfutée) : « environ 4 ms » avec PR2 = 0xFF donne 1:16 (4,096 ms) ; 1:4 ne convient qu’à Fosc = 1 MHz' },
     { id: 'H9', texte: 'Sens horaire = ENCA en avance sur ENCB (d’après le chronogramme du CR TP2)', commentVerifier: 'annexe 4' },
     { id: 'H10', texte: 'LED 1 de l’anneau en haut, numérotation dans le sens horaire', commentVerifier: 'photo de la carte Rotary' },
-    { id: 'H11', texte: 'Matrice : DIG0 = colonne de droite, segment DP = ligne du haut ; détail des registres MAX7219 (annexe 6 non exploitée)', commentVerifier: 'annexe 6' },
+    { id: 'H11', texte: 'Matrice : DIG0 = colonne de droite, segment DP = ligne du haut ; détail des registres MAX7219 (annexe 6 non exploitée)', commentVerifier: 'annexe 6', statut: 'vérifiée', preuve: 'annexe 5 (schéma 8x8 R click) : DIG7 à gauche … DIG0 à droite, SEGDP en haut puis SEGA … SEGG en bas ; annexe 6, table 6 : D7 = DP … D0 = G' },
     { id: 'H12', texte: 'Sans USB blanc, printf n’affiche rien ; LED RGB alimentée par le 5 V de l’USB noir', commentVerifier: 'TP5' },
     { id: 'H13', texte: 'Débogueur à l’arrêt : temps figé, un appui pendant l’arrêt mémorise un seul flag IOC', commentVerifier: 'TP3 §3' },
     { id: 'H14', texte: 'SPI en mode 1 ou 2 avec le 74HC595 : motif décalé d’un rang. Modèle : dans ces modes MOSI change au front montant où le 74HC595 décale (y compris le premier bit, sans présentation anticipée en mode 2) et le 74HC595 lit le bit précédent', commentVerifier: 'TP4 2 (anneau avec chaque mode)' },
@@ -807,6 +822,7 @@ export const INFO3 = {
     { id: 'H50', texte: 'Codes ADPCH des voies : port × 8 + bit (RA0 = 0x00, RD5 = 0x1D, RD6 = 0x1E) ; adresses des registres ADCC d’après le datasheet', commentVerifier: 'adcc.h généré au TP6 (enum adcc_channel_t)' },
     { id: 'H51', texte: 'TAD de l’oscillateur FRC = 2 µs', commentVerifier: 'datasheet DS40001802, « ADC Clock Period (TAD) »' },
     { id: 'H52', texte: 'ADCC simulé en mode de base : échantillonnage au lancement (ADGO = 1), pas de déclenchement automatique (ADACT), de mode continu ni de calcul (filtre, moyenne, seuils)', commentVerifier: 'sans objet au TP6 (conversions lancées par logiciel)' },
+    { id: 'H53', texte: 'MAX7219 simulé : DOUT non relié au PIC (le MISO du bus SPI reste à la carte Rotary) ; contenu des registres de digits à la mise sous tension = 0 (annexe 6 muette) ; balayage non simulé (lueur = intensité / nombre de digits balayés)', commentVerifier: 'annexe 6 ; oscilloscope sur DOUT' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],
 } as const

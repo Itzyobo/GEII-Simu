@@ -46,9 +46,10 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
   const rotarySlot = (Object.keys(project.bench.slots) as SlotId[]).find((s) => project.bench.slots[s] === 'rotary') ?? null
   const { setBench } = sim
   const usbWhite = project.bench.usbWhite
+  const matrixSlot = (Object.keys(project.bench.slots) as SlotId[]).find((s) => project.bench.slots[s] === 'matrix8x8') ?? null
   useEffect(() => {
-    setBench(rotarySlot, usbWhite)
-  }, [rotarySlot, usbWhite, setBench])
+    setBench(rotarySlot, usbWhite, matrixSlot)
+  }, [rotarySlot, usbWhite, matrixSlot, setBench])
   const [tab, setTab] = useState<Tab>('code')
   const [main, setMain] = useState<'code' | 'mcc'>('code')
   const [benchMsg, setBenchMsg] = useState<string | null>(null)
@@ -183,6 +184,7 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
           <div className={on('bench')}>
             <Board
               duty={powered ? sim.view.duty : {}}
+              matrix={powered ? sim.view.matrix : []}
               bench={project.bench}
               message={benchMsg}
               onButton={(name, action) => sim.view.mode !== 'off' && sim.send({ type: 'stimulus', action, button: name, bounce })}

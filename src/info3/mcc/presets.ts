@@ -115,6 +115,16 @@ export function tp62Config(): MccConfig {
   return c
 }
 
+/** TP6 §3 : MSSP1 en SPI maître mode 0 (FOSC/4) sur le bus du mikroBUS, LOAD (CS du mikroBUS 1, RA3) en sortie, Start High */
+export function tp63Config(base: MccConfig = defaultMccConfig()): MccConfig {
+  const cs = INFO3.pins.mikrobus1.CS
+  const c = namedPin(updateMssp(addMssp(base), { mode: 0, clockSource: 'FOSC/4' }), cs, 'output', 'LOAD')
+  return updatePin(c, cs, { startHigh: true })
+}
+
+/** TP6 §4 : ADCC et EUSART (tp6-1) + SPI et LOAD (tp6-3) */
+export const tp64Config = (): MccConfig => tp63Config(tp61Config())
+
 /** Timer2 en Roll over pulse, interruption activée, Timer Period saisie pour obtenir PR2 = pr */
 function withTmr2(cfg: MccConfig, patch: Partial<TimerConfig>, pr: number): MccConfig {
   let c = updateTimer(addTimer(cfg, 'TMR2'), 'TMR2', { interrupt: true, ...patch })
