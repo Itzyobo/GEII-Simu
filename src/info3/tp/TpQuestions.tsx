@@ -8,7 +8,8 @@ import { INFO3 } from '../../data/reference'
 import { projectFiles, type Project } from '../project/project'
 import type { Progress, QuestionState } from '../project/storage'
 import type { Tp23QuestionId } from '../project/verify23'
-import { enonceMissing, parseRegisterAnswer, questionTitle as titleIn } from '../tp1/content'
+import { parseRegisterAnswer, questionLabel, questionTitle } from '../tp1/content'
+import QuestionTitle from '../ui/QuestionTitle'
 import type { SimControls } from '../ui/useSim'
 import { partsOf, type Choice, type NumField, type Part } from './content23'
 
@@ -44,9 +45,7 @@ function Badges({ q }: { q: Info3Question }) {
 
 export default function TpQuestions({ tp, project, sim, enonce, progress, onResult, selected, onSelect }: TpQuestionsProps) {
   const list = INFO3_QUESTIONS.filter((q) => q.tp === tp)
-  const title = (id: string) => (enonceMissing(enonce) ? null : titleIn(enonce, id))
   const q = list.find((x) => x.id === selected) ?? list[0]
-  const t = title(q.id)
   return (
     <section className="space-y-3 rounded-card bg-card p-3 ring-1 ring-line" aria-label={`Questions du TP${tp}`}>
       <h2 className="text-sm font-semibold">Questions</h2>
@@ -58,7 +57,7 @@ export default function TpQuestions({ tp, project, sim, enonce, progress, onResu
                 {icon(progress[x.id]?.state)}
               </span>
               <span className="tabular-nums">{x.numero}</span>
-              <span className="truncate text-muted">{title(x.id)?.split('\n')[0] ?? x.resume}</span>
+              <span className="truncate text-muted">{questionLabel(questionTitle(enonce, x.id) ?? x.id)}</span>
             </button>
           </li>
         ))}
@@ -68,14 +67,7 @@ export default function TpQuestions({ tp, project, sim, enonce, progress, onResu
           TP{tp} {q.numero}
           <Badges q={q} />
         </h3>
-        {t ? (
-          <p className="whitespace-pre-line text-sm">{t}</p>
-        ) : (
-          <p className="text-sm">
-            <span className="text-muted">Intitulé à transcrire depuis l’énoncé (PDF absent) — résumé du PRD : </span>
-            {q.resume}
-          </p>
-        )}
+        <QuestionTitle q={q} enonce={enonce} />
         <Parts key={q.id} id={q.id as Tp23QuestionId} project={project} sim={sim} onResult={onResult} />
       </article>
     </section>

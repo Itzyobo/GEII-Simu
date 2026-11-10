@@ -8,16 +8,34 @@ import type { Project } from '../project/project'
 
 /* ───────────── Énoncé ───────────── */
 
-/** Intitulé d'une question : texte qui suit l'ancre `<a id="…"></a>` jusqu'à la fin du paragraphe */
+/**
+ * Intitulé d'une question : texte (Markdown) qui suit l'ancre `<a id="…"></a>`, jusqu'à l'ancre suivante,
+ * un filet `---` ou un titre (sauf s'il est la première ligne : « ### 1. Interruption Timer2 … »).
+ */
 export function questionTitle(md: string, id: string): string | null {
   const marker = `<a id="${id}"></a>`
   const at = md.indexOf(marker)
   if (at < 0) return null
-  const rest = md.slice(at + marker.length).replace(/^\s+/, '')
-  const end = rest.search(/\n\s*\n|\n<a id=/)
-  const text = (end < 0 ? rest : rest.slice(0, end)).trim()
+  const lines = md.slice(at + marker.length).replace(/^\s*\n/, '').split('\n')
+  const out: string[] = []
+  for (const l of lines) {
+    if (l.includes('<a id=') || /^---\s*$/.test(l) || (out.some((x) => x.trim()) && /^#{1,6} /.test(l))) break
+    out.push(l)
+  }
+  const text = out.join('\n').trim()
   return text || null
 }
+
+/** Libellé court d'une question (liste) : première ligne de l'intitulé sans marque de titre ni numéro */
+export const questionLabel = (title: string) =>
+  title
+    .split('\n')[0]
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/^\d+(\.\d+)*\.?\s+/, '')
+    .replace(/\*\*/g, '')
+
+/** Ancres de l'énoncé, dans l'ordre du fichier */
+export const enonceAnchors = (md: string): string[] => [...md.matchAll(/<a id="([^"]+)"><\/a>/g)].map((m) => m[1])
 
 /** Section d'un TP dans l'énoncé (du titre « TP n » au titre du TP suivant), null si absente */
 export function enonceSection(md: string, tp: number): string | null {
@@ -27,9 +45,6 @@ export function enonceSection(md: string, tp: number): string | null {
   const next = after.search(new RegExp(`^#{1,3} .*TP\\s*${tp + 1}\\b`, 'm'))
   return md.slice(start, next < 0 ? undefined : start + 1 + next)
 }
-
-/** L'énoncé est encore le fichier d'attente (PDF absent) */
-export const enonceMissing = (md: string) => md.includes('Transcription non faite')
 
 /* ───────────── Types de questions ───────────── */
 

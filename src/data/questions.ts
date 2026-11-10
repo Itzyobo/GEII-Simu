@@ -146,4 +146,4 @@ export const UNVERIFIED_BY_MODE: Partial<Record<'entier' | 'demi' | 'quart', Rec
 }
 
 /* ───────────── INFO3 : dans questions.info3.ts (chargé avec /info3 seulement), réexporté ici ───────────── */
-export { INFO3_QUESTIONS, INFO3_VALIDATION, coverage, type CoverageState, type Info3Question, type Info3QuestionKind, type ValidationPoint } from './questions.info3'
+export { INFO3_ANCHORS_HORS_QUESTION, INFO3_QUESTIONS, INFO3_VALIDATION, coverage, type CoverageState, type Info3Question, type Info3QuestionKind, type ValidationPoint } from './questions.info3'

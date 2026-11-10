@@ -10,7 +10,8 @@ import { projectFiles, type Project } from '../project/project'
 import type { Progress, QuestionState } from '../project/storage'
 import { verifyTp1, type Tp1QuestionId } from '../project/verify'
 import type { SimControls } from '../ui/useSim'
-import { enonceMissing, orderIsCorrect, parseRegisterAnswer, qcm31, qcm32, qcm34, questionTitle as titleIn, registersOf, shuffledBlocks, type Qcm } from './content'
+import QuestionTitle from '../ui/QuestionTitle'
+import { orderIsCorrect, parseRegisterAnswer, qcm31, qcm32, qcm34, questionLabel, questionTitle, registersOf, shuffledBlocks, type Qcm } from './content'
 
 const TP1 = INFO3_QUESTIONS.filter((q) => q.tp === 1)
 
@@ -43,10 +44,7 @@ function Badges({ q }: { q: Info3Question }) {
 }
 
 export default function QuestionsPanel({ project, sim, enonce, progress, onResult, selected, onSelect }: QuestionsPanelProps) {
-  // Énoncé non transcrit : aucun intitulé n'est lu dans le fichier d'attente
-  const questionTitle = (md: string, id: string) => (enonceMissing(md) ? null : titleIn(md, id))
   const q = TP1.find((x) => x.id === selected) ?? TP1[0]
-  const title = questionTitle(enonce, q.id)
   return (
     <section className="space-y-3 rounded-card bg-card p-3 ring-1 ring-line" aria-label="Questions du TP1">
       <h2 className="text-sm font-semibold">Questions</h2>
@@ -58,7 +56,7 @@ export default function QuestionsPanel({ project, sim, enonce, progress, onResul
                 {icon(progress[x.id]?.state)}
               </span>
               <span className="tabular-nums">{x.numero}</span>
-              <span className="truncate text-muted">{questionTitle(enonce, x.id)?.split('\n')[0] ?? x.resume}</span>
+              <span className="truncate text-muted">{questionLabel(questionTitle(enonce, x.id) ?? x.id)}</span>
               {x.bonus && <span className="ml-auto text-[10px] text-muted">bonus</span>}
             </button>
           </li>
@@ -70,14 +68,7 @@ export default function QuestionsPanel({ project, sim, enonce, progress, onResul
           TP1 {q.numero}
           <Badges q={q} />
         </h3>
-        {title ? (
-          <p className="whitespace-pre-line text-sm">{title}</p>
-        ) : (
-          <p className="text-sm">
-            <span className="text-muted">Intitulé à transcrire depuis l’énoncé (PDF absent) — résumé du PRD : </span>
-            {q.resume}
-          </p>
-        )}
+        <QuestionTitle q={q} enonce={enonce} />
         <QuestionBody key={q.id} q={q} project={project} sim={sim} onResult={onResult} saved={progress[q.id]?.answer} />
       </article>
     </section>

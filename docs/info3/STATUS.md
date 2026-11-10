@@ -1,8 +1,14 @@
 # INFO3 — état d'avancement
 
-Mis à jour à chaque bloc terminé. Étape en cours : **4** (TP4 : SPI et anneau de 16 LED). Étape 3 terminée (commit d6e41e4), étape 2 (e91a015).
+Mis à jour à chaque bloc terminé. Étape en cours : **5** (TP5 : PWM, UART, LED RGB). Étape 4 terminée (commit bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
 
-## Étape 4
+## Étape 5
+
+| Bloc | État | Contenu |
+| --- | --- | --- |
+| R1 | fait | Énoncé fourni (racine) déplacé dans docs/info3/enonce.md ; intitulés exacts des questions TP1–TP4 lus par ancre (fin = ancre suivante, filet ou titre), résumés du PRD supprimés (champ resume retiré) ; texte commun du §4 du TP1 (ancre tp1-4) affiché au-dessus de 4.1 à 4.3 ; ancres hors question : tp1-1, tp1-2 (hors simulateur), tp1-4 (texte commun) ; rendu Markdown : tableaux, blocs indentés et clôturés dans les listes, filets, retours à la ligne. F9 réactivé ; tests : chaque question a son ancre, chaque ancre de question d'un TP livré est couverte |
+
+## Étape 4 (terminée)
 
 | Bloc | État | Contenu |
 | --- | --- | --- |
@@ -118,5 +124,6 @@ Déjà fait avant R (non commité jusqu'ici) : moteur de l'étape 1 ; modèle MC
 
 ## Bloquants
 
-- `docs/sources/INFO3_TP.pdf` et `INFO3_Cours.pdf` absents : la transcription mot pour mot de l'énoncé (C1) n'est pas faite ; les intitulés de questions ne sont pas affichés (résumé PRD à la place) et le test F9 est ignoré.
+- `INFO3_Cours.pdf` absent : les extraits du cours cités par la consigne (p. 85 à 110 pour le TP5) ne sont pas vérifiables dans le dépôt ; le code généré qui en dépend porte une hypothèse (H42, H43…).
+- Énoncé : transcription fournie par l'utilisateur, copiée dans `docs/info3/enonce.md` à l'étape 5 (R1) ; C1 levée.
 - Les fichiers MCC réels ont été trouvés dans `Downloads/TP1.X` (projet MPLAB X) et copiés octet pour octet dans `docs/sources/mplab/tp1/`.

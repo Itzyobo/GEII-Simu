@@ -8,7 +8,7 @@ import ENONCE from '../../../docs/info3/enonce.md?raw'
 import type { Project } from '../project/project'
 import { loadPrefs, loadProgress, loadTp, savePrefs, saveProgress, saveTp, type Progress, type TpNumber } from '../project/storage'
 import { runVerifyTp23, type Tp23QuestionId } from '../project/verify23'
-import { enonceMissing, enonceSection } from '../tp1/content'
+import { enonceSection } from '../tp1/content'
 import Markdown from '../ui/Markdown'
 import Workbench from '../ui/Workbench'
 import TpQuestions from './TpQuestions'
@@ -45,7 +45,7 @@ export default function TpPage({ tp, title, first, analyzerChannels, scopeProbes
     setVerifyErrors(r.errors)
     update(r.project)
   }
-  const section = enonceMissing(ENONCE) ? null : enonceSection(ENONCE, tp)
+  const section = enonceSection(ENONCE, tp)
   const numero = selected.replace(`tp${tp}-`, '').replace('-', '.')
 
   return (
@@ -66,9 +66,7 @@ export default function TpPage({ tp, title, first, analyzerChannels, scopeProbes
           {section ? (
             <Markdown text={section} />
           ) : (
-            <p className="text-sm text-muted">
-              L’énoncé n’est pas encore transcrit : docs/sources/INFO3_TP.pdf est absent. Aucun texte n’est inventé ; les questions affichent le résumé du PRD en attendant.
-            </p>
+            <p className="text-sm text-err">Section du TP{tp} absente de docs/info3/enonce.md.</p>
           )}
         </div>
       </details>
