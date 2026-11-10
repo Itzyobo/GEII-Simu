@@ -8,10 +8,7 @@ import { compile } from '../compiler'
 import type { Program } from '../compiler/bytecode'
 import { formatDiagnostic } from '../compiler/diagnostics'
 import { ALL_PINS, type Level } from '../models/gpio'
-import { gradeTp1, TP1_CHALLENGES, type Tp1Challenge } from '../prof/tp1'
-import { gradeTp23, TP23_CHALLENGES, type Tp23Challenge } from '../prof/tp23'
-import { gradeTp4, TP4_CHALLENGES, type Tp4Challenge } from '../prof/tp4'
-import { gradeTp5, TP5_CHALLENGES, type Tp5Challenge } from '../prof/tp5'
+import { gradeQuestion } from './grading'
 import { Vm, type RotarySlot } from '../vm/vm'
 import { SerialTerminal } from '../models/terminal'
 import type { InMsg, OutMsg, TraceChange, WatchRow } from './protocol'
@@ -391,30 +388,12 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
       else if (r.ok) out.push({ type: 'output', level: 'info', text: `Point d'arrêt : ${msg.file}:${r.line}`, file: msg.file, line: r.line })
       return out
     }
-    case 'grade': {
-      if ((TP5_CHALLENGES as readonly string[]).includes(msg.question)) {
-        const v = gradeTp5(msg.question as Tp5Challenge, msg.files, state.rotary)
-        out.push({ type: 'graded', question: msg.question, ok: v.ok, messages: v.messages })
-        return out
-      }
-      if ((TP4_CHALLENGES as readonly string[]).includes(msg.question)) {
-        const v = gradeTp4(msg.question as Tp4Challenge, msg.files, state.rotary)
-        out.push({ type: 'graded', question: msg.question, ok: v.ok, messages: v.messages })
-        return out
-      }
-      if ((TP23_CHALLENGES as readonly string[]).includes(msg.question)) {
-        const v = gradeTp23(msg.question as Tp23Challenge, msg.files, state.rotary)
-        out.push({ type: 'graded', question: msg.question, ok: v.ok, messages: v.messages })
-        return out
-      }
-      if (!(TP1_CHALLENGES as readonly string[]).includes(msg.question)) {
-        out.push({ type: 'graded', question: msg.question, ok: false, messages: ['Question inconnue du professeur virtuel'] })
-        return out
-      }
-      const v = gradeTp1(msg.question as Tp1Challenge, msg.files)
-      out.push({ type: 'graded', question: msg.question, ok: v.ok, messages: v.messages })
+    case 'grade':
+      // Professeur chargé à la demande : le verdict part avec la prochaine image (tick)
+      void gradeQuestion(msg.question, msg.files, state.rotary)
+        .catch((e: unknown) => ({ type: 'graded' as const, question: msg.question, ok: false, messages: [`Professeur virtuel indisponible : ${String(e)}`] }))
+        .then((m) => state.queue.push(m))
       return out
-    }
     case 'tick': {
       const vm = state.vm
       if (!vm || !state.running) return drain(state, out)

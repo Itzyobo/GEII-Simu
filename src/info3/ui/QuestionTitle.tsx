@@ -14,6 +14,7 @@ export default function QuestionTitle({ q, enonce }: { q: Info3Question; enonce:
           <Markdown text={ctx} />
         </details>
       )}
+      {q.entrainement && <p className="inline-block rounded bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent ring-1 ring-accent/30">Question d’entraînement (hors énoncé)</p>}
       {title ? <Markdown text={title} /> : <p className="text-sm text-err">Ancre « {q.id} » absente de docs/info3/enonce.md.</p>}
     </div>
   )

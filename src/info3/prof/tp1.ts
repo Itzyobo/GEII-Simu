@@ -142,10 +142,12 @@ function q35(p: Program): Verdict {
 }
 
 /** Le motif tourne à gauche (S1 relâché) puis à droite (S1 maintenu), un pas toutes les `step` s */
-function directionCheck(vm: Vm, step: number, label: string): string[] {
+/** step = durée imposée, ou null : pas libre mais constant (TP1 3.6, INFO3.tp1.bidirStep) */
+function directionCheck(vm: Vm, step: number | null, label: string): string[] {
   const msgs: string[] = []
+  const span = 5 * (step ?? T.bidirStep.max) * MS
   const t0 = vm.t
-  vm.runFor({ ms: 5 * step * MS })
+  vm.runFor({ ms: span })
   const wl = words(vm, t0)
   for (let i = 1; i < wl.length; i++) {
     if (wl[i].value !== rotl(wl[i - 1].value)) {
@@ -155,7 +157,7 @@ function directionCheck(vm: Vm, step: number, label: string): string[] {
   }
   vm.press(S1())
   const t1 = vm.t
-  vm.runFor({ ms: 5 * step * MS })
+  vm.runFor({ ms: span })
   const wr = words(vm, t1)
   for (let i = 1; i < wr.length; i++) {
     if (wr[i].value !== rotr(wr[i - 1].value)) {
@@ -164,8 +166,16 @@ function directionCheck(vm: Vm, step: number, label: string): string[] {
     }
   }
   vm.release(S1())
-  if (wl.length < 3 || wr.length < 3) msgs.push(`${label} le motif doit se décaler toutes les ${fmtMs(step)}`)
+  if (wl.length < 3 || wr.length < 3) msgs.push(step === null ? `${label} le motif doit se décaler régulièrement (pas entre ${fmtMs(T.bidirStep.min)} et ${fmtMs(T.bidirStep.max)})` : `${label} le motif doit se décaler toutes les ${fmtMs(step)}`)
   const iv = [...intervals(wl.map((x) => vm.toS(x.t))), ...intervals(wr.map((x) => vm.toS(x.t))).slice(1)]
+  if (step === null) {
+    if (!iv.length) return msgs
+    const ref = median(iv)
+    if (ref < T.bidirStep.min || ref > T.bidirStep.max) msgs.push(`${label} pas de ${fmtMs(ref)} : entre ${fmtMs(T.bidirStep.min)} et ${fmtMs(T.bidirStep.max)} attendu`)
+    const bad = iv.find((x) => Math.abs(x - ref) / ref > T.bidirStep.tolerance)
+    if (bad !== undefined) msgs.push(`${label} pas irrégulier : ${fmtMs(bad)} au lieu de ${fmtMs(ref)} (± ${T.bidirStep.tolerance * 100} %)`)
+    return msgs
+  }
   const bad = iv.find((x) => !within(x, step))
   if (bad !== undefined) msgs.push(`${label} durée d’un pas : ${fmtMs(step)} attendu, ${fmtMs(bad)} mesuré`)
   return msgs
@@ -190,7 +200,7 @@ function q36(p: Program): Verdict {
   }
   if (msgs.length) return { ok: false, messages: msgs }
   const vm = boot(p)
-  msgs.push(...directionCheck(vm, T.bidirStepS, 'Comportement :'))
+  msgs.push(...directionCheck(vm, null, 'Comportement :'))
   return msgs.length ? { ok: false, messages: msgs } : { ok: true, messages: ['Fonctions et comportement conformes'] }
 }
 

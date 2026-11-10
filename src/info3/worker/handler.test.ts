@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { INFO3 } from '../../data/reference'
 import { crProject } from '../fixtures'
 import { generate } from '../mcc/generator'
@@ -94,9 +94,11 @@ describe('Worker : handleMessage', () => {
     expect(snap.sfrs.find((r) => r.name === 'TRISA')).toEqual({ name: 'TRISA', value: '0x0F' })
   })
 
-  it('grade : verdict du professeur virtuel', () => {
+  it('grade : professeur chargé à la demande, verdict envoyé avec le tick suivant', async () => {
     const state = createSimState(() => 0)
-    const out = handleMessage(state, { type: 'grade', question: 'tp1-3-3', files: crProject('tp1/q3_3') })
+    expect(handleMessage(state, { type: 'grade', question: 'tp1-3-3', files: crProject('tp1/q3_3') })).toEqual([])
+    await vi.waitFor(() => expect(state.queue.length).toBe(1))
+    const out = handleMessage(state, { type: 'tick', wallMs: 10 })
     expect(out).toEqual([{ type: 'graded', question: 'tp1-3-3', ok: true, messages: [expect.stringMatching(/^Période de D2 : 1 000 ms/)] }])
   })
 })

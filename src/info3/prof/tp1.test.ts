@@ -26,6 +26,14 @@ describe('professeur virtuel TP1 sur les fixtures du CR (verdicts identiques sur
     expect(v.ok).toBe(true)
   })
 
+  it('3.6 (R2) : pas libre — CR q3_6 avec __delay_ms(300) validé ; 2,5 s refusé (hors 100 ms – 2 s)', () => {
+    expect(CR_FIXTURES['tp1/q3_6']).toContain('__delay_ms(500);')
+    const v300 = stable('tp1-3-6', CR_FIXTURES['tp1/q3_6'].replace('__delay_ms(500);', '__delay_ms(300);'))
+    expect(v300, v300.messages.join(' | ')).toMatchObject({ ok: true })
+    const slow = gradeTp1('tp1-3-6', project(CR_FIXTURES['tp1/q3_6'].replace('__delay_ms(500);', '__delay_ms(2500);'), MCC_TP1))
+    expect(slow.ok).toBe(false)
+  })
+
   it('3.7 refusée : « Fonction Rotate_Right_4Bits introuvable »', () => {
     const v = stable('tp1-3-7', CR_FIXTURES['tp1/q3_7'])
     expect(v.ok).toBe(false)

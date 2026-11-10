@@ -17,6 +17,8 @@ export interface Info3Question {
   bonus?: boolean
   /** Hypothèses dont dépend la réponse (badge « valeur non vérifiée ») */
   hyp: string[]
+  /** Partie ajoutée par le simulateur, absente de l'énoncé : étiquette « Question d'entraînement (hors énoncé) » */
+  entrainement?: boolean
   /** Ancre d'un texte commun affiché au-dessus de l'intitulé (cahier des charges du TP1 §4) */
   contexte?: string
 }
@@ -34,7 +36,7 @@ export const INFO3_QUESTIONS: Info3Question[] = [
   { id: 'tp1-4-3', contexte: 'tp1-4', tp: 1, numero: '4.3', kind: 'challenge', challenge: true, bonus: true, hyp: ['H2'] },
   { id: 'tp2-1-1', tp: 2, numero: '1.1', kind: 'challenge', challenge: true, hyp: ['H3', 'H34'] },
   { id: 'tp2-1-2', tp: 2, numero: '1.2', kind: 'order', challenge: false, hyp: ['H34'] },
-  { id: 'tp2-2-1', tp: 2, numero: '2.1', kind: 'numeric', challenge: false, hyp: [] },
+  { id: 'tp2-2-1', tp: 2, numero: '2.1', kind: 'numeric', challenge: false, hyp: [], entrainement: true },
   { id: 'tp2-2-2', tp: 2, numero: '2.2', kind: 'challenge', challenge: true, hyp: ['H35'] },
   { id: 'tp2-2-3', tp: 2, numero: '2.3', kind: 'challenge', challenge: true, hyp: ['H9', 'H35'] },
   { id: 'tp2-2-4', tp: 2, numero: '2.4', kind: 'challenge', challenge: true, hyp: ['H9', 'H35'] },

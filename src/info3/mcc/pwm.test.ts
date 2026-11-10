@@ -38,6 +38,15 @@ describe('code généré (test 1)', () => {
     expect(b!.split('\n')[0]).toBe('    dutyValue &= 0x03FF;')
     expect(b).toContain('if(CCP1CONbits.CCP1FMT)')
   })
+  it('R4 : PWM1_LoadDutyValue = texte du cours p. 89 (mêmes instructions, ordre, commentaire ; espaces libres)', () => {
+    const COURS =
+      'void PWM1_LoadDutyValue(uint16_t dutyValue) { dutyValue &= 0x03FF; // Load duty cycle value if(CCP1CONbits.CCP1FMT) { dutyValue <<= 6; CCPR1H = dutyValue >> 8; CCPR1L = dutyValue; } else { CCPR1H = dutyValue >> 8; CCPR1L = dutyValue; } }'
+    const src = generate(tp51PwmConfig())[`${DIR}/ccp1.c`]
+    const sig = 'void PWM1_LoadDutyValue(uint16_t dutyValue)'
+    const fn = `${sig}\n{\n${body(src, sig)}\n}`
+    const squash = (s: string) => s.replace(/\s+/g, '')
+    expect(squash(fn)).toBe(squash(COURS))
+  })
   it('pwm6.c et pwm7.c : PWMx_LoadDutyValue écrit DCH (8 MSB) et DCL (2 LSB alignés à gauche) — cours p. 90', () => {
     const g = generate(tp51PwmConfig())
     for (const n of ['6', '7']) {

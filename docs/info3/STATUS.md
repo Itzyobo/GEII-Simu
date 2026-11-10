@@ -1,8 +1,14 @@
 # INFO3 — état d'avancement
 
-Mis à jour à chaque bloc terminé. Étape en cours : **5** (TP5 : PWM, UART, LED RGB). Étape 4 terminée (commit bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
+Mis à jour à chaque bloc terminé. Étape en cours : **6** (TP6 : CAN, joystick, matrice 8x8 / MAX7219). Étape 5 terminée (commit 74db13a), étape 4 (bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
 
-## Étape 5
+## Étape 6
+
+| Bloc | État | Contenu |
+| --- | --- | --- |
+| R | fait | R1 : règle « jamais de git push » dans CLAUDE.md (section INFO3). R2 : TP1 3.6 sans durée imposée : pas constant à ± 1 % entre 100 ms et 2 s (INFO3.tp1.bidirStep), sens selon S1 ; test : CR q3_6 avec __delay_ms(300) validé, 500 ms toujours validé, 2,5 s refusé. R3 : TP2 2.1 garde sa question numérique avec l'étiquette « Question d'entraînement (hors énoncé) » (champ entrainement). R4 : PWM1_LoadDutyValue identique au texte du cours p. 89 fourni (mêmes instructions, ordre et commentaire) — aucun écart ; test à espaces près ; H42 partielle. R5 : professeurs chargés à la demande dans le Worker (worker/grading.ts, import() par TP, worker.format 'es') : Worker 51,9 Ko (63,4 avant), professeurs 2,3 à 3,8 Ko par TP ; verdict envoyé avec le tick suivant |
+
+## Étape 5 (terminée)
 
 | Bloc | État | Contenu |
 | --- | --- | --- |

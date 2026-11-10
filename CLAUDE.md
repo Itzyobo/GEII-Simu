@@ -18,6 +18,7 @@ Simulateur PIC16F18875 / Curiosity HPC. PRD : `PRD — Simulateur INFO3 Curiosit
 - **Tolérances** : ne jamais élargir une tolérance pour faire passer un test. Corriger le modèle ou signaler le conflit.
 - **Sources réelles d'abord** : les fichiers produits en TP (`docs/sources/mplab/…`, conservés octet pour octet, CRLF compris) priment sur le cours et sur le PRD. Le générateur MCC part de ces fichiers (`src/info3/mcc/templates/`, CRLF → LF seulement) et ne calcule que ce qui dépend de la configuration.
 - **Hypothèses vérifiées ou réfutées** : ne pas les supprimer ; renseigner `statut` (vérifiée, partielle, réfutée) et `preuve` dans `INFO3.hypotheses`.
+- **Dépôt distant** : ne jamais exécuter git push, ni aucune commande qui publie vers un dépôt distant. Les commits restent locaux ; l'utilisateur publie lui-même.
 - **Suivi** : `docs/info3/STATUS.md` est mis à jour à chaque bloc terminé (fait, reste, build, tests, oxlint, 375 px) ; un commit par bloc, le dépôt compile et les tests passent à chaque commit.
 
 ### Organisation (étape 1)

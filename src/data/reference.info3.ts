@@ -295,8 +295,8 @@ export const INFO3 = {
     followMaxS: 1e-3,
     /** 3.5 : durée d'un pas du chenillard — s */
     chaserStepS: 1,
-    /** 3.6 : durée d'un pas du chenillard bidirectionnel — s */
-    bidirStepS: 0.5,
+    /** 3.6 : pas du chenillard bidirectionnel : libre (énoncé muet), constant à ± 1 % entre 100 ms et 2 s — s */
+    bidirStep: { min: 0.1, max: 2, tolerance: 0.01 },
     /** 3.6 / 3.7 : motif initial et largeur du motif — bits */
     pattern: 0b0110,
     patternBits: 4,
@@ -720,7 +720,7 @@ export const INFO3 = {
     { id: 'H40', texte: 'Oscilloscope : signaux logiques 0 à 3,3 V, temps de montée et de descente de 20 ns', commentVerifier: 'oscilloscope sur TP16 et TP17 en TP4' },
     { id: 'H29', texte: 'Avec STVREN = OFF, un débordement de pile met STKOVF à 1 sans reset et l’appel se poursuit normalement (la corruption des adresses de retour n’est pas simulée)', commentVerifier: 'datasheet DS40001802, « Stack Overflow/Underflow Reset »' },
     { id: 'H41', texte: 'PWM avec un TMR2 dont la source n’est pas FOSC/4 (contraire au cours p. 85) : le modèle utilise l’horloge réellement choisie, période = (PR2 + 1) × prescaler / Fclk et seuil = rapport cyclique / 4 incréments ; MCC affiche une notification', commentVerifier: 'TMR2 en LFINTOSC avec PWM6 en TP5, oscilloscope sur TP10' },
-    { id: 'H42', texte: 'Format de ccp1.c, pwm6.c, pwm7.c et de leurs .h (commentaires, ordre, PWMx_Initialize) reconstitué d’après MCC 1.81 ; corps de PWM1_LoadDutyValue (cours p. 89) et PWMx_LoadDutyValue (cours p. 90) écrits d’après le driver MCC, cours absent du dépôt', commentVerifier: 'cours p. 89 et 90, fichiers générés en TP5' },
+    { id: 'H42', texte: 'Format de ccp1.c, pwm6.c, pwm7.c et de leurs .h (commentaires, ordre, PWMx_Initialize) reconstitué d’après MCC 1.81 ; corps de PWM1_LoadDutyValue (cours p. 89) et PWMx_LoadDutyValue (cours p. 90) écrits d’après le driver MCC, cours absent du dépôt', commentVerifier: 'cours p. 89 et 90, fichiers générés en TP5', statut: 'partielle', preuve: 'corps de PWM1_LoadDutyValue identique au cours p. 89 (texte fourni par l’utilisateur, étape 6 R4) ; PWMx_LoadDutyValue (p. 90) et le reste du format non vérifiés' },
     { id: 'H43', texte: 'Format de eusart.c / eusart.h (variante sans et avec interruptions, tampons de 8 octets) et des fonctions putch / getch de la redirection STDIO reconstitué d’après MCC 1.81 ; seules la liste et le rôle des fonctions (cours p. 110) sont garantis', commentVerifier: 'eusart.c généré en TP5 (« Redirect STDIO to USART »)' },
     { id: 'H44', texte: 'PPS du TP5 : codes de sortie CCP1 = 0x09, PWM6 = 0x0E, PWM7 = 0x0F, TX = 0x10 ; RXPPS à 0xECB ; adresses de CCP1, CCPTMRS0/1, PWM6/7 et de l’EUSART d’après le datasheet', commentVerifier: 'pin_manager.c généré en TP5 ; datasheet DS40001802, « PPS »' },
     { id: 'H45', texte: 'Points de test de la LED RGB : TP10 = RGB_R (RD4), TP11 = RGB_G (RC0), TP12 = RGB_B (RC1)', commentVerifier: 'sérigraphie de la carte fille GEII (annexe 2)' },
