@@ -34,11 +34,21 @@ const timerSource = (id: TimerId): InterruptSource => ({
   call: `${id}_ISR();`,
 })
 
+/** EUSART avec « Enable EUSART Interrupts » : émission (TXI) et réception (RCI), PIE3/PIR3, niveau périphérique */
+const eusartSources = (): InterruptSource[] =>
+  (['tx', 'rx'] as const).map((k) => {
+    const E = INFO3.eusart.irq
+    const flag = E[k]
+    const tx = k === 'tx'
+    return { id: `EUSART-${tx ? 'TX' : 'RC'}`, module: 'EUSART', interrupt: tx ? 'TXI' : 'RCI', level: 'peripheral' as const, ie: `${E.enable}bits.${flag.replace(/IF$/, 'IE')}`, flag: `${E.flag}bits.${flag}`, call: `EUSART_${tx ? 'Tx' : 'Rx'}DefaultInterruptHandler();` }
+  })
+
 /** Sources configurées (activées ou non), avant tri */
 export function configuredSources(cfg: MccConfig): InterruptSource[] {
   const out: InterruptSource[] = []
   if (cfg.pins.some((p) => iocOf(p) !== 'none')) out.push(IOC_SOURCE)
   for (const id of TIMER_IDS) if (cfg.timers?.[id]?.interrupt) out.push(timerSource(id))
+  if (cfg.eusart?.interrupts) out.push(...eusartSources())
   return out
 }
 

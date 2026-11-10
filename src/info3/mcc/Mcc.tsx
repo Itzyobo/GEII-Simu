@@ -5,7 +5,7 @@
  */
 import { useState } from 'react'
 import { INFO3 } from '../../data/reference'
-import { addMssp, addPwm, addTimer, PWM_IDS, removePwm, type PwmId, customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, removeMssp, removeTimer, setIoc, systemFosc, TIMER_IDS, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator, type TimerId } from './config'
+import { addEusart, addMssp, addPwm, addTimer, PWM_IDS, removeEusart, removePwm, type PwmId, customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, removeMssp, removeTimer, setIoc, systemFosc, TIMER_IDS, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator, type TimerId } from './config'
 import GridView from './GridView'
 import { interruptTable, moveInterrupt, setInterruptEnabled } from './interrupts'
 import TimerPanel from './TimerPanel'
@@ -14,6 +14,8 @@ import { spiGridRows } from './spi'
 import MsspPanel from './MsspPanel'
 import PwmPanel from './PwmPanel'
 import { pwmGridRows, pwmNotifications } from './pwm'
+import EusartPanel from './EusartPanel'
+import { eusartGridRows, eusartNotifications } from './eusart'
 
 export interface MccProps {
   config: MccConfig
@@ -24,7 +26,7 @@ export interface MccProps {
   dark?: boolean
 }
 
-type Resource = 'system' | 'pins' | 'interrupts' | 'MSSP1' | TimerId | PwmId
+type Resource = 'system' | 'pins' | 'interrupts' | 'MSSP1' | 'EUSART' | TimerId | PwmId
 
 /** Interrupt Module : table « Interrupt Vector » (Order, Module, Interrupt, Enabled) */
 function InterruptPanel({ config, onChange, head }: { config: MccConfig; onChange(cfg: MccConfig): void; head: string }) {
@@ -99,8 +101,8 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
   const s = config.system
   const setSys = (patch: Partial<MccConfig['system']>) => onChange({ ...config, system: { ...s, ...patch } })
   const pins = [...config.pins].sort((a, b) => pinOrder(a.pin, b.pin))
-  const added: (TimerId | 'MSSP1' | PwmId)[] = [...(config.mssp ? (['MSSP1'] as const) : []), ...TIMER_IDS.filter((id) => config.timers?.[id]), ...PWM_IDS.filter((id) => config.pwm?.[id])]
-  const notifications = pwmNotifications(config)
+  const added: (TimerId | 'MSSP1' | 'EUSART' | PwmId)[] = [...(config.eusart ? (['EUSART'] as const) : []), ...(config.mssp ? (['MSSP1'] as const) : []), ...TIMER_IDS.filter((id) => config.timers?.[id]), ...PWM_IDS.filter((id) => config.pwm?.[id])]
+  const notifications = [...pwmNotifications(config), ...eusartNotifications(config)]
   const isPwm = (r: string): r is PwmId => (PWM_IDS as readonly string[]).includes(r)
 
   const panel = 'rounded-lg border border-[#c8c8c8] bg-white text-[#1e1e1e]'
@@ -145,7 +147,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
                     aria-label={`Retirer ${id} du projet`}
                     title={`Retirer ${id}`}
                     onClick={() => {
-                      onChange(id === 'MSSP1' ? removeMssp(config) : isPwm(id) ? removePwm(config, id) : removeTimer(config, id))
+                      onChange(id === 'MSSP1' ? removeMssp(config) : id === 'EUSART' ? removeEusart(config) : isPwm(id) ? removePwm(config, id) : removeTimer(config, id))
                       if (res === id) setRes('pins')
                     }}
                     className="px-1.5 text-[#b71c1c] hover:bg-[#ffebee]"
@@ -159,6 +161,22 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
           <div className={panel}>
             <div className={head}>Device Resources</div>
             <ul className="p-1 text-xs">
+              <li className="px-1 font-semibold">EUSART</li>
+              <li className="flex items-center justify-between px-3 py-0.5">
+                <span>EUSART</span>
+                <button
+                  type="button"
+                  aria-label="Ajouter EUSART au projet"
+                  disabled={!!config.eusart}
+                  onClick={() => {
+                    onChange(addEusart(config))
+                    setRes('EUSART')
+                  }}
+                  className="rounded border border-[#8a8a8a] bg-[#fafafa] px-1.5 font-semibold text-[#1b5e20] disabled:opacity-40"
+                >
+                  +
+                </button>
+              </li>
               <li className="px-1 font-semibold">MSSP</li>
               <li className="flex items-center justify-between px-3 py-0.5">
                 <span>MSSP1</span>
@@ -249,6 +267,8 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
             <InterruptPanel config={config} onChange={onChange} head={head} />
           ) : res === 'MSSP1' ? (
             <MsspPanel config={config} onChange={onChange} head={head} field={field} />
+          ) : res === 'EUSART' ? (
+            <EusartPanel config={config} onChange={onChange} head={head} field={field} />
           ) : isPwm(res) ? (
             <PwmPanel key={res} id={res} config={config} onChange={onChange} head={head} field={field} />
           ) : res.startsWith('TMR') ? (
@@ -388,7 +408,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
       </div>
 
       {/* Pin Manager: Grid View */}
-      <GridView config={config} onChange={onChange} extraRows={[...spiGridRows(config), ...pwmGridRows(config), ...timerGridRows(config)]} />
+      <GridView config={config} onChange={onChange} extraRows={[...eusartGridRows(config), ...spiGridRows(config), ...pwmGridRows(config), ...timerGridRows(config)]} />
     </section>
   )
 }

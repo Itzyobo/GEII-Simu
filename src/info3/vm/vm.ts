@@ -14,6 +14,7 @@ import { Button, type Edge } from '../models/button'
 import { ALL_PINS, Gpio, parsePin, pinName, PORT_NAMES, type Level, type PinChange } from '../models/gpio'
 import { MsspSpi } from '../models/msspSpi'
 import { PwmChannel } from '../models/pwm'
+import { baudOf, EusartTx, FORMAT_8N1, UartDecoder } from '../models/eusart'
 import { Hc595x2 } from '../models/hc595x2'
 import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
@@ -131,6 +132,7 @@ export class Vm {
     this.createTimers()
     this.createMssp()
     this.createPwm()
+    this.createEusart()
     this.gpio.onChange((c) => this.ringPin(c))
     for (const b of INFO3.pins.buttons) {
       this.buttons[b.name] = { button: new Button({ activeLevel: b.activeLevel as Level, rng: () => this.rng() }), pin: b.pin }
@@ -145,6 +147,7 @@ export class Vm {
     this.fosc = foscFromRegisters(this.mem[this.bus.addrOf.OSCCON1], this.mem[this.bus.addrOf.OSCFRQ])
     this.ticksPerTcy = Math.round((CLK.timeBaseHz * CLK.foscPerTcy) / this.fosc)
     for (const tm of Object.values(this.timers)) tm.updateClock()
+    if (this.eusart) this.configureEusart()
   }
 
   /* ═════════════ Timers 2, 4, 6 ═════════════ */
@@ -224,6 +227,7 @@ export class Vm {
       if (addr !== undefined) this.bus.writeHooks.set(addr, remap)
     }
     this.bus.writeHooks.set(a.SSP1DATPPS, remap)
+    this.bus.writeHooks.set(a.RXPPS, remap)
   }
 
   /* ═════════════ PPS de sortie (SCK1, SDO1, CCP1, PWM6, PWM7…) ═════════════ */
@@ -239,6 +243,7 @@ export class Vm {
     if (code === INFO3.spi.ppsOut.SDO1) return this.mssp.sdo
     const m = INFO3.pwm.modules.find((x) => x.ppsOut === code)
     if (m) return this.pwm[m.id].level
+    if (code === INFO3.eusart.ppsOutTx) return this.eusart.level
     return null
   }
 
@@ -271,6 +276,7 @@ export class Vm {
     this.spiPins.SCK1 = this.ppsPins.get(INFO3.spi.ppsOut.SCK1)?.[0] ?? null
     this.spiPins.SDO1 = this.ppsPins.get(INFO3.spi.ppsOut.SDO1)?.[0] ?? null
     this.spiPins.SDI1 = this.ppsInput(this.mem[this.bus.addrOf.SSP1DATPPS])
+    this.rxPin = this.ppsInput(this.mem[this.bus.addrOf.RXPPS])
   }
 
   /** Broche désignée par un registre PPS d'entrée (port << 3 | bit), null si inexistante */
@@ -339,6 +345,86 @@ export class Vm {
       ch.configure(this.bus.readBit(`${id}CON`, `${id}EN`) === 1, duty, this.bus.readBit(`${id}CON`, `${id}POL`) === 1)
     }
     ch.resync()
+  }
+
+/* ═════════════ EUSART (cours p. 104 à 110) ═════════════ */
+
+  readonly eusart: EusartTx = new EusartTx({
+    now: () => this.tNow,
+    schedule: (t, fn) => this.events.pushFn(t, fn),
+    setTx: (l) => this.drivePps(INFO3.eusart.ppsOutTx, l),
+    flags: () => (this.irqDirty = true),
+  })
+  /** Réception : broche RX (RXPPS), décodeur au baud du PIC, FIFO de 2 octets, OERR et FERR */
+  private rxPin: string | null = null
+  private readonly rx = new UartDecoder(Infinity, FORMAT_8N1)
+  private rxFifo: { byte: number; ferr: boolean }[] = []
+  private oerr = false
+  private rxWaiting = false
+  /** Baud réel de l'EUSART (0 = arrêté) */
+  baud = 0
+
+  private createEusart() {
+    const a = this.bus.addrOf
+    const E = INFO3.eusart.irq
+    const txif = this.bus.bit(E.flag, E.tx)
+    const rcif = this.bus.bit(E.flag, E.rx)
+    const trmt = this.bus.bit('TX1STA', 'TRMT')
+    const oerr = this.bus.bit('RC1STA', 'OERR')
+    const ferr = this.bus.bit('RC1STA', 'FERR')
+    this.bus.readHooks.set(txif.addr, () => (this.mem[txif.addr] & ~(txif.mask | rcif.mask)) | (this.eusart.txif ? txif.mask : 0) | (this.rxFifo.length ? rcif.mask : 0))
+    this.bus.readHooks.set(trmt.addr, () => (this.mem[trmt.addr] & ~trmt.mask) | (this.eusart.trmt ? trmt.mask : 0))
+    this.bus.readHooks.set(oerr.addr, () => (this.mem[oerr.addr] & ~(oerr.mask | ferr.mask)) | (this.oerr ? oerr.mask : 0) | (this.rxFifo[0]?.ferr ? ferr.mask : 0))
+    this.bus.readHooks.set(a.RC1REG, () => {
+      const x = this.rxFifo.shift()
+      this.irqDirty = true
+      return x?.byte ?? 0
+    })
+    this.bus.writeHooks.set(a.TX1REG, (v) => this.eusart.write(v))
+    for (const r of ['TX1STA', 'RC1STA', 'BAUD1CON', 'SP1BRGL', 'SP1BRGH']) this.bus.writeHooks.set(a[r], () => this.configureEusart())
+    this.gpio.onChange((c) => {
+      if (c.pin !== this.rxPin) return
+      this.rx.edge(c.t, c.level)
+      this.scheduleRx()
+    })
+  }
+
+  /** Baud et validation depuis SPBRG, BRG16, BRGH, SPEN, TXEN, CREN */
+  private configureEusart() {
+    const bit = (sfr: string, b: string) => this.bus.readBit(sfr, b) === 1
+    const spbrg = this.mem[this.bus.addrOf.SP1BRGL] | (this.mem[this.bus.addrOf.SP1BRGH] << INFO3.c.bitsPerByte)
+    const spen = bit('RC1STA', 'SPEN')
+    this.baud = spen ? baudOf(this.fosc, bit('BAUD1CON', 'BRG16'), bit('TX1STA', 'BRGH'), spbrg) : 0
+    const bitTicks = this.baud ? CLK.timeBaseHz / this.baud : Infinity
+    this.eusart.configure(spen && bit('TX1STA', 'TXEN') && !bit('TX1STA', 'SYNC'), bitTicks)
+    this.rx.configure(bitTicks, FORMAT_8N1)
+    // CREN = 0 : réception arrêtée, OERR effacé (cours p. 105)
+    if (!bit('RC1STA', 'CREN')) this.oerr = false
+    this.irqDirty = true
+  }
+
+  /** Une trame commence sur RX : décodage programmé à son dernier échantillon */
+  private scheduleRx() {
+    if (this.rxWaiting) return
+    const t0 = this.rx.nextStart()
+    if (t0 === null || !Number.isFinite(this.rx.bitTicks)) return
+    this.rxWaiting = true
+    this.events.pushFn(Math.ceil(this.rx.frameEnd(t0)), () => {
+      this.rxWaiting = false
+      const receiving = this.baud > 0 && this.bus.readBit('RC1STA', 'CREN') === 1
+      for (const d of this.rx.flush(this.tNow)) {
+        if (!receiving || this.oerr) continue
+        if (this.rxFifo.length >= INFO3.eusart.rxFifo) this.oerr = true
+        else this.rxFifo.push({ byte: d.byte, ferr: d.framingError })
+      }
+      this.irqDirty = true
+      this.scheduleRx()
+    })
+  }
+
+  /** Broche RX de l'EUSART (RXPPS), null si aucune */
+  get eusartRxPin() {
+    return this.rxPin
   }
 
   /** Base de temps d'un timer modifiée : les PWM qui l'utilisent recalculent leurs fronts */
@@ -551,6 +637,13 @@ export class Vm {
     this.ppsPins = new Map()
     this.mssp.reset()
     for (const ch of Object.values(this.pwm)) ch.reset()
+    this.eusart.reset()
+    this.rx.reset(1)
+    this.rxPin = null
+    this.rxFifo = []
+    this.oerr = false
+    this.rxWaiting = false
+    this.baud = 0
     this.gpio.settle(this.t)
     this.sp = 0
     this.frames = []

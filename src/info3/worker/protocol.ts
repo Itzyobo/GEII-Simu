@@ -26,8 +26,11 @@ export type InMsg =
   | { type: 'powerOff' }
   /** Horloge interne du Worker : temps réel écoulé depuis le tick précédent */
   | { type: 'tick'; wallMs: number }
-  /** Banc : mikroBUS où la carte Rotary est enfichée (appliqué au PIC courant et aux suivants) */
-  | { type: 'bench'; rotary: 'mikrobus1' | 'mikrobus2' | null }
+  /** Banc : mikroBUS où la carte Rotary est enfichée, USB blanc (port COM du terminal) — appliqués au PIC courant et aux suivants */
+  | { type: 'bench'; rotary: 'mikrobus1' | 'mikrobus2' | null; usbWhite?: boolean }
+  /** Terminal série : baud et format (8N1…), octets tapés au clavier */
+  | { type: 'terminal'; baud: number; format: string }
+  | { type: 'terminalSend'; bytes: number[] }
   /** Codeur : crans (signe = sens), rotation continue (crans/s, 0 = arrêt), bouton SW */
   | { type: 'rotary'; action: 'turn'; detents: number }
   | { type: 'rotary'; action: 'spin'; rate: number }
@@ -75,3 +78,5 @@ export type OutMsg =
   | { type: 'trace'; changes: TraceChange[]; reset: boolean }
   /** Diagnostic (mode libre) : lu dans les registres et pendant l'exécution */
   | { type: 'diag'; analogReads: string[]; inputWrites: string[]; fosc: number }
+  /** Terminal : octets reçus depuis l'image précédente (instant du start, s simulées) */
+  | { type: 'serial'; bytes: number[]; t: number[] }

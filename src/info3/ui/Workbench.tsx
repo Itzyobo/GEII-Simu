@@ -10,6 +10,7 @@ import RotaryControl from '../board/RotaryControl'
 import InterruptInspector from './InterruptInspector'
 import LogicAnalyzer from './LogicAnalyzer'
 import Oscilloscope from './Oscilloscope'
+import Terminal from './Terminal'
 import Ide, { type Breakpoint } from '../ide/Ide'
 import { programCheck, projectFiles, runGenerate, setCard, setUsbBlack, setUsbWhite, type Project, type Result, type SlotId } from '../project/project'
 import { useSim, type SimControls } from './useSim'
@@ -44,9 +45,10 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
   const sim = useSim()
   const rotarySlot = (Object.keys(project.bench.slots) as SlotId[]).find((s) => project.bench.slots[s] === 'rotary') ?? null
   const { setBench } = sim
+  const usbWhite = project.bench.usbWhite
   useEffect(() => {
-    setBench(rotarySlot)
-  }, [rotarySlot, setBench])
+    setBench(rotarySlot, usbWhite)
+  }, [rotarySlot, usbWhite, setBench])
   const [tab, setTab] = useState<Tab>('code')
   const [main, setMain] = useState<'code' | 'mcc'>('code')
   const [benchMsg, setBenchMsg] = useState<string | null>(null)
@@ -225,6 +227,9 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
             </div>
             <div className="mt-2">
               <Oscilloscope sim={sim} defaults={scopeProbes} />
+            </div>
+            <div className="mt-2">
+              <Terminal sim={sim} connected={project.bench.usbWhite} />
             </div>
           </div>
           <div className={on('side')}>{side({ sim })}</div>

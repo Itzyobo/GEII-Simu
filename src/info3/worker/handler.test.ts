@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { INFO3 } from '../../data/reference'
 import { crProject } from '../fixtures'
+import { generate } from '../mcc/generator'
+import { tp51Config } from '../mcc/presets'
 import { createSimState, handleMessage } from './handler'
 import type { OutMsg } from './protocol'
 
@@ -96,5 +98,28 @@ describe('Worker : handleMessage', () => {
     const state = createSimState(() => 0)
     const out = handleMessage(state, { type: 'grade', question: 'tp1-3-3', files: crProject('tp1/q3_3') })
     expect(out).toEqual([{ type: 'graded', question: 'tp1-3-3', ok: true, messages: [expect.stringMatching(/^Période de D2 : 1 000 ms/)] }])
+  })
+})
+
+describe('Worker : terminal série (USB blanc)', () => {
+  const main = '#include "mcc_generated_files/mcc.h"\nvoid main(void)\n{\n    SYSTEM_Initialize();\n    while (1)\n    {\n        printf("ok\\n");\n        __delay_ms(100);\n    }\n}\n'
+  const run = (usbWhite: boolean, baud = 9600) => {
+    let clock = 0
+    const state = createSimState(() => clock)
+    handleMessage(state, { type: 'bench', rotary: null, usbWhite })
+    handleMessage(state, { type: 'terminal', baud, format: '8N1' })
+    handleMessage(state, { type: 'load', files: { 'main.c': main, ...generate(tp51Config()) } })
+    handleMessage(state, { type: 'run', speed: 1 })
+    const bytes: number[] = []
+    for (let k = 0; k < 350; k++) {
+      clock += 1
+      for (const m of handleMessage(state, { type: 'tick', wallMs: 1 })) if (m.type === 'serial') bytes.push(...m.bytes)
+    }
+    return String.fromCharCode(...bytes)
+  }
+  it('USB blanc branché, 9600 bauds : les lignes arrivent ; débranché : rien', () => {
+    expect(run(true)).toBe('ok\nok\nok\nok\n')
+    expect(run(false)).toBe('')
+    expect(run(true, 19200)).not.toBe('ok\nok\nok\nok\n')
   })
 })

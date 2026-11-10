@@ -1,6 +1,6 @@
 /** Configurations MCC de départ, construites comme dans MCC (Grid View puis Pin Module) depuis INFO3.pins */
 import { INFO3 } from '../../data/reference'
-import { addMssp, addPwm, addTimer, defaultMccConfig, PWM_IDS, setIoc, toggleGridPin, updateMssp, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
+import { addEusart, addMssp, addPwm, addTimer, defaultMccConfig, PWM_IDS, updateEusart, setIoc, toggleGridPin, updateMssp, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
 import { periodForRegister } from './timers'
 
 export function namedPin(cfg: MccConfig, pin: string, dir: Direction, name: string, analog?: boolean): MccConfig {
@@ -72,6 +72,11 @@ export function tp51PwmConfig(prescaler = 16): MccConfig {
   c = updateTimer(c, 'TMR2', { periodS: periodForRegister(c, c.timers!.TMR2!, (1 << INFO3.c.bitsPerByte) - 1) })
   for (const id of PWM_IDS) c = addPwm(c, id)
   return c
+}
+
+/** TP5 §1 complet : PWM (tp51PwmConfig) + EUSART 9600 bauds, TX1 RC6, RX1 RC7, « Redirect STDIO to USART » */
+export function tp51Config(prescaler = 16, interrupts = false): MccConfig {
+  return updateEusart(addEusart(tp51PwmConfig(prescaler)), { redirectStdio: true, interrupts })
 }
 
 /** Timer2 en Roll over pulse, interruption activée, Timer Period saisie pour obtenir PR2 = pr */

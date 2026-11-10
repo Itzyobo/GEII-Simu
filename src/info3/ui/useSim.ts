@@ -29,11 +29,15 @@ export interface SimView {
   programmed: boolean
   /** Anneau de 16 LED de la carte Rotary : fraction du temps allumée (LED 1 à 16) */
   ring: number[]
+  /** Terminal : octets reçus et instant de chaque start (s simulées) */
+  serial: { bytes: number[]; t: number[] }
 }
 
-const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, irq: null, programmed: false, ring: [] }
+const initial: SimView = { output: [], duty: {}, pins: {}, tSim: 0, mode: 'off', stoppedAt: null, snapshot: null, diag: null, irq: null, programmed: false, ring: [], serial: { bytes: [], t: [] } }
 
-type Action = { kind: 'msg'; m: OutMsg } | { kind: 'clear' } | { kind: 'mode'; mode: RunMode } | { kind: 'log'; line: Output } | { kind: 'off' }
+type Action = { kind: 'msg'; m: OutMsg } | { kind: 'clear' } | { kind: 'mode'; mode: RunMode } | { kind: 'log'; line: Output } | { kind: 'off' } | { kind: 'clearSerial' }
+
+const MAX_CHARS = INFO3.terminal.maxChars
 
 function reducer(s: SimView, a: Action): SimView {
   switch (a.kind) {
@@ -44,7 +48,9 @@ function reducer(s: SimView, a: Action): SimView {
     case 'mode':
       return { ...s, mode: a.mode, stoppedAt: a.mode === 'debug-stopped' ? s.stoppedAt : null }
     case 'off':
-      return { ...initial, output: s.output }
+      return { ...initial, output: s.output, serial: s.serial }
+    case 'clearSerial':
+      return { ...s, serial: { bytes: [], t: [] } }
     case 'msg': {
       const m = a.m
       switch (m.type) {
@@ -70,6 +76,8 @@ function reducer(s: SimView, a: Action): SimView {
           return { ...s, irq: m }
         case 'built':
           return { ...s, programmed: m.loaded ? m.ok : s.programmed }
+        case 'serial':
+          return { ...s, serial: { bytes: [...s.serial.bytes, ...m.bytes].slice(-MAX_CHARS), t: [...s.serial.t, ...m.t].slice(-MAX_CHARS) } }
         default:
           return s
       }
@@ -93,8 +101,12 @@ export interface SimControls {
   grade(question: string, files: Record<string, string>): Promise<{ ok: boolean; messages: string[] }>
   log(line: Output): void
   clearOutput(): void
-  /** Banc : mikroBUS de la carte Rotary (envoyé au Worker dès qu'il existe) */
-  setBench(rotary: 'mikrobus1' | 'mikrobus2' | null): void
+  /** Banc : mikroBUS de la carte Rotary et USB blanc (envoyés au Worker dès qu'il existe) */
+  setBench(rotary: 'mikrobus1' | 'mikrobus2' | null, usbWhite?: boolean): void
+  /** Terminal : baud et format, envoi d'octets, effacement de l'écran */
+  setTerminal(baud: number, format: string): void
+  sendSerial(bytes: number[]): void
+  clearSerial(): void
   /** Codeur : crans, rotation continue, bouton SW */
   rotary(msg: { action: 'turn'; detents: number } | { action: 'spin'; rate: number } | { action: 'sw'; pressed: boolean }): void
   /** Analyseur logique : voies observées, changements reçus (tSim en s) */
@@ -134,6 +146,8 @@ export function useSim(): SimControls {
   const waiters = useRef<{ built: ((m: Extract<OutMsg, { type: 'built' }>) => void)[]; graded: Map<string, (m: Extract<OutMsg, { type: 'graded' }>) => void> }>({ built: [], graded: new Map() })
   const debugging = useRef(false)
   const bench = useRef<'mikrobus1' | 'mikrobus2' | null>(null)
+  const usbWhite = useRef(false)
+  const term = useRef<{ baud: number; format: string }>({ baud: INFO3.terminal.defaultBaud, format: INFO3.terminal.defaultFormat })
   /** Voies demandées par instrument (analyseur, oscilloscope) : le Worker reçoit leur union */
   const channels = useRef<Record<string, string[]>>({})
   const [traceStore] = useState(() => new TraceStore())
@@ -142,7 +156,8 @@ export function useSim(): SimControls {
     if (client.current) return client.current
     const c = createSimClient()
     // Le Worker naît au premier Build ou Program : il reçoit l'état du banc et de l'analyseur
-    c.send({ type: 'bench', rotary: bench.current })
+    c.send({ type: 'bench', rotary: bench.current, usbWhite: usbWhite.current })
+    c.send({ type: 'terminal', ...term.current })
     c.send({ type: 'analyzer', channels: unionOf(channels.current) })
     c.onMessage((m) => {
       if (m.type === 'trace') traceStore.add(m.changes, m.reset)
@@ -214,10 +229,16 @@ export function useSim(): SimControls {
     [send],
   )
 
-  const setBench = useCallback((r: 'mikrobus1' | 'mikrobus2' | null) => {
+  const setBench = useCallback((r: 'mikrobus1' | 'mikrobus2' | null, white?: boolean) => {
     bench.current = r
-    client.current?.send({ type: 'bench', rotary: r })
+    if (white !== undefined) usbWhite.current = white
+    client.current?.send({ type: 'bench', rotary: r, usbWhite: usbWhite.current })
   }, [])
+  const setTerminal = useCallback((baud: number, format: string) => {
+    term.current = { baud, format }
+    client.current?.send({ type: 'terminal', baud, format })
+  }, [])
+  const sendSerial = useCallback((bytes: number[]) => client.current?.send({ type: 'terminalSend', bytes }), [])
   const rotary = useCallback((msg: Parameters<SimControls['rotary']>[0]) => client.current?.send({ type: 'rotary', ...msg }), [])
   const setAnalyzer = useCallback((owner: string, chs: string[]) => {
     channels.current = { ...channels.current, [owner]: chs }
@@ -249,6 +270,9 @@ export function useSim(): SimControls {
     log: (line) => dispatch({ kind: 'log', line }),
     clearOutput: () => dispatch({ kind: 'clear' }),
     setBench,
+    setTerminal,
+    sendSerial,
+    clearSerial: () => dispatch({ kind: 'clearSerial' }),
     rotary,
     setAnalyzer,
     trace: traceStore,

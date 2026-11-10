@@ -12,6 +12,7 @@ import { gradeTp1, TP1_CHALLENGES, type Tp1Challenge } from '../prof/tp1'
 import { gradeTp23, TP23_CHALLENGES, type Tp23Challenge } from '../prof/tp23'
 import { gradeTp4, TP4_CHALLENGES, type Tp4Challenge } from '../prof/tp4'
 import { Vm, type RotarySlot } from '../vm/vm'
+import { SerialTerminal } from '../models/terminal'
 import type { InMsg, OutMsg, TraceChange, WatchRow } from './protocol'
 
 const RGB = INFO3.pins.rgb
@@ -53,6 +54,11 @@ export interface SimState {
   traceReset: boolean
   /** Anneau : sorties actuelles, temps allumé par LED sur l'image, dernier changement, dernière image envoyée */
   ring: { outputs: number; high: number[]; lastT: number; sent: string }
+  /** USB blanc branché : terminal du PC relié à TX (RC6) et RX (RC7) de la carte fille */
+  usbWhite: boolean
+  terminal: SerialTerminal
+  /** Fin du dernier octet envoyé par le clavier du terminal — ticks */
+  sendBusyUntil: number
 }
 
 const RING_N = INFO3.ring.leds
@@ -66,7 +72,7 @@ function ringAccumulate(state: SimState, t: number) {
 }
 
 export function createSimState(now: () => number = () => performance.now()): SimState {
-  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
+  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, usbWhite: false, terminal: new SerialTerminal(INFO3.clock.timeBaseHz), sendBusyUntil: 0, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
 }
 
 const PROBES = new Set<string>(INFO3.analyzer.probes)
@@ -91,8 +97,20 @@ function traceLevels(state: SimState) {
   }
 }
 
+const UART = INFO3.pins.uart
+
+/** USB blanc : le pont USB-série tient RX du PIC au repos (1) ; le terminal écoute TX */
+function plugUsbWhite(state: SimState) {
+  const vm = state.vm
+  state.terminal.connect(state.usbWhite, vm ? vm.getPin(UART.tx) : 1)
+  if (vm) vm.setExternal(UART.rx, state.usbWhite ? 1 : null)
+  state.sendBusyUntil = 0
+}
+
 function attach(state: SimState, vm: Vm) {
   vm.setRotarySlot(state.rotary)
+  vm.onPinChange((c) => c.pin === UART.tx && state.terminal.edge(c.t, c.level))
+  plugUsbWhite(state)
   vm.onPinChange((c) => pushTrace(state, c.pin, vm.toS(c.t), c.level))
   vm.onProbe((p) => pushTrace(state, p.name, vm.toS(p.t), p.level))
   state.ring = blankRing()
@@ -163,6 +181,8 @@ export function makeFrame(state: SimState, out: OutMsg[]): void {
     state.trace = []
     state.traceReset = false
   }
+  const got = state.terminal.poll(vm.t)
+  if (got.length) out.push({ type: 'serial', bytes: got.map((b) => b.byte), t: got.map((b) => vm.toS(b.t)) })
   const diag = { type: 'diag' as const, analogReads: [...vm.analogReads].sort(), inputWrites: [...vm.inputWrites].sort(), fosc: vm.fosc }
   const key = JSON.stringify(diag)
   if (key !== state.lastDiag) {
@@ -323,7 +343,22 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
     case 'bench':
       state.rotary = msg.rotary
       state.vm?.setRotarySlot(msg.rotary)
+      if (msg.usbWhite !== undefined && msg.usbWhite !== state.usbWhite) {
+        state.usbWhite = msg.usbWhite
+        plugUsbWhite(state)
+      }
       return out
+    case 'terminal':
+      state.terminal.configure(msg.baud, msg.format)
+      return out
+    case 'terminalSend': {
+      const vm = state.vm
+      if (!vm || !state.usbWhite) return out
+      const edges = state.terminal.sendEdges(msg.bytes, Math.max(vm.t, state.sendBusyUntil))
+      for (const e of edges) vm.setExternal(UART.rx, e.level, e.t)
+      if (edges.length) state.sendBusyUntil = edges[edges.length - 1].t + vm.msToTicks(0)
+      return out
+    }
     case 'rotary': {
       const vm = state.vm
       if (!vm) return out
