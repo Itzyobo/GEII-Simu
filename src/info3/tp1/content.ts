@@ -8,11 +8,15 @@ import type { Project } from '../project/project'
 
 /* ───────────── Énoncé ───────────── */
 
+/** Fins de ligne CRLF → LF (dépôt extrait sous Windows) */
+const lf = (s: string) => s.replace(/\r\n/g, '\n')
+
 /**
  * Intitulé d'une question : texte (Markdown) qui suit l'ancre `<a id="…"></a>`, jusqu'à l'ancre suivante,
  * un filet `---` ou un titre (sauf s'il est la première ligne : « ### 1. Interruption Timer2 … »).
  */
-export function questionTitle(md: string, id: string): string | null {
+export function questionTitle(src: string, id: string): string | null {
+  const md = lf(src)
   const marker = `<a id="${id}"></a>`
   const at = md.indexOf(marker)
   if (at < 0) return null
@@ -38,7 +42,8 @@ export const questionLabel = (title: string) =>
 export const enonceAnchors = (md: string): string[] => [...md.matchAll(/<a id="([^"]+)"><\/a>/g)].map((m) => m[1])
 
 /** Section d'un TP dans l'énoncé (du titre « TP n » au titre du TP suivant), null si absente */
-export function enonceSection(md: string, tp: number): string | null {
+export function enonceSection(src: string, tp: number): string | null {
+  const md = lf(src)
   const start = md.search(new RegExp(`^#{1,3} .*TP\\s*${tp}\\b`, 'm'))
   if (start < 0) return null
   const after = md.slice(start + 1)

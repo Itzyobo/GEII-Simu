@@ -24,7 +24,7 @@ const cells = (l: string) =>
 
 export default function Markdown({ text }: { text: string }) {
   const out: ReactNode[] = []
-  const lines = text.split('\n')
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
   let i = 0
   let para: string[] = []
   /** Indentation du texte de l'élément de liste en cours (0 hors liste) */
