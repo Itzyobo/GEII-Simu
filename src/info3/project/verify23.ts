@@ -4,7 +4,7 @@
  */
 import { INFO3 } from '../../data/reference'
 import { iocOf, type IocEdge } from '../mcc/config'
-import { label, periodRegister } from '../mcc/timers'
+import { actualPeriod, effectivePostscaler, formatPeriod, label, periodRegister } from '../mcc/timers'
 import type { PwmId } from '../mcc/config'
 import type { Project, SlotId } from './project'
 import { generateErrors, pinsErrors, type ExpectedPin } from './verify'
@@ -17,8 +17,10 @@ export const TP4_ORDER = ['tp4-1', 'tp4-2', 'tp4-3', 'tp4-4', 'tp4-5', 'tp4-6'] 
 export type Tp4QuestionId = (typeof TP4_ORDER)[number]
 export const TP5_ORDER = ['tp5-1', 'tp5-2', 'tp5-3', 'tp5-4'] as const
 export type Tp5QuestionId = (typeof TP5_ORDER)[number]
-/** Questions des TP2 à TP5 (page commune TpPage) */
-export type Tp23QuestionId = Tp2QuestionId | Tp3QuestionId | Tp4QuestionId | Tp5QuestionId
+export const TP6_ORDER = ['tp6-1-1', 'tp6-1-2', 'tp6-1-3', 'tp6-2', 'tp6-3', 'tp6-4'] as const
+export type Tp6QuestionId = (typeof TP6_ORDER)[number]
+/** Questions des TP2 à TP6 (page commune TpPage) */
+export type Tp23QuestionId = Tp2QuestionId | Tp3QuestionId | Tp4QuestionId | Tp5QuestionId | Tp6QuestionId
 
 const P = INFO3.tp1.namePrefix
 const R = INFO3.pins.rotary
@@ -160,6 +162,54 @@ export function verifyTp5(p: Project, q: Tp5QuestionId): string[] {
   return [...errors, ...generateErrors(p)]
 }
 
+/**
+ * TP6 : USB blanc, ADCC sur POT, JOY_HORZ, JOY_VERT, EUSART redirigé ; §2 : TMR2 à 10 ms avec interruption,
+ * interruption ADI, PEIE dans main.c ; §3 et §4 : 8x8 R click sur le mikroBUS 1, MSSP1 en SPI maître mode 0 ou 3,
+ * LOAD (CS, RA3) en sortie à 1 au repos (Start High).
+ */
+export function verifyTp6(p: Project, q: Tp6QuestionId): string[] {
+  const errors: string[] = []
+  const adc = q !== 'tp6-3'
+  const matrix = q === 'tp6-3' || q === 'tp6-4'
+  if (!p.bench.usbWhite) errors.push('USB blanc débranché : le brancher (terminal du PC)')
+  if (adc) {
+    if (!p.mcc.adcc) errors.push('ADCC absent : l’ajouter depuis Device Resources (ADC › ADCC)')
+    for (const ch of INFO3.adcc.tpChannels) {
+      const x = p.mcc.pins.find((c) => c.pin === ch.pin)
+      if (!x || !x.adc) errors.push(`${ch.name} (${ch.pin}) : voie de l’ADCC attendue (ligne ADCC ANx du Grid View)`)
+      else if (x.customName !== ch.name) errors.push(`${ch.pin} : Custom Name « ${ch.name} » attendu, « ${x.customName} » saisi`)
+    }
+  }
+  const e = p.mcc.eusart
+  if (q !== 'tp6-3' && (!e || !e.redirectStdio || e.pins.TX1 !== INFO3.pins.uart.tx)) errors.push(`EUSART : TX1 sur ${INFO3.pins.uart.tx} avec « Redirect STDIO to USART » attendu (printf)`)
+  if (q === 'tp6-2') {
+    const t = p.mcc.timers?.TMR2
+    if (!t || !t.interrupt) errors.push('TMR2 avec « Enable Timer Interrupt » attendu (une conversion toutes les 10 ms)')
+    else {
+      const per = actualPeriod(p.mcc, t) * effectivePostscaler(t)
+      if (Math.abs(per - INFO3.tp6.acqPeriodS) / INFO3.tp6.acqPeriodS > INFO3.tp6.acqTolerance) errors.push(`TMR2 : interruption toutes les 10 ms attendue, ${formatPeriod(per)} obtenues`)
+    }
+    if (!p.mcc.adcc?.interrupt) errors.push('ADCC : cocher « Enable ADC Interrupt » (interruption ADI)')
+    const main = (p.files['main.c'] ?? '').replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, ' ')
+    if (!/INTERRUPT_PeripheralInterruptEnable\s*\(\s*\)\s*;/.test(main)) errors.push('main.c : INTERRUPT_PeripheralInterruptEnable() attendu (ADI et TMR2 sont des interruptions de second niveau, PEIE)')
+  }
+  if (matrix) {
+    const card = INFO3.clickBoards.matrix8x8
+    const slot = (Object.keys(p.bench.slots) as SlotId[]).find((s) => p.bench.slots[s] === 'matrix8x8')
+    if (slot !== card.expectedSlot) errors.push(slot ? `Carte ${card.name} sur le ${SLOT_NAME[slot]} : CS arrive sur RD3 au lieu de RA3, l’enficher sur le ${SLOT_NAME[card.expectedSlot as SlotId]}` : `Carte ${card.name} absente : l’enficher sur le ${SLOT_NAME[card.expectedSlot as SlotId]}`)
+    const m = p.mcc.mssp
+    const bus = INFO3.pins.mikrobus1
+    if (!m) errors.push('MSSP1 absent : l’ajouter (SPI maître) pour le MAX7219')
+    else {
+      if (!(INFO3.tp4.goodModes as readonly number[]).includes(m.mode)) errors.push(`MSSP1 : mode SPI 0 ou 3 attendu (DIN lu au front montant de CLK), mode ${m.mode} choisi`)
+      for (const [sig, pin] of [['SCK1', bus.SCK], ['SDO1', bus.MOSI]] as const) if (m.pins[sig] !== pin) errors.push(`MSSP1 ${sig} : ${pin} attendue, ${m.pins[sig] ?? 'aucune broche'} choisie`)
+    }
+    const load = p.mcc.pins.find((c) => c.pin === bus.CS)
+    if (!load || load.direction !== 'output' || !load.startHigh) errors.push(`LOAD (${bus.CS}, CS du mikroBUS 1) : sortie numérique avec « Start High » attendue (LOAD à 1 au repos)`)
+  }
+  return [...errors, ...generateErrors(p)]
+}
+
 /** Rappels du TP5 qui ne bloquent pas la vérification */
 export function tp5Warnings(p: Project): string[] {
   return [
@@ -169,7 +219,7 @@ export function tp5Warnings(p: Project): string[] {
 }
 
 export const verifyTp23 = (p: Project, q: Tp23QuestionId): string[] =>
-  q.startsWith('tp2') ? verifyTp2(p, q as Tp2QuestionId) : q.startsWith('tp3') ? verifyTp3(p, q as Tp3QuestionId) : q.startsWith('tp4') ? verifyTp4(p, q as Tp4QuestionId) : verifyTp5(p, q as Tp5QuestionId)
+  q.startsWith('tp2') ? verifyTp2(p, q as Tp2QuestionId) : q.startsWith('tp3') ? verifyTp3(p, q as Tp3QuestionId) : q.startsWith('tp4') ? verifyTp4(p, q as Tp4QuestionId) : q.startsWith('tp5') ? verifyTp5(p, q as Tp5QuestionId) : verifyTp6(p, q as Tp6QuestionId)
 
 export function runVerifyTp23(p: Project, q: Tp23QuestionId): { project: Project; errors: string[]; warnings: string[] } {
   const errors = verifyTp23(p, q)

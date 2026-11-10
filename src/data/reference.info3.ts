@@ -627,6 +627,8 @@ export const INFO3 = {
     yAfterXMaxS: 50e-6,
     printPeriodS: 1,
     printTolerance: 0.02,
+    /** §2 de référence à Fosc = 32 MHz (à 4 MHz l'enchaînement de Y dépasse 50 µs, H2) : TMR2 1:128 et 1:5, ADC FOSC/32 */
+    fastSystem: { hfMHz: 32, prescaler: 128, postscaler: 5, adcDivider: 32 },
     source: 'énoncé TP6 et consigne étape 6 (pas de CR du TP6)',
   },
   /** Chaîne de deux 74HC595 de la carte Rotary : 16 LED (annexe 3, cours p. 81 et 82) */

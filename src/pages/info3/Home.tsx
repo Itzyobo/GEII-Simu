@@ -12,7 +12,7 @@ const TPS = [
   { tp: 3, title: 'Timer 2', to: '/info3/tp3' },
   { tp: 4, title: 'SPI et anneau de 16 LED', to: '/info3/tp4' },
   { tp: 5, title: 'PWM, UART et LED RGB', to: '/info3/tp5' },
-  { tp: 6, title: 'CAN, joystick et matrice 8x8' },
+  { tp: 6, title: 'CAN, joystick et matrice 8x8', to: '/info3/tp6' },
 ]
 const label = (id: string) => {
   const q = INFO3_QUESTIONS.find((x) => x.id === id)

@@ -497,6 +497,44 @@ export class Vm {
     })
   }
 
+/* ═════════════ Accès concurrents (professeur virtuel, TP6 §2) ═════════════ */
+
+  /** Profondeur d'ISR en cours (0 = main) */
+  private isrDepth = 0
+  /**
+   * Journal des accès aux variables globales, actif seulement si le professeur le demande : octets écrits par
+   * l'ISR, lectures dans main avec GIE = 1 (non protégées) et avec GIE = 0 (section critique), par adresse.
+   */
+  access: { isrWrites: Set<number>; mainReads: Map<number, { open: number; masked: number }> } | null = null
+
+  private noteAccess(addr: number, write: boolean) {
+    if (addr < MEM.globalsBase || !this.access) return
+    if (this.isrDepth > 0) {
+      if (write) this.access.isrWrites.add(addr)
+      return
+    }
+    if (write) return
+    const r = this.access.mainReads.get(addr) ?? { open: 0, masked: 0 }
+    if (this.gie()) r.open++
+    else r.masked++
+    this.access.mainReads.set(addr, r)
+  }
+
+  /** Variables globales de plus d'un octet écrites par l'ISR et lues dans main avec GIE = 1 */
+  unprotectedShared(): string[] {
+    const a = this.access
+    const p = this.program
+    if (!a || !p) return []
+    return p.globals
+      .filter((g) => {
+        const size = sizeOf(g.type)
+        if (size < 2) return false
+        const bytes = Array.from({ length: size }, (_, i) => g.addr + i)
+        return bytes.some((b) => a.isrWrites.has(b)) && bytes.some((b) => (a.mainReads.get(b)?.open ?? 0) > 0)
+      })
+      .map((g) => g.name)
+  }
+
   /** Base de temps d'un timer modifiée : les PWM qui l'utilisent recalculent leurs fronts */
   private timerChanged(n: number) {
     if (!this.pwm) return
@@ -766,6 +804,7 @@ export class Vm {
     this.gpio.settle(this.t)
     this.sp = 0
     this.frames = []
+    this.isrDepth = 0
     this.delayLeft = 0
     this.irqDirty = true
     this.skipBreak = -1
@@ -1188,6 +1227,7 @@ export class Vm {
     }
     if (this.frames.length >= CPU.hwStackDepth && this.stackOverflow()) return
     this.countIrqSources()
+    this.isrDepth++
     const meta = p.funcs[p.isrIndex]
     this.frames.push({ retPc: this.pc, fp: this.fp, dsp: this.dsp, isr: true, delay: this.delayLeft })
     this.delayLeft = 0
@@ -1338,6 +1378,7 @@ export class Vm {
           break
         }
         case Op.LDA:
+          if (this.access) this.noteAccess(code[pc + 2], false)
           st[this.sp++] = this.readK(code[pc + 2], code[pc + 3] as Kind)
           this.pc = pc + 4
           break
@@ -1351,6 +1392,7 @@ export class Vm {
           break
         case Op.STA: {
           const v = st[--this.sp]
+          if (this.access) this.noteAccess(code[pc + 2], true)
           this.writeK(code[pc + 2], code[pc + 3] as Kind, v)
           if (code[pc + 4]) st[this.sp++] = v
           this.pc = pc + 5
@@ -1447,6 +1489,7 @@ export class Vm {
           break
         }
         case Op.RETFIE: {
+          if (this.isrDepth > 0) this.isrDepth--
           const f = this.frames.pop()
           if (!f) {
             this.halt('RETFIE sans interruption en cours')

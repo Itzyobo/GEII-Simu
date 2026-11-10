@@ -53,6 +53,12 @@ export const INFO3_QUESTIONS: Info3Question[] = [
   { id: 'tp5-2', tp: 5, numero: '2', kind: 'challenge', challenge: true, hyp: ['H17', 'H42'] },
   { id: 'tp5-3', tp: 5, numero: '3', kind: 'challenge', challenge: true, hyp: ['H34', 'H46'] },
   { id: 'tp5-4', tp: 5, numero: '4', kind: 'challenge', challenge: true, hyp: ['H9', 'H35', 'H46'] },
+  { id: 'tp6-1-1', tp: 6, numero: '1.1', kind: 'challenge', challenge: true, hyp: ['H4', 'H5', 'H48', 'H49', 'H50'] },
+  { id: 'tp6-1-2', tp: 6, numero: '1.2', kind: 'qcm', challenge: false, hyp: ['H4', 'H48'] },
+  { id: 'tp6-1-3', tp: 6, numero: '1.3', kind: 'challenge', challenge: true, hyp: ['H4', 'H48'] },
+  { id: 'tp6-2', tp: 6, numero: '2', kind: 'challenge', challenge: true, hyp: ['H2', 'H52'] },
+  { id: 'tp6-3', tp: 6, numero: '3', kind: 'challenge', challenge: true, hyp: ['H11', 'H53'] },
+  { id: 'tp6-4', tp: 6, numero: '4', kind: 'challenge', challenge: true, hyp: ['H4', 'H11', 'H48'] },
 ]
 
 /**

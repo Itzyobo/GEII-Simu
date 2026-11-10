@@ -263,6 +263,29 @@ export function qcmFosc4(): Choice {
   }
 }
 
+/* ───────────── TP6 ───────────── */
+
+export function qcmJoystickRest(): Choice {
+  const r = INFO3.analog.joyRest
+  const right = `Au repos, le joystick ne donne ni 512 ni 50 % (X ≈ ${r.x}, Y ≈ ${r.y}) et la valeur de Y augmente vers le bas`
+  return {
+    prompt: 'Que constatez-vous sur les valeurs du joystick ?',
+    options: [right, 'Au repos, X et Y valent exactement 512 (50 %)', 'Les deux axes augmentent vers la droite et vers le haut', 'Le joystick donne 0 au repos et 1023 en butée'],
+    answers: [right],
+    explanation: `Le point milieu des potentiomètres du joystick n’est pas à VDD/2 : il faut le mesurer (H4). Y croît vers le bas (H48) : la calibration devra inverser l’axe pour obtenir + en haut.`,
+  }
+}
+
+export function qcmCalibration(): Choice {
+  const right = 'Mesurer la valeur brute au repos, la soustraire à chaque mesure, et inverser l’axe dont le sens est opposé (Y)'
+  return {
+    prompt: 'Comment obtenir 0 au repos, des valeurs négatives à gauche et en bas, positives à droite et en haut ?',
+    options: [right, 'Soustraire 512 à chaque mesure', 'Diviser chaque mesure par 1023 puis multiplier par 100', 'Régler VREF pour que le repos tombe à 512'],
+    answers: [right],
+    explanation: 'Le repos n’est pas à 512 (H4) : 512 fixe donnerait un décalage. La différence avec la valeur de repos centre l’axe ; changer son signe pour Y (valeur brute croissante vers le bas, H48) met le positif en haut.',
+  }
+}
+
 /* ───────────── Parties par question ───────────── */
 
 export function partsOf(id: Tp23QuestionId, p: Project): Part[] {
@@ -325,6 +348,15 @@ export function partsOf(id: Tp23QuestionId, p: Project): Part[] {
     case 'tp5-2':
     case 'tp5-3':
     case 'tp5-4':
+      return [{ kind: 'grade' }]
+    case 'tp6-1-1':
+      return [{ kind: 'grade' }, { kind: 'qcm', qcm: qcmJoystickRest() }]
+    case 'tp6-1-2':
+      return [{ kind: 'qcm', qcm: qcmCalibration() }]
+    case 'tp6-1-3':
+    case 'tp6-2':
+    case 'tp6-3':
+    case 'tp6-4':
       return [{ kind: 'grade' }]
   }
 }

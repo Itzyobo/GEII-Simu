@@ -441,7 +441,7 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
     }
     case 'grade':
       // Professeur chargé à la demande : le verdict part avec la prochaine image (tick)
-      void gradeQuestion(msg.question, msg.files, state.rotary)
+      void gradeQuestion(msg.question, msg.files, { rotary: state.rotary, matrix: state.matrixSlot })
         .catch((e: unknown) => ({ type: 'graded' as const, question: msg.question, ok: false, messages: [`Professeur virtuel indisponible : ${String(e)}`] }))
         .then((m) => state.queue.push(m))
       return out
