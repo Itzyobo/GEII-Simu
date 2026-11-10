@@ -63,6 +63,10 @@ export function findTriggerTime(a: readonly TraceChange[], edge: TriggerEdge, le
 
 /** Période mesurée automatiquement sur [t0, t0 + span] (s), NaN s'il n'y a pas deux fronts de même sens */
 export function autoPeriod(a: readonly TraceChange[], t0: number, span: number): number {
+  // Fréquencemètre : fronts montants enregistrés dans la fenêtre (une impulsion plus courte qu'un point d'écran
+  // compte aussi, comme un rapport cyclique de 1023/1024) ; sinon mesure sur les points échantillonnés
+  const rises = a.filter((c, i) => c.level === 1 && i > 0 && a[i - 1].level === 0 && c.t >= t0 && c.t <= t0 + span).map((c) => c.t)
+  if (rises.length >= 2) return (rises[rises.length - 1] - rises[0]) / (rises.length - 1)
   const samples = acquire(signalOf(a), t0, span, SCOPE_POINTS)
   return 1 / measure(samples, span / SCOPE_POINTS).freq
 }

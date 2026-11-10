@@ -11,6 +11,7 @@ import { ALL_PINS, type Level } from '../models/gpio'
 import { gradeTp1, TP1_CHALLENGES, type Tp1Challenge } from '../prof/tp1'
 import { gradeTp23, TP23_CHALLENGES, type Tp23Challenge } from '../prof/tp23'
 import { gradeTp4, TP4_CHALLENGES, type Tp4Challenge } from '../prof/tp4'
+import { gradeTp5, TP5_CHALLENGES, type Tp5Challenge } from '../prof/tp5'
 import { Vm, type RotarySlot } from '../vm/vm'
 import { SerialTerminal } from '../models/terminal'
 import type { InMsg, OutMsg, TraceChange, WatchRow } from './protocol'
@@ -391,6 +392,11 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
       return out
     }
     case 'grade': {
+      if ((TP5_CHALLENGES as readonly string[]).includes(msg.question)) {
+        const v = gradeTp5(msg.question as Tp5Challenge, msg.files, state.rotary)
+        out.push({ type: 'graded', question: msg.question, ok: v.ok, messages: v.messages })
+        return out
+      }
       if ((TP4_CHALLENGES as readonly string[]).includes(msg.question)) {
         const v = gradeTp4(msg.question as Tp4Challenge, msg.files, state.rotary)
         out.push({ type: 'graded', question: msg.question, ok: v.ok, messages: v.messages })

@@ -73,10 +73,15 @@ describe('énoncé (F9)', () => {
 })
 
 describe('points de validation A1 à A10', () => {
-  it('TP1 à TP4 : A1, A2, A4, A6, A10 couverts ; A5, A7, A8, A9 partiels ; A3 (TP5) non couvert (rouge)', () => {
+  it('TP1 à TP5 : A1 à A4, A6, A9, A10 couverts (A3 et A9 par le TP5) ; A5, A7, A8 partiels (TP6 à venir)', () => {
     const state = Object.fromEntries(INFO3_VALIDATION.map((v) => [v.id, coverage(v).state]))
-    expect(state).toEqual({ A1: 'covered', A2: 'covered', A3: 'none', A4: 'covered', A5: 'partial', A6: 'covered', A7: 'partial', A8: 'partial', A9: 'partial', A10: 'covered' })
-    expect(coverage(INFO3_VALIDATION[3]).linked).toEqual(['tp1-3-3', 'tp1-3-4', 'tp1-3-5', 'tp1-3-6', 'tp1-3-7', 'tp1-4-2', 'tp1-4-3', 'tp2-1-1', 'tp2-2-2', 'tp2-2-3', 'tp2-2-4', 'tp3-1', 'tp3-2', 'tp4-1', 'tp4-2', 'tp4-3', 'tp4-4', 'tp4-5', 'tp4-6'])
+    expect(state).toEqual({ A1: 'covered', A2: 'covered', A3: 'covered', A4: 'covered', A5: 'partial', A6: 'covered', A7: 'partial', A8: 'partial', A9: 'covered', A10: 'covered' })
+    expect(coverage(INFO3_VALIDATION[2]).available).toEqual(['tp5-4'])
+    expect(coverage(INFO3_VALIDATION[8]).available).toEqual(['tp1-4-1', 'tp5-3'])
+    expect(coverage(INFO3_VALIDATION[3]).linked).toEqual(['tp1-3-3', 'tp1-3-4', 'tp1-3-5', 'tp1-3-6', 'tp1-3-7', 'tp1-4-2', 'tp1-4-3', 'tp2-1-1', 'tp2-2-2', 'tp2-2-3', 'tp2-2-4', 'tp3-1', 'tp3-2', 'tp4-1', 'tp4-2', 'tp4-3', 'tp4-4', 'tp4-5', 'tp4-6', 'tp5-1', 'tp5-2', 'tp5-3', 'tp5-4'])
+    // Chaque question liée à un point de validation est une ancre de l'énoncé
+    const anchors = new Set(enonceAnchors(ENONCE))
+    for (const v of INFO3_VALIDATION) for (const id of v.questions) expect(anchors.has(id), `${v.id} → ${id}`).toBe(true)
     // A10 (chronogrammes) : TP2 2.2, 2.3, TP3 2 et TP4 1
     expect(coverage(INFO3_VALIDATION[9]).available).toEqual(['tp2-2-2', 'tp2-2-3', 'tp3-2', 'tp4-1'])
   })

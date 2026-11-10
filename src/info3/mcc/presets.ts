@@ -79,6 +79,26 @@ export function tp51Config(prescaler = 16, interrupts = false): MccConfig {
   return updateEusart(addEusart(tp51PwmConfig(prescaler)), { redirectStdio: true, interrupts })
 }
 
+/** TP5 §3 : tp5-1 + BP_S1, BP_S2 en entrée numérique avec IOC « negative », LED_D3, LED_D4, LED_D5 en sortie */
+export function tp53Config(): MccConfig {
+  const P = INFO3.tp1.namePrefix
+  let c = tp51Config()
+  for (const name of INFO3.tp5.stateLeds) c = namedPin(c, INFO3.pins.leds.find((l) => l.name === name)!.pin, 'output', `${P.led}${name}`)
+  for (const b of INFO3.pins.buttons) c = setIoc(namedPin(c, b.pin, 'input', `${P.button}${b.name}`, false), b.pin, 'negative')
+  return c
+}
+
+/** TP5 §4 : tp5-3 + carte Rotary (mikroBUS 2) : MSSP1 en SPI mode 0, RST et LATCH en sortie, ENCA, ENCB, IOC « any » sur ENCB */
+export function tp54Config(): MccConfig {
+  const r = INFO3.pins.rotary
+  let c = updateMssp(addMssp(tp53Config()), { mode: 0, clockSource: 'FOSC/4' })
+  c = namedPin(c, r.RST, 'output', 'RST')
+  c = namedPin(c, r.LATCH, 'output', 'LATCH')
+  c = namedPin(c, r.ENCA, 'input', 'ENCA', false)
+  c = namedPin(c, r.ENCB, 'input', 'ENCB', false)
+  return setIoc(c, r.ENCB, 'any')
+}
+
 /** Timer2 en Roll over pulse, interruption activée, Timer Period saisie pour obtenir PR2 = pr */
 function withTmr2(cfg: MccConfig, patch: Partial<TimerConfig>, pr: number): MccConfig {
   let c = updateTimer(addTimer(cfg, 'TMR2'), 'TMR2', { interrupt: true, ...patch })

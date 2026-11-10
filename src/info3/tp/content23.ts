@@ -6,6 +6,9 @@
 import { INFO3 } from '../../data/reference'
 import { timerClockHz } from '../models/timer246'
 import { sckFrequency } from '../mcc/spi'
+import { pwmPeriod } from '../mcc/pwm'
+import { systemFosc } from '../mcc/config'
+import { PRESCALERS } from '../mcc/timers'
 import { parsePin } from '../models/gpio'
 import type { Project } from '../project/project'
 import type { Tp23QuestionId } from '../project/verify23'
@@ -221,6 +224,45 @@ export function qcmWriteExchange(): Choice {
   }
 }
 
+/* ───────────── TP5 ───────────── */
+
+/** §1 : période PWM attendue à l'oscilloscope (ms), calculée depuis la configuration (TMR2 de PWM6) */
+export function pwmPeriodFields(p: Project): NumField[] | null {
+  const c = p.mcc.pwm?.PWM6
+  const s = c ? pwmPeriod(p.mcc, c) : null
+  if (!s) return null
+  return [{ label: 'Période de la PWM (ms) :', expected: s * MS, tolerance: INFO3.tp5.scopeTolerance }]
+}
+
+/** §1 : prescaler qui donne la période la plus proche de « environ 4 ms » avec PR2 = 0xFF et le Fosc du projet */
+export function prescalerFor4ms(p: Project): number {
+  const fosc = systemFosc(p.mcc.system)
+  const counts = 1 << INFO3.c.bitsPerByte
+  const period = (pre: number) => (counts * pre * INFO3.clock.foscPerTcy) / fosc
+  return PRESCALERS.reduce((best, pre) => (Math.abs(period(pre) - INFO3.tp5.periodS) < Math.abs(period(best) - INFO3.tp5.periodS) ? pre : best), PRESCALERS[0])
+}
+
+export function qcmPr2(): Choice {
+  const levels = INFO3.pwm.dutyPerCount * (1 << INFO3.c.bitsPerByte)
+  const right = `Avec PR2 = 255, la base 10 bits (TMR2 et 2 bits de plus) parcourt ${levels} valeurs : le rapport cyclique a ${INFO3.pwm.dutyBits} bits de résolution`
+  return {
+    prompt: 'Pourquoi faut-il PR2 = 0xFF pour une PWM sur 10 bits ?',
+    options: [right, 'PR2 = 0xFF donne la période la plus courte', 'PR2 fixe le rapport cyclique : 0xFF = 100 %', 'Le PIC refuse toute autre valeur en mode PWM'],
+    answers: [right],
+    explanation: `Le seuil est comparé à TMR2 complété de 2 bits : la période compte 4 × (PR2 + 1) pas. Il n’y a 2^${INFO3.pwm.dutyBits} = ${levels} pas que si PR2 + 1 = 256 (cours p. 87) ; avec un PR2 plus petit la résolution baisse.`,
+  }
+}
+
+export function qcmFosc4(): Choice {
+  const right = 'La PWM compte au rythme de Tosc (base 10 bits = TMR2 et 2 bits de plus) : le timer doit être cadencé par FOSC/4'
+  return {
+    prompt: 'Pourquoi le timer de la PWM doit-il avoir FOSC/4 comme source ?',
+    options: [right, 'FOSC/4 est la seule source qui permet d’utiliser le postscaler', 'Avec LFINTOSC la LED clignoterait au lieu de varier', 'MCC n’accepte pas d’autre source pour TMR2'],
+    answers: [right],
+    explanation: `Le cours (p. 85) impose FOSC/4 : la période vaut alors (PR2 + 1) × 4 × Tosc × prescaler et les 2 bits supplémentaires du seuil correspondent aux 4 Tosc d’un incrément de TMR2. MCC signale une autre source dans « Notifications [MCC] » (comportement simulé = H41).`,
+  }
+}
+
 /* ───────────── Parties par question ───────────── */
 
 export function partsOf(id: Tp23QuestionId, p: Project): Part[] {
@@ -271,6 +313,18 @@ export function partsOf(id: Tp23QuestionId, p: Project): Part[] {
     case 'tp4-4':
     case 'tp4-5':
     case 'tp4-6':
+      return [{ kind: 'grade' }]
+    case 'tp5-1':
+      return [
+        { kind: 'grade' },
+        { kind: 'numeric', prompt: 'Période de la PWM relevée à l’oscilloscope (TP10, RGB_R) :', fields: pwmPeriodFields(p), missing: 'Ajouter PWM6 et TMR2 dans MCC : la période attendue se calcule depuis votre configuration.' },
+        { kind: 'numeric', prompt: 'Prescaler de TMR2 pour une période d’environ 4 ms (PR2 = 0xFF, Fosc de votre System Module) :', fields: [{ label: 'Prescaler 1:', expected: prescalerFor4ms(p) }], missing: '' },
+        { kind: 'qcm', qcm: qcmPr2() },
+        { kind: 'qcm', qcm: qcmFosc4() },
+      ]
+    case 'tp5-2':
+    case 'tp5-3':
+    case 'tp5-4':
       return [{ kind: 'grade' }]
   }
 }

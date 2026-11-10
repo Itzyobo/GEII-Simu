@@ -47,6 +47,10 @@ export const INFO3_QUESTIONS: Info3Question[] = [
   { id: 'tp4-4', tp: 4, numero: '4', kind: 'challenge', challenge: true, hyp: ['H10'] },
   { id: 'tp4-5', tp: 4, numero: '5', kind: 'challenge', challenge: true, hyp: ['H9', 'H35'] },
   { id: 'tp4-6', tp: 4, numero: '6', kind: 'challenge', challenge: true, hyp: [] },
+  { id: 'tp5-1', tp: 5, numero: '1', kind: 'challenge', challenge: true, hyp: ['H6', 'H12', 'H41', 'H42', 'H43', 'H44', 'H45'] },
+  { id: 'tp5-2', tp: 5, numero: '2', kind: 'challenge', challenge: true, hyp: ['H17', 'H42'] },
+  { id: 'tp5-3', tp: 5, numero: '3', kind: 'challenge', challenge: true, hyp: ['H34', 'H46'] },
+  { id: 'tp5-4', tp: 5, numero: '4', kind: 'challenge', challenge: true, hyp: ['H9', 'H35', 'H46'] },
 ]
 
 /**
@@ -74,7 +78,7 @@ export const INFO3_VALIDATION: ValidationPoint[] = [
   { id: 'A2', point: 'TP1 §4.3 « Faire valider par l’enseignant »', questions: ['tp1-4-1', 'tp1-4-2', 'tp1-4-3'] },
   { id: 'A3', point: 'TP5 §4 « Faire vérifier le bon fonctionnement de l’ensemble »', questions: ['tp5-4'] },
   { id: 'A4', point: 'CR : code archivé et commenté', questions: [], allChallenges: true },
-  { id: 'A5', point: 'CR : captures MCC commentées', questions: ['tp3-1', 'tp3-2', 'tp4-1', 'tp5-1', 'tp6-1'] },
+  { id: 'A5', point: 'CR : captures MCC commentées', questions: ['tp3-1', 'tp3-2', 'tp4-1', 'tp5-1', 'tp6-1-1'] },
   { id: 'A6', point: 'CR : registres de configuration générés', questions: ['tp1-3-2', 'tp1-3-4', 'tp3-1', 'tp4-1'] },
   { id: 'A7', point: 'CR : fonctions générées', questions: ['tp2-1-2', 'tp4-2', 'tp6-2'] },
   { id: 'A8', point: 'CR : tests effectués et leur issue', questions: ['tp2-1-1', 'tp3-2', 'tp4-1', 'tp6-1-1'] },

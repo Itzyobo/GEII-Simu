@@ -7,7 +7,7 @@ import { Link } from 'react-router'
 import ENONCE from '../../../docs/info3/enonce.md?raw'
 import type { Project } from '../project/project'
 import { loadPrefs, loadProgress, loadTp, savePrefs, saveProgress, saveTp, type Progress, type TpNumber } from '../project/storage'
-import { runVerifyTp23, type Tp23QuestionId } from '../project/verify23'
+import { runVerifyTp23, tp5Warnings, type Tp23QuestionId } from '../project/verify23'
 import { enonceSection } from '../tp1/content'
 import Markdown from '../ui/Markdown'
 import Workbench from '../ui/Workbench'
@@ -46,6 +46,8 @@ export default function TpPage({ tp, title, first, analyzerChannels, scopeProbes
     update(r.project)
   }
   const section = enonceSection(ENONCE, tp)
+  // Rappels du TP5 (cache, USB noir) : recalculés à chaque rendu, ils disparaissent une fois traités
+  const verifyWarnings = tp === 5 ? tp5Warnings(project) : []
   const numero = selected.replace(`tp${tp}-`, '').replace('-', '.')
 
   return (
@@ -103,6 +105,13 @@ export default function TpPage({ tp, title, first, analyzerChannels, scopeProbes
                   ))}
                 </ul>
               ))}
+            {verifyErrors && verifyWarnings.length > 0 && (
+              <ul className="list-disc pl-5 text-sm text-warn" aria-label="Rappels">
+                {verifyWarnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            )}
           </div>
         }
       />

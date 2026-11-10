@@ -6,8 +6,8 @@ import { INFO3 } from '../../data/reference'
 import { configErrors, defaultMccConfig, parseMccConfig, systemFosc, type MccConfig } from '../mcc/config'
 import { generate, MAIN_TEMPLATE, XTAL_FILE, xtalOf } from '../mcc/generator'
 
-export type ProjectKind = 'tp1' | 'tp2' | 'tp3' | 'tp4' | 'libre'
-const PROJECT_KINDS: readonly ProjectKind[] = ['tp1', 'tp2', 'tp3', 'tp4', 'libre']
+export type ProjectKind = 'tp1' | 'tp2' | 'tp3' | 'tp4' | 'tp5' | 'libre'
+const PROJECT_KINDS: readonly ProjectKind[] = ['tp1', 'tp2', 'tp3', 'tp4', 'tp5', 'libre']
 export type SlotId = 'mikrobus1' | 'mikrobus2'
 export type CardId = keyof typeof INFO3.clickBoards
 
