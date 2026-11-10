@@ -16,6 +16,7 @@ import { ppsLines, TIMER_DRIVERS } from './timers'
 import { spiDriver, spiPortBits, spiPpsLines } from './spi'
 import { pwmDriver, pwmPortBits, pwmPpsLines } from './pwm'
 import { eusartDriver, eusartPortBits, eusartPpsLines } from './eusart'
+import { adccDriver } from './adcc'
 
 const sfrReset = (name: string) => (INFO3.sfr as Record<string, { reset: number }>)[name].reset
 
@@ -381,7 +382,7 @@ function deviceConfigC(cfg: MccConfig): string {
 /** Fichiers générés, indexés par chemin dans le projet (mcc_generated_files/…) */
 /* ───────────── Pilotes ajoutés (Interrupt Module, timers…), appelés dans cet ordre ───────────── */
 
-const DRIVERS: ((cfg: MccConfig) => DriverOutput | null)[] = [interruptManagerFiles, spiDriver, ...TIMER_DRIVERS, pwmDriver, eusartDriver]
+const DRIVERS: ((cfg: MccConfig) => DriverOutput | null)[] = [interruptManagerFiles, spiDriver, ...TIMER_DRIVERS, pwmDriver, eusartDriver, adccDriver]
 
 const INCLUDE_ANCHOR = '#include <conio.h>\n'
 const INIT_ANCHOR = '    OSCILLATOR_Initialize();\n'

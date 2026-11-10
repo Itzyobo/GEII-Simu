@@ -15,6 +15,7 @@ import { ALL_PINS, Gpio, parsePin, pinName, PORT_NAMES, type Level, type PinChan
 import { MsspSpi } from '../models/msspSpi'
 import { PwmChannel } from '../models/pwm'
 import { baudOf, EusartTx, FORMAT_8N1, UartDecoder } from '../models/eusart'
+import { channelOf, conversionS, joystickRaw, noisyCode, resultRegisters, tadOf, voltsOf } from '../models/adcc'
 import { Hc595x2 } from '../models/hc595x2'
 import { iocEdges } from '../models/ioc'
 import { mulberry32 } from '../models/prng'
@@ -133,6 +134,7 @@ export class Vm {
     this.createMssp()
     this.createPwm()
     this.createEusart()
+    this.createAdcc()
     this.gpio.onChange((c) => this.ringPin(c))
     for (const b of INFO3.pins.buttons) {
       this.buttons[b.name] = { button: new Button({ activeLevel: b.activeLevel as Level, rng: () => this.rng() }), pin: b.pin }
@@ -427,6 +429,73 @@ export class Vm {
     return this.rxPin
   }
 
+/* ═════════════ ADCC et entrées analogiques (cours p. 92 à 100) ═════════════ */
+
+  /** Tension de chaque broche analogique pilotée par le banc (potentiomètre, joystick) — V */
+  readonly analogIn: Record<string, number> = {}
+  /** Conversions effectuées (instants en ticks, voie ADPCH, code) : professeur virtuel */
+  readonly adcLog: { t0: number; t1: number; ch: number; code: number }[] = []
+  private adcGen = 0
+  private adcRng = mulberry32(INFO3.adcc.seed)
+  private adcBusy = false
+
+  private createAdcc() {
+    this.setPot(INFO3.analog.potStart)
+    this.setJoystick(0, 0)
+    this.bus.writeHooks.set(this.bus.addrOf.ADCON0, () => this.adcControl())
+  }
+
+  /** Potentiomètre R1 (RA0) : fraction de la course, 0 à 1 */
+  setPot(frac: number) {
+    this.analogIn[INFO3.pins.pot.pin] = Math.min(1, Math.max(0, frac)) * INFO3.adcc.vref
+  }
+
+  /** Joystick : x vers la droite, y vers le haut (-1 à 1) ; tensions de JOY_HORZ et JOY_VERT (H4, H48) */
+  setJoystick(x: number, y: number) {
+    const raw = joystickRaw(x, y)
+    const j = INFO3.pins.joystick
+    this.analogIn[j.horz] = voltsOf(raw.x)
+    this.analogIn[j.vert] = voltsOf(raw.y)
+  }
+
+  /** Bouton du joystick (JOY_SW, RA1) */
+  joySw(pressed: boolean) {
+    const j = INFO3.pins.joystick
+    this.gpio.setExternal(j.sw, (pressed ? j.swActiveLevel : 1 - j.swActiveLevel) as Level, this.t)
+  }
+
+  /** Écriture d'ADCON0 : ADGO = 1 lance une conversion, ADGO = 0 ou ADON = 0 l'interrompt */
+  private adcControl() {
+    const go = this.bus.readBit('ADCON0', 'ADGO') === 1
+    const on = this.bus.readBit('ADCON0', 'ADON') === 1
+    if (!go || !on) {
+      if (this.adcBusy) this.adcGen++
+      this.adcBusy = false
+      return
+    }
+    if (this.adcBusy) return
+    this.adcBusy = true
+    const g = ++this.adcGen
+    const ch = this.mem[this.bus.addrOf.ADPCH]
+    const pin = ALL_PINS.find((p) => channelOf(p) === ch)
+    const vin = pin ? (this.analogIn[pin] ?? 0) : 0
+    const code = noisyCode(vin, this.adcRng())
+    const tad = tadOf(this.fosc, this.bus.readBit('ADCON0', 'ADCS') === 1, this.mem[this.bus.addrOf.ADCLK])
+    const t0 = this.tNow
+    const t1 = Math.round(t0 + conversionS(tad, this.mem[this.bus.addrOf.ADACQ]) * CLK.timeBaseHz)
+    this.events.pushFn(t1, () => {
+      if (g !== this.adcGen) return
+      this.adcBusy = false
+      const r = resultRegisters(code, this.bus.readBit('ADCON0', 'ADFM') === 1)
+      this.mem[this.bus.addrOf.ADRESH] = r.ADRESH
+      this.mem[this.bus.addrOf.ADRESL] = r.ADRESL
+      const goBit = this.bus.bit('ADCON0', 'ADGO')
+      this.mem[goBit.addr] &= ~goBit.mask
+      if (this.adcLog.length < INFO3.analyzer.maxChanges) this.adcLog.push({ t0, t1, ch, code })
+      this.bus.writeBit(INFO3.adcc.irq.flag, INFO3.adcc.irq.bit, 1)
+    })
+  }
+
   /** Base de temps d'un timer modifiée : les PWM qui l'utilisent recalculent leurs fronts */
   private timerChanged(n: number) {
     if (!this.pwm) return
@@ -620,6 +689,7 @@ export class Vm {
       button.pressed = false
       this.gpio.setExternal(pin, button.idleLevel, this.t)
     }
+    this.joySw(false)
     this.gpio.settle(this.t)
     this.cpuReset()
   }
@@ -644,6 +714,10 @@ export class Vm {
     this.oerr = false
     this.rxWaiting = false
     this.baud = 0
+    this.adcGen++
+    this.adcBusy = false
+    this.adcRng = mulberry32(INFO3.adcc.seed)
+    this.adcLog.length = 0
     this.gpio.settle(this.t)
     this.sp = 0
     this.frames = []

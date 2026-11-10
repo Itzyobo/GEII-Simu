@@ -49,6 +49,10 @@ export function configuredSources(cfg: MccConfig): InterruptSource[] {
   if (cfg.pins.some((p) => iocOf(p) !== 'none')) out.push(IOC_SOURCE)
   for (const id of TIMER_IDS) if (cfg.timers?.[id]?.interrupt) out.push(timerSource(id))
   if (cfg.eusart?.interrupts) out.push(...eusartSources())
+  if (cfg.adcc?.interrupt) {
+    const I = INFO3.adcc.irq
+    out.push({ id: 'ADCC', module: 'ADCC', interrupt: 'ADI', level: 'peripheral', ie: `${I.enable}bits.ADIE`, flag: `${I.flag}bits.${I.bit}`, call: 'ADCC_ISR();' })
+  }
   return out
 }
 

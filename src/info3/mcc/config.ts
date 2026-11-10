@@ -29,6 +29,8 @@ export interface PinConfig {
   od: boolean
   /** Colonne IOC de Pin Module (none par défaut ; jamais sur le port D) */
   ioc?: IocEdge
+  /** Voie de l'ADCC (ligne ADCC ANx du Grid View) : entrée analogique */
+  adc?: boolean
 }
 
 export type IocEdge = 'none' | 'positive' | 'negative' | 'any'
@@ -67,6 +69,46 @@ export interface MccConfig {
   pwm?: Partial<Record<PwmId, PwmConfig>>
   /** EUSART asynchrone (Device Resources › EUSART) */
   eusart?: EusartConfig
+  /** ADCC (Device Resources › ADCC) ; les voies sont des broches de `pins` marquées adc */
+  adcc?: AdccConfig
+}
+
+/* ───────────── ADCC ───────────── */
+
+export interface AdccConfig {
+  enabled: boolean
+  /** Result Alignment */
+  alignment: 'right' | 'left'
+  clockSource: 'FOSC/ADCLK' | 'FRC'
+  /** Clock : FOSC/2 à FOSC/128 */
+  divider: number
+  /** Acquisition Count (TAD) */
+  acquisition: number
+  /** Enable ADC Interrupt */
+  interrupt: boolean
+}
+
+export const defaultAdccConfig = (): AdccConfig => ({ ...INFO3.adcc.mccDefault }) as AdccConfig
+export const addAdcc = (cfg: MccConfig): MccConfig => (cfg.adcc ? cfg : { ...cfg, adcc: defaultAdccConfig() })
+export function removeAdcc(cfg: MccConfig): MccConfig {
+  const rest = { ...cfg, pins: cfg.pins.filter((p) => !p.adc) }
+  delete rest.adcc
+  return rest
+}
+export const updateAdcc = (cfg: MccConfig, patch: Partial<AdccConfig>): MccConfig => (cfg.adcc ? { ...cfg, adcc: { ...cfg.adcc, ...patch } } : cfg)
+
+function parseAdcc(x: unknown): AdccConfig {
+  const d = defaultAdccConfig()
+  if (!x || typeof x !== 'object') return d
+  const o = x as Record<string, unknown>
+  return {
+    enabled: typeof o.enabled === 'boolean' ? o.enabled : d.enabled,
+    alignment: o.alignment === 'left' ? 'left' : 'right',
+    clockSource: o.clockSource === 'FRC' ? 'FRC' : 'FOSC/ADCLK',
+    divider: (INFO3.adcc.dividers as readonly number[]).includes(o.divider as number) ? (o.divider as number) : d.divider,
+    acquisition: typeof o.acquisition === 'number' ? Math.max(0, Math.min(255, Math.round(o.acquisition))) : d.acquisition,
+    interrupt: typeof o.interrupt === 'boolean' ? o.interrupt : d.interrupt,
+  }
 }
 
 /* ───────────── CCP1 (PWM), PWM6, PWM7 ───────────── */
@@ -341,7 +383,7 @@ export function parseMccConfig(x: unknown): MccConfig | null {
     if (q.direction !== 'input' && q.direction !== 'output') return null
     if (typeof q.customName !== 'string') return null
     const ioc = IOC_EDGES.includes(q.ioc as IocEdge) && q.ioc !== 'none' ? { ioc: q.ioc as IocEdge } : {}
-    pins.push({ pin: q.pin, direction: q.direction, customName: q.customName, startHigh: !!q.startHigh, analog: !!q.analog, wpu: !!q.wpu, od: !!q.od, ...ioc })
+    pins.push({ pin: q.pin, direction: q.direction, customName: q.customName, startHigh: !!q.startHigh, analog: !!q.analog, wpu: !!q.wpu, od: !!q.od, ...ioc, ...(q.adc ? { adc: true, analog: true, direction: 'input' as const } : {}) })
   }
   const pkg = typeof o.package === 'string' && o.package in INFO3.mcc.packages ? (o.package as PackageName) : undefined
   const strList = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : undefined)
@@ -374,5 +416,6 @@ export function parseMccConfig(x: unknown): MccConfig | null {
       return Object.keys(pwm).length ? { pwm } : {}
     })(),
     ...(o.eusart ? { eusart: parseEusart(o.eusart) ?? defaultEusartConfig() } : {}),
+    ...(o.adcc ? { adcc: parseAdcc(o.adcc) } : {}),
   }
 }

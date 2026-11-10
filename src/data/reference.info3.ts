@@ -85,6 +85,9 @@ const PWM_ADDR = { 6: 0x617, 7: 0x61b } as const
 const EUSART_ADDR = 0x119
 /** RXPPS (entrée RX de l'EUSART) — H44 */
 const RX_PPS_ADDR = 0xecb
+/** ADCC : résultat et voie (banque 1), réglages (banque 2) — H18 */
+const ADC_RES_ADDR = 0x09b
+const ADC_CFG_ADDR = 0x10c
 
 /** Timers 2, 4, 6 : adresse de TMRx (PRx, TxCON, TxHLT, TxCLKCON, TxRST suivent) — H18 */
 const TIMER_ADDR = { 2: 0x28c, 4: 0x292, 6: 0x298 } as const
@@ -192,6 +195,23 @@ function buildSfrs(): Record<string, SfrDef> {
   out.BAUD1CON = { ...sfr(E + 6, 0, namedBits('ABDEN WUE - BRG16 SCKP - RCIDL ABDOVF'), ['H18', 'H19']), alias: 'BAUDCON' }
   // Entrée RX de l'EUSART par PPS (RXPPS) — H44
   out.RXPPS = sfr(RX_PPS_ADDR, 0, namedBits('RXPPS0 RXPPS1 RXPPS2 RXPPS3 RXPPS4 - - -'), ['H44', 'H19'])
+  // ADCC (cours p. 92 à 100) : ADRESL, ADRESH, ADPCH ; ADACQ, ADCAP, ADPRE ; ADACT, ADCLK, ADREF, ADCON0 à ADCON3, ADSTAT
+  const R = ADC_RES_ADDR
+  out.ADRESL = sfr(R, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.ADRESH = sfr(R + 1, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.ADPCH = sfr(R + 3, 0, namedBits('ADPCH0 ADPCH1 ADPCH2 ADPCH3 ADPCH4 ADPCH5 - -'), ['H18', 'H19'])
+  const C = ADC_CFG_ADDR
+  out.ADACQ = sfr(C, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.ADCAP = sfr(C + 1, 0, namedBits('ADCAP0 ADCAP1 ADCAP2 ADCAP3 ADCAP4 - - -'), ['H18', 'H19'])
+  out.ADPRE = sfr(C + 2, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.ADACT = sfr(C + 4, 0, namedBits('ADACT0 ADACT1 ADACT2 ADACT3 ADACT4 - - -'), ['H18', 'H19'])
+  out.ADCLK = { ...sfr(C + 5, 0, namedBits('ADCCS0 ADCCS1 ADCCS2 ADCCS3 ADCCS4 ADCCS5 - -'), ['H18', 'H19']), fields: f(['ADCCS', 6], [null, 2]) }
+  out.ADREF = { ...sfr(C + 6, 0, namedBits('ADPREF0 ADPREF1 - - ADNREF - - -'), ['H18', 'H19']), fields: f(['ADPREF', 2], [null, 2], ['ADNREF', 1], [null, 3]) }
+  out.ADCON0 = sfr(C + 7, 0, namedBits('ADGO - ADFM - ADCS - ADCONT ADON'), ['H18', 'H19'])
+  out.ADCON1 = sfr(C + 8, 0, namedBits('ADDSEN - - - - ADGPOL ADIPEN ADPPOL'), ['H18', 'H19'])
+  out.ADCON2 = sfr(C + 9, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.ADCON3 = sfr(C + 10, 0, sfrBits('', 0), ['H18', 'H19'])
+  out.ADSTAT = sfr(C + 11, 0, sfrBits('', 0), ['H18', 'H19'])
   for (const p of PORTS) {
     const n = p === 'E' ? 3 : 8
     for (let b = 0; b < n; b++) out[`R${p}${b}PPS`] = sfr(PPS_OUT_ADDR[p] + b, 0, namedBits(`R${p}${b}PPS0 R${p}${b}PPS1 R${p}${b}PPS2 R${p}${b}PPS3 R${p}${b}PPS4 R${p}${b}PPS5 - -`), ['H38', 'H19'])
@@ -471,6 +491,52 @@ export const INFO3 = {
     glareFull: 1.5,
     hyp: ['H12', 'H17'],
   },
+  /** ADCC 10 bits (cours p. 92 à 100) */
+  adcc: {
+    bits: 10,
+    /** VREF+ = VDD = 3,3 V (H5), VREF- = VSS */
+    vref: 3.3,
+    /** Durée d'une conversion = 11,5 TAD + acquisition (ADACQ × TAD) — cours p. 98 */
+    conversionTad: 11.5,
+    /** TAD minimal (cours p. 98) — s */
+    minTadS: 1e-6,
+    /** TAD de l'oscillateur FRC (ADCS = 1) — s — H51 */
+    frcTadS: 2e-6,
+    /** Clock Source FOSC/ADCLK : TAD = 2 × (ADCCS + 1) / Fosc ; diviseurs proposés par MCC */
+    dividers: [2, 4, 8, 16, 32, 64, 128],
+    /** Bruit de conversion : ± 1 LSB, aléa à graine fixée */
+    noiseLsb: 1,
+    seed: 6,
+    /** Code de voie ADPCH : port × 8 + bit (ANA0 = 0x00 … RD5 = 0x1D, RD6 = 0x1E — H50) ; voies internes (cours p. 99) */
+    portStride: 8,
+    internal: [
+      { name: 'channel_VSS', ch: 0x3c },
+      { name: 'channel_Temp', ch: 0x3d },
+      { name: 'channel_DAC1', ch: 0x3e },
+      { name: 'channel_FVR_buf1', ch: 0x3f },
+    ],
+    /** Voies du TP6 et noms MCC (énoncé, annexes 1 et 2) */
+    tpChannels: [
+      { name: 'POT', pin: 'RA0' },
+      { name: 'JOY_HORZ', pin: 'RD5' },
+      { name: 'JOY_VERT', pin: 'RD6' },
+    ],
+    /** Réglages d'un ADCC ajouté (FOSC/4 → TAD = 1 µs à 4 MHz) */
+    mccDefault: { enabled: true, alignment: 'right', clockSource: 'FOSC/ADCLK', divider: 4, acquisition: 0, interrupt: false },
+    irq: { flag: 'PIR1', bit: 'ADIF', enable: 'PIE1' },
+    hyp: ['H5', 'H18', 'H49', 'H50', 'H51', 'H52'],
+  },
+  /** Potentiomètre R1 de la Curiosity (RA0) et joystick de la carte fille (RD5, RD6, SW sur RA1) */
+  analog: {
+    /** Joystick au repos, valeurs brutes (H4) ; butées 0 et 1023 ; X croît vers la droite, Y vers le BAS (H48) */
+    joyRest: { x: 498, y: 530 },
+    joyYDown: true,
+    /** Pas du clavier (flèches) — fraction de la course */
+    joyKeyStep: 1,
+    /** Potentiomètre au démarrage — fraction de la course */
+    potStart: 0.5,
+    hyp: ['H4', 'H48'],
+  },
   /** EUSART (cours p. 104 à 110) et terminal du PC */
   eusart: {
     /** Baud = Fosc / (diviseur × (SPBRG + 1)) ; diviseur selon BRG16 et BRGH (cours p. 107 et 108) */
@@ -537,6 +603,16 @@ export const INFO3 = {
     /** §4 : crans tournés dans chaque sens */
     encoderDetents: 4,
     source: 'énoncé TP5 et consigne étape 5 (pas de CR du TP5)',
+  },
+  /** TP6 : cahier des charges utilisé par le professeur virtuel (énoncé TP6 et consigne étape 6) */
+  tp6: {
+    /** §2 : une conversion X toutes les 10 ms (± 1 %), Y moins de 50 µs après la fin de X, affichage toutes les 1 s (± 2 %) */
+    acqPeriodS: 0.01,
+    acqTolerance: 0.01,
+    yAfterXMaxS: 50e-6,
+    printPeriodS: 1,
+    printTolerance: 0.02,
+    source: 'énoncé TP6 et consigne étape 6 (pas de CR du TP6)',
   },
   /** Chaîne de deux 74HC595 de la carte Rotary : 16 LED (annexe 3, cours p. 81 et 82) */
   ring: {
@@ -726,6 +802,11 @@ export const INFO3 = {
     { id: 'H45', texte: 'Points de test de la LED RGB : TP10 = RGB_R (RD4), TP11 = RGB_G (RC0), TP12 = RGB_B (RC1)', commentVerifier: 'sérigraphie de la carte fille GEII (annexe 2)' },
     { id: 'H46', texte: 'TP5 §3 : au-delà de 255, l’incrément de 16 peut revenir à 0 (débordement d’un uint8_t) ou rester bloqué à 255 ; l’énoncé ne tranche pas, les deux sont acceptés', commentVerifier: 'question à l’enseignant' },
     { id: 'H47', texte: 'Terminal : chaque trame est rééchantillonnée au milieu des bits du baud du terminal, à partir du front descendant du start ; un octet mal encadré (stop à 0, parité fausse) est affiché quand même, comme un terminal sans contrôle d’erreur', commentVerifier: 'terminal à 19 200 bauds face à un PIC à 9600 bauds en TP5' },
+    { id: 'H48', texte: 'Joystick : la valeur brute de X augmente vers la droite et celle de Y vers le BAS (Joy_Cal_Y doit inverser l’axe) ; butées 0 et 1023', commentVerifier: 'relever les valeurs brutes au TP6 en poussant le joystick en haut' },
+    { id: 'H49', texte: 'Libellés de l’Easy Setup ADCC de MCC (Enable ADC, Result Alignment, Positive / Negative Reference, Clock Source, Clock, TAD, Acquisition Count, Enable ADC Interrupt) et format de adcc.c / adcc.h reconstitués d’après MCC 1.81', commentVerifier: 'capture MCC et adcc.c du TP6' },
+    { id: 'H50', texte: 'Codes ADPCH des voies : port × 8 + bit (RA0 = 0x00, RD5 = 0x1D, RD6 = 0x1E) ; adresses des registres ADCC d’après le datasheet', commentVerifier: 'adcc.h généré au TP6 (enum adcc_channel_t)' },
+    { id: 'H51', texte: 'TAD de l’oscillateur FRC = 2 µs', commentVerifier: 'datasheet DS40001802, « ADC Clock Period (TAD) »' },
+    { id: 'H52', texte: 'ADCC simulé en mode de base : échantillonnage au lancement (ADGO = 1), pas de déclenchement automatique (ADACT), de mode continu ni de calcul (filtre, moyenne, seuils)', commentVerifier: 'sans objet au TP6 (conversions lancées par logiciel)' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],
 } as const

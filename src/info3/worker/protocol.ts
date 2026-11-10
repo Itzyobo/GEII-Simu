@@ -31,6 +31,8 @@ export type InMsg =
   /** Terminal série : baud et format (8N1…), octets tapés au clavier */
   | { type: 'terminal'; baud: number; format: string }
   | { type: 'terminalSend'; bytes: number[] }
+  /** Banc analogique : potentiomètre (0 à 1), joystick (x vers la droite, y vers le haut, -1 à 1), bouton du joystick */
+  | { type: 'analog'; pot?: number; joy?: [number, number]; joySw?: boolean }
   /** Codeur : crans (signe = sens), rotation continue (crans/s, 0 = arrêt), bouton SW */
   | { type: 'rotary'; action: 'turn'; detents: number }
   | { type: 'rotary'; action: 'spin'; rate: number }

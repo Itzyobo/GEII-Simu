@@ -7,7 +7,7 @@
  * - MODULE 1 et 2 (mikroBUS) : glisser une carte Click, ou la sélectionner puis cliquer l'emplacement.
  * Le verrouillage sous tension est décidé par le modèle du projet (setCard), pas ici.
  */
-import { useEffect, useState, type CSSProperties, type DragEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type DragEvent, type PointerEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { INFO3 } from '../../data/reference'
 import type { Bench, CardId, SlotId } from '../project/project'
 import { cssColor, rgbDuty, rgbGlare, rgbIntensity, rgbMix } from '../models/rgbLed'
@@ -23,7 +23,24 @@ export interface BoardProps {
   onCard(slot: SlotId, card: CardId | null): void
   /** Message du banc (verrouillage, programmation…) */
   message: string | null
+  /** Potentiomètre (0 à 1) et joystick (x vers la droite, y vers le haut, -1 à 1) */
+  analog?: { pot: number; joy: [number, number] }
+  onAnalog?(m: { pot?: number; joy?: [number, number]; joySw?: boolean }): void
 }
+
+/** Course du potentiomètre : 270°, de -135° (0) à +135° (1) */
+const POT_SWEEP = 270
+const POT_KEY_STEP = 0.05
+const JOY = { cx: 490, cy: 190, r: 22 }
+
+/** Coordonnées SVG d'un événement pointeur */
+function svgPoint(e: PointerEvent<SVGGElement>): { x: number; y: number } {
+  const svg = e.currentTarget.ownerSVGElement!
+  const m = svg.getScreenCTM()!.inverse()
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m)
+  return { x: p.x, y: p.y }
+}
+const clamp1 = (v: number) => Math.max(-1, Math.min(1, v))
 
 const KEYS: Record<string, string> = { '1': INFO3.pins.buttons[0].name, '2': INFO3.pins.buttons[1].name }
 const CARD_IDS = Object.keys(INFO3.clickBoards) as CardId[]
@@ -35,7 +52,32 @@ const BOARD_CSS = `.info3-led-on{opacity:var(--duty);transition:opacity 40ms lin
 
 const isEditable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || !!t.closest('.cm-editor'))
 
-export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message }: BoardProps) {
+export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message, analog, onAnalog }: BoardProps) {
+  const pot = analog?.pot ?? 0.5
+  const [jx, jy] = analog?.joy ?? [0, 0]
+  const potAngle = (pot - 0.5) * POT_SWEEP
+  const potDrag = (e: PointerEvent<SVGGElement>) => {
+    if (!onAnalog || (e.type === 'pointermove' && !e.buttons)) return
+    const p = svgPoint(e)
+    const deg = (Math.atan2(p.x - 395, 112 - p.y) * 180) / Math.PI
+    onAnalog({ pot: Math.min(1, Math.max(0, deg / POT_SWEEP + 0.5)) })
+  }
+  const joyDrag = (e: PointerEvent<SVGGElement>) => {
+    if (!onAnalog || (e.type === 'pointermove' && !e.buttons)) return
+    const p = svgPoint(e)
+    onAnalog({ joy: [clamp1((p.x - JOY.cx) / JOY.r), clamp1((JOY.cy - p.y) / JOY.r)] })
+  }
+  const JOY_KEYS: Record<string, [number, number]> = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }
+  const joyKey = (e: ReactKeyboardEvent<SVGGElement>, down: boolean) => {
+    if (!onAnalog) return
+    if (JOY_KEYS[e.key]) {
+      e.preventDefault()
+      onAnalog({ joy: down ? JOY_KEYS[e.key] : [0, 0] })
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault()
+      onAnalog({ joySw: down })
+    }
+  }
   const rgb = rgbDuty(duty)
   const rgbOn = rgbIntensity(rgb) > 0
   const rgbColor = cssColor(rgbMix(rgb))
@@ -207,10 +249,30 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
           PIC16F18875
         </text>
         {/* POT R1 */}
-        <g aria-label="Potentiomètre R1">
+        <g
+          role="slider"
+          tabIndex={0}
+          aria-label="Potentiomètre R1 (RA0) : glisser en cercle ou flèches"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pot * 100)}
+          className="cursor-grab outline-none"
+          style={{ touchAction: 'none' }}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId)
+            potDrag(e)
+          }}
+          onPointerMove={potDrag}
+          onKeyDown={(e) => {
+            const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? POT_KEY_STEP : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -POT_KEY_STEP : 0
+            if (!d || !onAnalog) return
+            e.preventDefault()
+            onAnalog({ pot: Math.min(1, Math.max(0, pot + d)) })
+          }}
+        >
           <circle cx={395} cy={112} r={14} fill="#1b67c4" stroke="#0d3567" />
           <circle cx={395} cy={112} r={5} fill="#e8eef3" />
-          <path d="M395 112 L395 101" stroke="#0d3567" strokeWidth={2} />
+          <path d="M395 112 L395 101" stroke="#0d3567" strokeWidth={2} transform={`rotate(${potAngle} 395 112)`} />
           <text x={395} y={138} textAnchor="middle" className="fill-[#e9f5ee] text-[9px]">POT R1</text>
         </g>
         {/* LED D2 à D5 */}
@@ -243,9 +305,25 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
           {bench.cover && <circle cx={490} cy={118} r={15} fill="#eceff1" opacity={rgbOn ? 0.6 : 0.85} />}
           <text x={490} y={142} textAnchor="middle" className="fill-[#e9eefc] text-[8px]">LED RGB</text>
         </g>
-        <g aria-label="Joystick">
+        <g
+          role="slider"
+          tabIndex={0}
+          aria-label={`Joystick (RD5, RD6) : x = ${jx.toFixed(2)}, y = ${jy.toFixed(2)} — glisser, flèches, Espace = bouton`}
+          aria-valuenow={Math.round(jx * 100)}
+          className="cursor-grab outline-none"
+          style={{ touchAction: 'none' }}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId)
+            joyDrag(e)
+          }}
+          onPointerMove={joyDrag}
+          onPointerUp={() => onAnalog?.({ joy: [0, 0] })}
+          onPointerCancel={() => onAnalog?.({ joy: [0, 0] })}
+          onKeyDown={(e) => joyKey(e, true)}
+          onKeyUp={(e) => joyKey(e, false)}
+        >
           <circle cx={490} cy={190} r={22} fill="#1a1d22" stroke="#555" />
-          <circle cx={490} cy={190} r={10} fill="#3a3f46" />
+          <circle cx={490 + jx * 12} cy={190 - jy * 12} r={10} fill="#3a3f46" />
           <text x={490} y={225} textAnchor="middle" className="fill-[#e9eefc] text-[8px]">JOYSTICK</text>
         </g>
         <g role="button" tabIndex={0} aria-label={`USB blanc (UART) : ${bench.usbWhite ? 'branché' : 'débranché'}`} className="cursor-pointer outline-none" onClick={() => onUsbWhite(!bench.usbWhite)} onKeyDown={(e) => e.key === 'Enter' && onUsbWhite(!bench.usbWhite)}>

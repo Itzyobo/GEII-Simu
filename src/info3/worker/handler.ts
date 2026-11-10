@@ -57,6 +57,8 @@ export interface SimState {
   terminal: SerialTerminal
   /** Fin du dernier octet envoyé par le clavier du terminal — ticks */
   sendBusyUntil: number
+  /** Banc analogique (repris par chaque nouveau PIC programmé) */
+  analog: { pot: number; joy: [number, number]; joySw: boolean }
 }
 
 const RING_N = INFO3.ring.leds
@@ -70,7 +72,7 @@ function ringAccumulate(state: SimState, t: number) {
 }
 
 export function createSimState(now: () => number = () => performance.now()): SimState {
-  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, usbWhite: false, terminal: new SerialTerminal(INFO3.clock.timeBaseHz), sendBusyUntil: 0, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
+  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, analog: { pot: INFO3.analog.potStart, joy: [0, 0], joySw: false }, usbWhite: false, terminal: new SerialTerminal(INFO3.clock.timeBaseHz), sendBusyUntil: 0, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
 }
 
 const PROBES = new Set<string>(INFO3.analyzer.probes)
@@ -97,6 +99,14 @@ function traceLevels(state: SimState) {
 
 const UART = INFO3.pins.uart
 
+function applyAnalog(state: SimState) {
+  const vm = state.vm
+  if (!vm) return
+  vm.setPot(state.analog.pot)
+  vm.setJoystick(...state.analog.joy)
+  vm.joySw(state.analog.joySw)
+}
+
 /** USB blanc : le pont USB-série tient RX du PIC au repos (1) ; le terminal écoute TX */
 function plugUsbWhite(state: SimState) {
   const vm = state.vm
@@ -109,6 +119,7 @@ function attach(state: SimState, vm: Vm) {
   vm.setRotarySlot(state.rotary)
   vm.onPinChange((c) => c.pin === UART.tx && state.terminal.edge(c.t, c.level))
   plugUsbWhite(state)
+  applyAnalog(state)
   vm.onPinChange((c) => pushTrace(state, c.pin, vm.toS(c.t), c.level))
   vm.onProbe((p) => pushTrace(state, p.name, vm.toS(p.t), p.level))
   state.ring = blankRing()
@@ -345,6 +356,10 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
         state.usbWhite = msg.usbWhite
         plugUsbWhite(state)
       }
+      return out
+    case 'analog':
+      state.analog = { pot: msg.pot ?? state.analog.pot, joy: msg.joy ?? state.analog.joy, joySw: msg.joySw ?? state.analog.joySw }
+      applyAnalog(state)
       return out
     case 'terminal':
       state.terminal.configure(msg.baud, msg.format)

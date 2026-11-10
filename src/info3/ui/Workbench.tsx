@@ -57,6 +57,8 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
   /** Vitesse de simulation (×1 au lancement par Program / Debug) */
   const [speed, setSpeed] = useState<Speed>(1)
   const [genMsg, setGenMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  /** Banc analogique : potentiomètre et joystick (envoyés au Worker à chaque geste) */
+  const [analog, setAnalog] = useState<{ pot: number; joy: [number, number] }>({ pot: INFO3.analog.potStart, joy: [0, 0] })
   /** Programme en mémoire flash : redémarre à chaque mise sous tension */
   const flash = useRef<Record<string, string> | null>(null)
 
@@ -187,6 +189,11 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               onUsbBlack={usbBlack}
               onUsbWhite={(v) => apply(setUsbWhite(project, v))}
               onCover={(v) => onProject({ ...project, bench: { ...project.bench, cover: v } })}
+              analog={analog}
+              onAnalog={(m) => {
+                setAnalog((a) => ({ pot: m.pot ?? a.pot, joy: m.joy ?? a.joy }))
+                sim.send({ type: 'analog', ...m })
+              }}
               onCard={(slot, card) => apply(setCard(project, slot, card))}
             />
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">

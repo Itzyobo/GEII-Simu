@@ -1,6 +1,6 @@
 /** Configurations MCC de départ, construites comme dans MCC (Grid View puis Pin Module) depuis INFO3.pins */
 import { INFO3 } from '../../data/reference'
-import { addEusart, addMssp, addPwm, addTimer, defaultMccConfig, PWM_IDS, updateEusart, setIoc, toggleGridPin, updateMssp, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
+import { addAdcc, addEusart, addMssp, addPwm, addTimer, defaultMccConfig, PWM_IDS, updateAdcc, updateEusart, setIoc, toggleGridPin, updateMssp, updatePin, updateTimer, type Direction, type MccConfig, type TimerConfig } from './config'
 import { periodForRegister } from './timers'
 
 export function namedPin(cfg: MccConfig, pin: string, dir: Direction, name: string, analog?: boolean): MccConfig {
@@ -97,6 +97,22 @@ export function tp54Config(): MccConfig {
   c = namedPin(c, r.ENCA, 'input', 'ENCA', false)
   c = namedPin(c, r.ENCB, 'input', 'ENCB', false)
   return setIoc(c, r.ENCB, 'any')
+}
+
+/** TP6 §1 : ADCC (FOSC/4, à droite) sur POT (RA0), JOY_HORZ (RD5), JOY_VERT (RD6) + EUSART 9600 bauds redirigé */
+export function tp61Config(): MccConfig {
+  let c = addAdcc(defaultMccConfig())
+  for (const ch of INFO3.adcc.tpChannels) {
+    c = { ...c, pins: [...c.pins, { pin: ch.pin, direction: 'input', customName: ch.name, startHigh: false, analog: true, wpu: false, od: false, adc: true }] }
+  }
+  return updateEusart(addEusart(c), { redirectStdio: true })
+}
+
+/** TP6 §2 : tp6-1 + interruption ADI, TMR2 à 10 ms (FOSC/4, Roll over) avec interruption */
+export function tp62Config(): MccConfig {
+  let c = updateAdcc(tp61Config(), { interrupt: true })
+  c = updateTimer(addTimer(c, 'TMR2'), 'TMR2', { clockSource: 'FOSC/4', prescaler: 64, postscaler: 1, interrupt: true, periodS: INFO3.tp6.acqPeriodS })
+  return c
 }
 
 /** Timer2 en Roll over pulse, interruption activée, Timer Period saisie pour obtenir PR2 = pr */

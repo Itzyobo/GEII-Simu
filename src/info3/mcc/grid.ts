@@ -31,7 +31,7 @@ const gpio = (dir: 'input' | 'output'): GridRow => ({
   func: `GPIO ${dir}`,
   dir,
   allowed: (pin) => pin !== MCLR,
-  owns: (cfg, pin) => cfg.pins.some((p) => p.pin === pin && p.direction === dir),
+  owns: (cfg, pin) => cfg.pins.some((p) => p.pin === pin && p.direction === dir && !p.adc),
   click: (cfg, pin) => toggleGridPin(cfg, pin, dir),
 })
 

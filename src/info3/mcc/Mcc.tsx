@@ -5,7 +5,7 @@
  */
 import { useState } from 'react'
 import { INFO3 } from '../../data/reference'
-import { addEusart, addMssp, addPwm, addTimer, PWM_IDS, removeEusart, removePwm, type PwmId, customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, removeMssp, removeTimer, setIoc, systemFosc, TIMER_IDS, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator, type TimerId } from './config'
+import { addAdcc, addEusart, addMssp, removeAdcc, addPwm, addTimer, PWM_IDS, removeEusart, removePwm, type PwmId, customNameError, DIVIDERS, IOC_EDGES, iocAvailable, iocOf, packageOf, pinOrder, removeMssp, removeTimer, setIoc, systemFosc, TIMER_IDS, toggleGridPin, updatePin, type IocEdge, type MccConfig, type Oscillator, type TimerId } from './config'
 import GridView from './GridView'
 import { interruptTable, moveInterrupt, setInterruptEnabled } from './interrupts'
 import TimerPanel from './TimerPanel'
@@ -16,6 +16,8 @@ import PwmPanel from './PwmPanel'
 import { pwmGridRows, pwmNotifications } from './pwm'
 import EusartPanel from './EusartPanel'
 import { eusartGridRows, eusartNotifications } from './eusart'
+import AdccPanel from './AdccPanel'
+import { adccGridRows, adccNotifications, anName } from './adcc'
 
 export interface MccProps {
   config: MccConfig
@@ -26,7 +28,7 @@ export interface MccProps {
   dark?: boolean
 }
 
-type Resource = 'system' | 'pins' | 'interrupts' | 'MSSP1' | 'EUSART' | TimerId | PwmId
+type Resource = 'system' | 'pins' | 'interrupts' | 'MSSP1' | 'EUSART' | 'ADCC' | TimerId | PwmId
 
 /** Interrupt Module : table « Interrupt Vector » (Order, Module, Interrupt, Enabled) */
 function InterruptPanel({ config, onChange, head }: { config: MccConfig; onChange(cfg: MccConfig): void; head: string }) {
@@ -101,8 +103,8 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
   const s = config.system
   const setSys = (patch: Partial<MccConfig['system']>) => onChange({ ...config, system: { ...s, ...patch } })
   const pins = [...config.pins].sort((a, b) => pinOrder(a.pin, b.pin))
-  const added: (TimerId | 'MSSP1' | 'EUSART' | PwmId)[] = [...(config.eusart ? (['EUSART'] as const) : []), ...(config.mssp ? (['MSSP1'] as const) : []), ...TIMER_IDS.filter((id) => config.timers?.[id]), ...PWM_IDS.filter((id) => config.pwm?.[id])]
-  const notifications = [...pwmNotifications(config), ...eusartNotifications(config)]
+  const added: (TimerId | 'MSSP1' | 'EUSART' | 'ADCC' | PwmId)[] = [...(config.adcc ? (['ADCC'] as const) : []), ...(config.eusart ? (['EUSART'] as const) : []), ...(config.mssp ? (['MSSP1'] as const) : []), ...TIMER_IDS.filter((id) => config.timers?.[id]), ...PWM_IDS.filter((id) => config.pwm?.[id])]
+  const notifications = [...pwmNotifications(config), ...eusartNotifications(config), ...adccNotifications(config)]
   const isPwm = (r: string): r is PwmId => (PWM_IDS as readonly string[]).includes(r)
 
   const panel = 'rounded-lg border border-[#c8c8c8] bg-white text-[#1e1e1e]'
@@ -147,7 +149,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
                     aria-label={`Retirer ${id} du projet`}
                     title={`Retirer ${id}`}
                     onClick={() => {
-                      onChange(id === 'MSSP1' ? removeMssp(config) : id === 'EUSART' ? removeEusart(config) : isPwm(id) ? removePwm(config, id) : removeTimer(config, id))
+                      onChange(id === 'MSSP1' ? removeMssp(config) : id === 'EUSART' ? removeEusart(config) : id === 'ADCC' ? removeAdcc(config) : isPwm(id) ? removePwm(config, id) : removeTimer(config, id))
                       if (res === id) setRes('pins')
                     }}
                     className="px-1.5 text-[#b71c1c] hover:bg-[#ffebee]"
@@ -161,6 +163,22 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
           <div className={panel}>
             <div className={head}>Device Resources</div>
             <ul className="p-1 text-xs">
+              <li className="px-1 font-semibold">ADC</li>
+              <li className="flex items-center justify-between px-3 py-0.5">
+                <span>ADCC</span>
+                <button
+                  type="button"
+                  aria-label="Ajouter ADCC au projet"
+                  disabled={!!config.adcc}
+                  onClick={() => {
+                    onChange(addAdcc(config))
+                    setRes('ADCC')
+                  }}
+                  className="rounded border border-[#8a8a8a] bg-[#fafafa] px-1.5 font-semibold text-[#1b5e20] disabled:opacity-40"
+                >
+                  +
+                </button>
+              </li>
               <li className="px-1 font-semibold">EUSART</li>
               <li className="flex items-center justify-between px-3 py-0.5">
                 <span>EUSART</span>
@@ -267,6 +285,8 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
             <InterruptPanel config={config} onChange={onChange} head={head} />
           ) : res === 'MSSP1' ? (
             <MsspPanel config={config} onChange={onChange} head={head} field={field} />
+          ) : res === 'ADCC' ? (
+            <AdccPanel config={config} onChange={onChange} head={head} field={field} />
           ) : res === 'EUSART' ? (
             <EusartPanel config={config} onChange={onChange} head={head} field={field} />
           ) : isPwm(res) ? (
@@ -348,8 +368,8 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
                       return (
                         <tr key={p.pin} className="border-b border-[#eee]">
                           <td className="px-2 py-1 font-mono">{p.pin}</td>
-                          <td className="px-2 py-1">Pin Module</td>
-                          <td className="px-2 py-1">GPIO</td>
+                          <td className="px-2 py-1">{p.adc ? 'ADCC' : 'Pin Module'}</td>
+                          <td className="px-2 py-1">{p.adc ? anName(p.pin) : 'GPIO'}</td>
                           <td className="px-2 py-1">
                             <input
                               aria-label={`Custom Name de ${p.pin}`}
@@ -364,14 +384,14 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
                             <input type="checkbox" aria-label={`Start High ${p.pin}`} checked={p.startHigh} disabled={p.direction !== 'output'} onChange={(e) => set({ startHigh: e.target.checked })} />
                           </td>
                           <td className="px-2 py-1">
-                            <input type="checkbox" aria-label={`Analog ${p.pin}`} checked={p.analog} onChange={(e) => set({ analog: e.target.checked })} />
+                            <input type="checkbox" aria-label={`Analog ${p.pin}`} checked={p.analog} disabled={p.adc} onChange={(e) => set({ analog: e.target.checked })} />
                           </td>
                           <td className="px-2 py-1">
                             <input
                               type="checkbox"
                               aria-label={`Output ${p.pin}`}
                               checked={p.direction === 'output'}
-                              disabled={(INFO3.mcc.inputOnly as readonly string[]).includes(p.pin)}
+                              disabled={p.adc || (INFO3.mcc.inputOnly as readonly string[]).includes(p.pin)}
                               onChange={(e) => onChange(toggleGridPin(config, p.pin, e.target.checked ? 'output' : 'input'))}
                             />
                           </td>
@@ -408,7 +428,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
       </div>
 
       {/* Pin Manager: Grid View */}
-      <GridView config={config} onChange={onChange} extraRows={[...eusartGridRows(config), ...spiGridRows(config), ...pwmGridRows(config), ...timerGridRows(config)]} />
+      <GridView config={config} onChange={onChange} extraRows={[...adccGridRows(config), ...eusartGridRows(config), ...spiGridRows(config), ...pwmGridRows(config), ...timerGridRows(config)]} />
     </section>
   )
 }
