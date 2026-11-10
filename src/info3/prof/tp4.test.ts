@@ -5,7 +5,6 @@ import { updateMssp, type MccConfig } from '../mcc/config'
 import { blankProject, runGenerate } from '../project/project'
 import { verifyTp4 } from '../project/verify23'
 import { sckFields } from '../tp/content23'
-import { createSimState, handleMessage } from '../worker/handler'
 import { SOLUTIONS } from '../solutions'
 import { gradeTp4, type Tp4Challenge } from './tp4'
 
@@ -51,25 +50,6 @@ describe('Faire vérifier TP4', () => {
     expect(sckFields(project(tp41Config(3)))?.[0].expected).toBeCloseTo(1, 9)
     expect(sckFields(project(updateMssp(tp41Config(3), { clockSource: 'FOSC/64' })))?.[0].expected).toBeCloseTo(16, 9)
   })
-})
-
-describe('performance (test 12) : 60 s simulées à ×10 dans le Worker', () => {
-  for (const id of ['tp4-4', 'tp4-6'] as const) {
-    it(`${id} : aucun tick de plus de 50 ms, 60 s simulées`, () => {
-      const state = createSimState()
-      handleMessage(state, { type: 'bench', rotary: 'mikrobus2' })
-      handleMessage(state, { type: 'load', files: files(SOLUTIONS[REF[id][0]], REF[id][1]) })
-      handleMessage(state, { type: 'run', speed: 10 })
-      let worst = 0
-      for (let k = 0; k < 600; k++) {
-        const t = performance.now()
-        handleMessage(state, { type: 'tick', wallMs: 10 })
-        worst = Math.max(worst, performance.now() - t)
-      }
-      expect(worst).toBeLessThan(50)
-      expect(state.vm!.timeS).toBeGreaterThan(59)
-    })
-  }
 })
 
 describe('refus attendus', () => {

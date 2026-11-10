@@ -264,22 +264,3 @@ describe('pin_manager de mcc-tp1 (règle du cours p. 22)', () => {
   })
 })
 
-describe('performance (Node)', () => {
-  it('10 s simulées de q3_5 en moins de 300 ms', () => {
-    const vm = boot(crProject('tp1/q3_5'))
-    const t0 = performance.now()
-    vm.runFor({ ms: 10_000 })
-    const dt = performance.now() - t0
-    console.info(`q3_5 : 10 s simulées en ${dt.toFixed(1)} ms`)
-    expect(vm.timeS).toBeGreaterThanOrEqual(10)
-    expect(dt).toBeLessThan(300)
-  })
-  it('1 s simulée de q3_4 (boucle sans délai) en moins de 250 ms', () => {
-    const vm = boot(crProject('tp1/q3_4'))
-    const t0 = performance.now()
-    vm.runFor({ ms: 1000 })
-    const dt = performance.now() - t0
-    console.info(`q3_4 : 1 s simulée en ${dt.toFixed(1)} ms`)
-    expect(dt).toBeLessThan(250)
-  })
-})

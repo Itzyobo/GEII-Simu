@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:perf": "vitest run --config vitest.perf.config.ts",
     "check:375": "node scripts/check-375.mjs",
     "sync:prd": "node scripts/sync-prd.mjs"
   },

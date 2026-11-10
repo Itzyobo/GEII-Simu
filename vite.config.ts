@@ -1,8 +1,12 @@
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
+
+/** Tests de performance (temps réel) : exclus de `npm test`, lancés par `npm run test:perf` (vitest.perf.config.ts) */
+export const PERF_TESTS = '**/*.perf.test.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: { exclude: [...configDefaults.exclude, PERF_TESTS] },
 })
