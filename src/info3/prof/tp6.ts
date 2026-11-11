@@ -175,14 +175,10 @@ function q2(p: Program, _r: RotarySlot | null, files: Record<string, string>): V
       break
     }
   }
-  for (const x of xs.slice(1, -1)) {
-    const y = vm.adcLog.find((c) => c.ch === Y && c.t0 >= x.t1)
-    const gap = y ? vm.toS(y.t0 - x.t1) : Infinity
-    if (gap > T.yAfterXMaxS) {
-      msgs.push(y ? `La conversion de Y démarre ${(gap * INFO3.units.usPerS).toFixed(0)} µs après la fin de X : moins de ${T.yAfterXMaxS * INFO3.units.usPerS} µs attendu (l’enchaîner dans l’interruption du CAN)` : 'Aucune conversion de JOY_VERT après celle de JOY_HORZ')
-      break
-    }
-  }
+  // Causalité : chaque départ de Y vient de l'ISR, juste après la fin d'une conversion X ; un départ Y par départ X
+  const ys = vm.adcLog.filter((c) => c.ch === Y)
+  const chained = (y: (typeof ys)[number]) => y.fromIsr && y.after === X && vm.adcLog.some((x) => x.ch === X && x.t1 <= y.t0)
+  if (ys.some((y) => !chained(y)) || Math.abs(ys.length - xs.length) > 1) msgs.push('conversion Y non enchaînée dans l’interruption de fin de conversion (lancer JOY_VERT dans l’ISR ADI qui suit la fin de JOY_HORZ, une fois par conversion X)')
   const lines = linesOf(vm)
   if (lines.length < 2) msgs.push(`Affichage toutes les ${T.printPeriodS} s attendu : ${lines.length} ligne(s) en ${n + 0.5} s`)
   else
@@ -195,7 +191,7 @@ function q2(p: Program, _r: RotarySlot | null, files: Record<string, string>): V
     }
   const open = vm.unprotectedShared()
   if (open.length) msgs.push(`accès concurrent non protégé : ${open.join(', ')} (variables de plus de 8 bits écrites sous interruption, lues dans main sans couper les IT)`)
-  return msgs.length ? { ok: false, messages: msgs } : { ok: true, messages: [`X toutes les ${fmtS(T.acqPeriodS)} (± ${T.acqTolerance * PCT} %), Y enchaînée en moins de ${T.yAfterXMaxS * INFO3.units.usPerS} µs, affichage toutes les ${T.printPeriodS} s ; variables partagées lues avec les IT coupées`] }
+  return msgs.length ? { ok: false, messages: msgs } : { ok: true, messages: [`X toutes les ${fmtS(T.acqPeriodS)} (± ${T.acqTolerance * PCT} %), Y enchaînée dans l’interruption de fin de X, affichage toutes les ${T.printPeriodS} s ; variables partagées lues avec les IT coupées`] }
 }
 
 /* ───────────── §3 : LED8x8.c / .h et séquence ───────────── */

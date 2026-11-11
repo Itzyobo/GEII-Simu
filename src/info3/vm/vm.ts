@@ -435,7 +435,9 @@ export class Vm {
   /** Tension de chaque broche analogique pilotée par le banc (potentiomètre, joystick) — V */
   readonly analogIn: Record<string, number> = {}
   /** Conversions effectuées (instants en ticks, voie ADPCH, code) : professeur virtuel */
-  readonly adcLog: { t0: number; t1: number; ch: number; code: number }[] = []
+  readonly adcLog: { t0: number; t1: number; ch: number; code: number; fromIsr: boolean; after: number | null }[] = []
+  /** Dernière conversion terminée (voie), pour relier un départ à la fin qui l'a déclenché */
+  private adcLastDone: number | null = null
   private adcGen = 0
   private adcRng = mulberry32(INFO3.adcc.seed)
   private adcBusy = false
@@ -483,6 +485,9 @@ export class Vm {
     const code = noisyCode(vin, this.adcRng())
     const tad = tadOf(this.fosc, this.bus.readBit('ADCON0', 'ADCS') === 1, this.mem[this.bus.addrOf.ADCLK])
     const t0 = this.tNow
+    // Contexte du départ : dans une ISR, et après quelle conversion terminée (causalité, TP6 §2)
+    const fromIsr = this.isrDepth > 0
+    const after = this.adcLastDone
     const t1 = Math.round(t0 + conversionS(tad, this.mem[this.bus.addrOf.ADACQ]) * CLK.timeBaseHz)
     this.events.pushFn(t1, () => {
       if (g !== this.adcGen) return
@@ -492,7 +497,8 @@ export class Vm {
       this.mem[this.bus.addrOf.ADRESL] = r.ADRESL
       const goBit = this.bus.bit('ADCON0', 'ADGO')
       this.mem[goBit.addr] &= ~goBit.mask
-      if (this.adcLog.length < INFO3.analyzer.maxChanges) this.adcLog.push({ t0, t1, ch, code })
+      this.adcLastDone = ch
+      if (this.adcLog.length < INFO3.analyzer.maxChanges) this.adcLog.push({ t0, t1, ch, code, fromIsr, after })
       this.bus.writeBit(INFO3.adcc.irq.flag, INFO3.adcc.irq.bit, 1)
     })
   }
@@ -801,6 +807,7 @@ export class Vm {
     this.adcBusy = false
     this.adcRng = mulberry32(INFO3.adcc.seed)
     this.adcLog.length = 0
+    this.adcLastDone = null
     this.gpio.settle(this.t)
     this.sp = 0
     this.frames = []

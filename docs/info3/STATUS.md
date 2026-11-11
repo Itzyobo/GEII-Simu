@@ -1,8 +1,14 @@
 # INFO3 — état d'avancement
 
-Mis à jour à chaque bloc terminé. Étape en cours : **6** (TP6 : CAN, joystick, matrice 8x8 / MAX7219). Étape 5 terminée (commit 74db13a), étape 4 (bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
+Mis à jour à chaque bloc terminé. Étape en cours : **7** (mode examen, mode libre complet, finitions). Étape 6 terminée (commit da5489f), étape 5 (74db13a), étape 4 (bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
 
-## Étape 6
+## Étape 7
+
+| Bloc | État | Contenu |
+| --- | --- | --- |
+| R | fait | TP6 §2 : critère « Y < 50 µs après la fin de X » supprimé (absent de l’énoncé). Critère de causalité relevé par la VM : chaque départ de Y se fait dans une ISR (profondeur d’ISR > 0) juste après la fin d’une conversion X (journal adcLog : fromIsr, after), aucun départ Y depuis main, un départ Y par départ X. Solution de référence §2 de nouveau à Fosc = 4 MHz (TMR2 1:64, 10 ms) ; INFO3.tp6.fastSystem et yAfterXMaxS supprimés. Délai fin X → départ Y mesuré à 4 MHz : 80,5 µs (information). Tests : solution 4 MHz validée, Y lancée depuis main (drapeau scruté) refusée avec « conversion Y non enchaînée dans l’interruption de fin de conversion » |
+
+## Étape 6 (terminée)
 
 | Bloc | État | Contenu |
 | --- | --- | --- |

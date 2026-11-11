@@ -108,16 +108,10 @@ export function tp61Config(): MccConfig {
   return updateEusart(addEusart(c), { redirectStdio: true })
 }
 
-/**
- * TP6 §2 : tp6-1 + interruption ADI, TMR2 à 10 ms (FOSC/4, Roll over) avec interruption.
- * Fosc = 32 MHz : à 4 MHz, la chaîne IT du CAN → ADCC_StartConversion(JOY_VERT) dure ~80 µs (H2), au-delà des
- * 50 µs demandés ; TMR2 1:128, postscaler 1:5, période 2 ms (PR2 = 124) → TMR2IF toutes les 10 ms ; ADC FOSC/32 (TAD = 1 µs).
- */
+/** TP6 §2 : tp6-1 (Fosc 4 MHz) + interruption ADI, TMR2 à 10 ms (FOSC/4, 1:64, Roll over) avec interruption */
 export function tp62Config(): MccConfig {
-  const P = INFO3.tp6.fastSystem
-  let c = updateAdcc({ ...tp61Config(), system: { ...defaultMccConfig().system, hfMHz: P.hfMHz } }, { interrupt: true, divider: P.adcDivider })
-  c = updateTimer(addTimer(c, 'TMR2'), 'TMR2', { clockSource: 'FOSC/4', prescaler: P.prescaler, postscaler: P.postscaler, interrupt: true, periodS: INFO3.tp6.acqPeriodS / P.postscaler })
-  return c
+  const c = updateAdcc(tp61Config(), { interrupt: true })
+  return updateTimer(addTimer(c, 'TMR2'), 'TMR2', { clockSource: 'FOSC/4', prescaler: 64, postscaler: 1, interrupt: true, periodS: INFO3.tp6.acqPeriodS })
 }
 
 /** TP6 §3 : MSSP1 en SPI maître mode 0 (FOSC/4) sur le bus du mikroBUS, LOAD (CS du mikroBUS 1, RA3) en sortie, Start High */

@@ -35,6 +35,37 @@ describe('professeur virtuel TP6 (test 12)', () => {
   })
 })
 
+describe('TP6 §2 à 4 MHz : Y enchaînée dans l’IT de fin de X (R1, étape 7)', () => {
+  it('solution de référence à Fosc = 4 MHz validée ; délai fin X → départ Y mesuré (information)', async () => {
+    expect(tp62Config().system.hfMHz).toBe(4)
+    const v = grade('tp6-2')
+    expect(v, v.messages.join(' | ')).toMatchObject({ ok: true })
+    const { compile } = await import('../compiler')
+    const { Vm } = await import('../vm/vm')
+    const r = compile(files('tp6-2'))
+    const vm = new Vm()
+    vm.load(r.program!)
+    vm.runFor({ ms: 200 })
+    const xs = vm.adcLog.filter((c) => c.ch === 0x1d)
+    const gaps = xs.map((x) => vm.adcLog.find((c) => c.ch === 0x1e && c.t0 >= x.t1)).map((y, i) => (y ? vm.toS(y.t0 - xs[i].t1) : NaN)).filter((g) => !Number.isNaN(g))
+    const us = gaps.map((g) => g * 1e6)
+    console.info(`TP6 §2 à 4 MHz : délai fin X → départ Y = ${Math.min(...us).toFixed(1)} à ${Math.max(...us).toFixed(1)} µs`)
+    expect(gaps.length).toBeGreaterThan(5)
+  })
+  it('Y lancée depuis main (scrutation d’un drapeau) : refusée, « conversion Y non enchaînée dans l’interruption de fin de conversion »', () => {
+    const polled = SOLUTIONS['tp6/q2']
+      .replace('volatile uint8_t pret = 0;', 'volatile uint8_t pret = 0;\nvolatile uint8_t finX = 0;')
+      .replace('        ADCC_StartConversion(JOY_VERT);   // Y tout de suite\n        voie = 1;\n        JoyX = ADCC_GetConversionResult();', '        voie = 1;\n        JoyX = ADCC_GetConversionResult();\n        finX = 1;')
+      .replace('        printf("X=%d Y=%d\\r\\n", Joy_Cal_X(x), Joy_Cal_Y(y));\n\n        for (n = 0; n < 10; n++)\n        {\n            __delay_ms(98);\n        }', '        printf("X=%d Y=%d\\r\\n", Joy_Cal_X(x), Joy_Cal_Y(y));\n\n        for (n = 0; n < 98; n++)\n        {\n            if (finX) { finX = 0; ADCC_StartConversion(JOY_VERT); }\n            __delay_ms(10);\n        }')
+      .replace('    while (!pret)\n    {\n    }', '    while (!pret)\n    {\n        if (finX) { finX = 0; ADCC_StartConversion(JOY_VERT); }\n    }')
+    expect(polled).toContain('if (finX)')
+    expect(polled).not.toContain('// Y tout de suite')
+    const v = grade('tp6-2', polled)
+    expect(v.ok).toBe(false)
+    expect(v.messages.join(' ')).toContain('conversion Y non enchaînée dans l’interruption de fin de conversion')
+  })
+})
+
 describe('refus attendus', () => {
   it('tp6-1-1 avec un pourcentage calculé sur 16 bits : « dépassement sur 16 bits »', () => {
     const v = grade('tp6-1-1', SOLUTIONS['tp6/q1_1'].replaceAll('(uint16_t)((uint32_t)pot * 100 / 1023)', '(uint16_t)(pot * 100 / 1023)'))
