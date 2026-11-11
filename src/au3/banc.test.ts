@@ -79,3 +79,14 @@ describe('établi : verrouillage sous tension et « Faire vérifier »', () => {
     expect(on.session.fautes.map((f) => f.type)).toEqual(['autoscale'])
   })
 })
+
+describe('câbles : zone d’exclusion du panneau de l’oscilloscope', () => {
+  it('un câble qui traverserait le panneau le contourne (par-dessus ou par-dessous)', async () => {
+    const { eviteZones, cheminCable } = await import('./ui/cables')
+    const panneau = { left: 500, top: 100, right: 730, bottom: 600 }
+    const a = { x: 100, y: 80 }
+    const b = { x: 900, y: 300 }
+    expect(cheminCable(a, b)).not.toBe(cheminCable(a, b, [panneau]))
+    expect(eviteZones(a, b, [panneau])).toBe(true)
+  })
+})

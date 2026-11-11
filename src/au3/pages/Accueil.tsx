@@ -45,7 +45,7 @@ export default function Accueil() {
                 <p className="text-xs text-au3-muted">{t.tp.toUpperCase()}</p>
                 <p className="font-semibold">{t.titre}</p>
                 <p className="text-xs text-au3-muted">
-                  {t.note} · questions à venir
+                  {t.note} · {t.tp === 'tp1' ? 'disponible' : 'questions à venir'}
                   {t.tp === 'tp4' && <BadgeNonVerifie cles={['TAU_A']} />}
                 </p>
               </Link>
@@ -76,7 +76,22 @@ export default function Accueil() {
                         <span className="min-w-0 flex-1 text-sm">{a.texte}</span>
                         <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ring-1 ${ETAT[c.etat].cls}`}>{ETAT[c.etat].label}</span>
                       </div>
-                      <p className="mt-1 text-xs text-au3-muted">{c.questions.length ? c.questions.map((q) => q.numero).join(' · ') : '—'}</p>
+                      <p className="mt-1 text-xs text-au3-muted">
+                        {c.questions.length
+                          ? c.questions.map((q, i) => (
+                              <span key={q.id}>
+                                {i > 0 && ' · '}
+                                {q.statut === 'disponible' ? (
+                                  <Link to={`/au3/${q.tp}#${q.id}`} className="underline hover:text-au3-accent">
+                                    {q.numero}
+                                  </Link>
+                                ) : (
+                                  q.numero
+                                )}
+                              </span>
+                            ))
+                          : '—'}
+                      </p>
                     </li>
                   )
                 })}

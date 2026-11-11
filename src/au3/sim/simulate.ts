@@ -1,5 +1,5 @@
 import { au3 } from '../../data/reference'
-import { tensionGbf, type ReglagesGbf } from '../instruments/gbf'
+import { generateurGbf, type ReglagesGbf } from '../instruments/gbf'
 import { reseaux, type Borne, type Cablage } from './cablage'
 import { gaussien, mulberry32 } from './prng'
 import { formeEtat, gainAffichage, transfertRegulateur, type Impedance } from './regulateur'
@@ -26,6 +26,8 @@ export interface Banc {
   flottant: number
   secteurHz: number
   bouteille: number
+  /** Réduction relative du palier bas du GBF relié à la platine éteinte */
+  dissymetrieGbf: number
 }
 
 export const BANC_REEL: Banc = {
@@ -47,10 +49,20 @@ export const BANC_REEL: Banc = {
   flottant: au3('FLOTTANT_AMPLITUDE'),
   secteurHz: au3('SECTEUR_HZ'),
   bouteille: au3('BOUTEILLE'),
+  dissymetrieGbf: au3('GBF_DISSYMETRIE'),
 }
+
+/**
+ * Ampli de courant (TP1, remarque après « Mettre sous tension », hypothèse AMPLI_BLOQUE) :
+ * bloqué = sortie collée à +USAT (le moteur tourne toujours dans le même sens) ou à 0 V (il ne tourne pas),
+ * quelle que soit l'entrée ; réamorcé = rallumé avec l'entrée à la masse : il fonctionne, mais se rebloque
+ * s'il est rallumé avec le GBF sur son entrée, tant que la masse n'a pas été remplacée par le GBF sous tension.
+ */
+export type EtatAmpli = 'normal' | 'bloque-haut' | 'bloque-zero' | 'reamorce-haut' | 'reamorce-zero'
 
 export interface ReglagesPlatine {
   sousTension: boolean
+  ampli: EtatAmpli
   /** Affichage G1 (00 à 99) */
   g1: number
   g2: number
@@ -112,6 +124,8 @@ export interface AnalyseTopologie {
   lecteur: (b: Borne) => Lecteur
   moteurBranche: boolean
   regulateurEnChaine: boolean
+  /** Le GBF est relié à une borne de la platine (son carré est faussé quand elle est éteinte) */
+  gbfSurPlatine: boolean
   topologie: Topologie
   defauts: Evenement[]
 }
@@ -154,6 +168,7 @@ export function analyserTopologie(cablage: Cablage): AnalyseTopologie {
     lecteur: (b) => ({ source: source(b), charge: moteurBranche && (r.de(b) === nr || r.de(b) === nn), isole: r.membres[r.de(b)]!.length === 1 && r.degre(b) === 0 }),
     moteurBranche,
     regulateurEnChaine,
+    gbfSurPlatine: r.membres[r.de('gbf.out')]!.some((b) => b.startsWith('plat.')),
     topologie,
     defauts,
   }
@@ -201,9 +216,11 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
 
   const alea = mulberry32(graine)
   const gauss = gaussien(alea)
-  const phiSecteur = 2 * Math.PI * alea()
-  let phiOnd = 2 * Math.PI * alea()
   const deuxPi = 2 * Math.PI
+  const phiSecteur = deuxPi * alea()
+  let phiOnd = deuxPi * alea()
+  const wSecteur = deuxPi * banc.secteurHz
+  const kOnd = deuxPi * banc.ondulationHzParV * pas
 
   const L = {
     consigne: topo.lecteur('plat.consigne'),
@@ -216,6 +233,13 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
   const limiteAmpli = banc.imaxAmpli * banc.rInduit
   const limiteG2 = banc.imaxG2 * banc.rInduit
   const diviseurGbf = banc.rInduit / (banc.rInduit + banc.zGbf)
+  const gbf = generateurGbf(reglages.gbf)
+  // Platine éteinte : le GBF qui lui est relié donne un carré dissymétrique (palier bas réduit)
+  const basGbf = !on && topo.gbfSurPlatine ? 1 - banc.dissymetrieGbf : 1
+  const ampliColle = !on ? null : p.ampli === 'bloque-haut' ? usat : p.ampli === 'bloque-zero' ? 0 : null
+  const regulateur = on && h !== null
+  const enBoucle = L.mesure.source === 'dt+' || L.mesure.source === 'dt-'
+  const bouteilleT = reglages.bouteilleT ?? Infinity
 
   let x1 = 0
   let m = 0
@@ -226,8 +250,11 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
   let ampli = 0
   let vg = 0
   let mMes = 0
-  let flottant = 0
   let sature = false
+  let t = 0
+
+  /** Mesure de la DT : vitesse + bruit gaussien + ondulation de commutation (tirée seulement quand on la lit) */
+  const mesurerDt = () => m + (sigma ? sigma * gauss() : 0) + banc.ondulation * Math.abs(m) * Math.sin(phiOnd)
 
   const lire = (l: Lecteur): number => {
     switch (l.source) {
@@ -250,20 +277,21 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
       case 'dt-':
         return -mMes
       case 'aucune':
-        return l.isole ? 0 : flottant
+        return l.isole ? 0 : banc.flottant * Math.sin(wSecteur * t + phiSecteur)
     }
   }
 
   for (let i = 0; i <= n; i++) {
-    const t = i * pas
-    vg = tensionGbf(reglages.gbf, t)
-    flottant = banc.flottant * Math.sin(deuxPi * banc.secteurHz * t + phiSecteur)
-    mMes = m + (sigma ? sigma * gauss() : 0) + banc.ondulation * Math.abs(m) * Math.sin(phiOnd)
+    t = i * pas
+    const sortie = i % decim === 0
+    vg = gbf(t)
+    if (vg < 0) vg *= basGbf
+    if (enBoucle || sortie) mMes = mesurerDt()
 
     // Platine : régulateur (sortie G2 bornée, intégrateur sans anti-emballement), borne Erreur, ampli de courant
     const c = lire(L.consigne)
-    const e = c - lire(L.mesure)
-    if (on && h) {
+    if (regulateur) {
+      const e = c - lire(L.mesure)
       const y = K * (D * e + xi)
       g2 = borne(y, usat)
       if (!sature && Math.abs(y) >= usat) {
@@ -272,19 +300,14 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
       }
       xi += pas * (A * xi + B * e)
       erreur = borne(e, usat)
-    } else {
-      g2 = 0
-      xi = 0
-      erreur = 0
     }
-    ampli = on ? banc.gainAmpli * lire(L.ampliIn) : 0
+    ampli = !on ? 0 : (ampliColle ?? banc.gainAmpli * lire(L.ampliIn))
 
     // Moteur + DT
     const u = topo.moteurBranche ? lire(L.rouge) - lire(L.noir) : 0
     if (!(arret && Math.abs(u) < uf)) {
       const s = topo.regulateurEnChaine ? Math.sign(c) : Math.sign(u)
-      const ub = reglages.bouteilleT !== undefined && t >= reglages.bouteilleT ? banc.bouteille : 0
-      const ueff = u - uf * s - ub
+      const ueff = u - uf * s - (t >= bouteilleT ? banc.bouteille : 0)
       const nx1 = x1 + (pas / tauA) * (g0r * ueff - x1)
       const nm = m + (pas / tauB) * (x1 - m)
       // Frottement sec : si la commande est dans la zone morte et que la vitesse repasse par zéro, le moteur s'arrête
@@ -292,15 +315,31 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
       x1 = arret ? 0 : nx1
       m = arret ? 0 : nm
     }
-    phiOnd += deuxPi * banc.ondulationHzParV * Math.abs(m) * pas
+    phiOnd += kOnd * Math.abs(m)
 
-    if (i % decim === 0) {
+    if (sortie) {
       const k = i / decim
       out.t[k] = t
       out.vitesse[k] = m
       out.commande[k] = g2
-      osc.forEach((l, j) => (voies[j]![k] = lire(l)))
+      for (let j = 0; j < osc.length; j++) voies[j]![k] = lire(osc[j]!)
     }
   }
   return { ...out, evenements, topologie: topo.topologie }
+}
+
+/**
+ * Vitesse affichée par l'animation du moteur, en fraction de la pleine échelle G0r·USAT : moyenne de |m|
+ * sur la dernière période simulée (sans bruit), ramenée à 0 sous le seuil VITESSE_ARRET (moteur arrêté).
+ */
+export function vitesseAffichee(banc: Banc, reglages: Omit<ReglagesSim, 'duree' | 'pasSortie'>, cablage: Cablage): number {
+  const periode = reglages.gbf.forme === 'continu' || reglages.gbf.frequence <= 0 ? banc.tauA : 1 / reglages.gbf.frequence
+  const tours = au3('PERIODES_CHAUFFE') + 1
+  const pasSortie = banc.pas * Math.max(1, Math.round(periode / au3('OSC_POINTS') / banc.pas))
+  const r = simulate({ ...banc, bruit: 0, ondulation: 0 }, { ...reglages, duree: tours * periode, pasSortie }, cablage, 0)
+  const debut = Math.floor((r.t.length * (tours - 1)) / tours)
+  let somme = 0
+  for (let i = debut; i < r.t.length; i++) somme += Math.abs(r.vitesse[i]!)
+  const v = somme / Math.max(1, r.t.length - debut) / (banc.g0r * banc.usat)
+  return v < au3('VITESSE_ARRET') ? 0 : Math.min(1, v)
 }

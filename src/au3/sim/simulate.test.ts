@@ -23,7 +23,7 @@ const SANS_BRUIT: Banc = { ...BANC_REEL, bruit: 0, ondulation: 0 }
 
 const reglagesTp1 = (vpp: number, pasSortie = BANC_REEL.pas): ReglagesSim => ({
   gbf: { ...GBF_DEFAUT, forme: 'carre', frequence: F, vpp, offset: 0 },
-  platine: { sousTension: true, g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null },
+  platine: { sousTension: true, ampli: 'normal', g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null },
   // départ à l'arrêt : 1re période de mise en régime, front montant établi à t = T, palier haut jusqu'à 1,5 T
   duree: 1.5 * T,
   pasSortie,
@@ -103,7 +103,7 @@ describe('bruit à graine (mulberry32)', () => {
 describe('défauts de câblage', () => {
   const k38: ReglagesSim = {
     gbf: { ...GBF_DEFAUT, forme: 'carre', frequence: au3('TP2_GBF_FREQ'), vpp: au3('TP2_K38_GBF_VPP'), offset: 0 },
-    platine: { sousTension: true, g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null },
+    platine: { sousTension: true, ampli: 'normal', g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null },
     duree: 1 / au3('TP2_GBF_FREQ'),
     pasSortie: BANC_REEL.pas * 10,
   }

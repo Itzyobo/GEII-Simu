@@ -1,4 +1,4 @@
-import { AU3_INSTRUMENTS } from '../../data/reference'
+import { MISE_EN_PAGE } from '../miseEnPage'
 
 /**
  * Câblage = graphe de bornes nommées. Seules les liaisons que l'étudiant fait au labo sont des câbles ;
@@ -64,7 +64,7 @@ export const MONTAGE_TP1: readonly Liaison[] = [
 export const MONTAGES = { tp1: { titre: 'TP1 — boucle ouverte', liaisons: MONTAGE_TP1 } } as const
 export type MontageId = keyof typeof MONTAGES
 
-const [NOIR, ROUGE, VERT, JAUNE] = AU3_INSTRUMENTS.cable.couleurs
+const [NOIR, ROUGE, VERT, JAUNE] = MISE_EN_PAGE.cable.couleurs
 
 /** Préréglage « câblage TP1 » : un câble par liaison de l'énoncé, masses en noir */
 export const PRESET_TP1: Cablage = [

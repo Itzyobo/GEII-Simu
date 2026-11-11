@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
-import { AU3_INSTRUMENTS } from '../../data/reference'
+import { au3, AU3_LISTES } from '../../data/reference'
+import { MISE_EN_PAGE } from '../miseEnPage'
 import {
   acquerir,
   exporterCsv,
   HAUTEUR_PX,
   LARGEUR_PX,
   lireCurseurs,
+  MESURE_IMAGE,
   mesurer,
   moyenner,
   NB_VOIES,
@@ -25,7 +27,7 @@ import { Borne } from './Borne'
 import { formatSi } from './format'
 import type { PropsBornes } from './types'
 
-const O = AU3_INSTRUMENTS.oscillo
+const O = MISE_EN_PAGE.oscillo
 const PX = O.pxParDiv
 type CurseurId = 'x1' | 'x2' | 'y1' | 'y2'
 const SONDES: IdBorne[] = ['osc.v1', 'osc.v2', 'osc.v3', 'osc.v4']
@@ -41,35 +43,42 @@ export interface PropsOscillo {
   periode: number | null
   pasEuler: number
   bornes: PropsBornes
+  /** Appelé à chaque nouvel enregistrement affiché (export .csv du TP) */
+  onEnregistrement?: (rec: Enregistrement | null) => void
 }
+
 
 const fmtV = (v: number) => formatSi(v, 'V')
 const fmtS = (v: number) => formatSi(v, 's')
 
 /** Oscilloscope Keysight DSOX2004A : écran 10 × 8 divisions, 4 voies, déclenchement, moyennage, curseurs, mesures, Run/Stop, .csv */
-export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale, simuler, periode, pasEuler, bornes }: PropsOscillo) {
+export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale, simuler, periode, pasEuler, bornes, onEnregistrement }: PropsOscillo) {
   const [rec, setRec] = useState<Enregistrement | null>(null)
   const [actif, setActif] = useState<CurseurId>('x1')
   const [voieMesure, setVoieMesure] = useState(1)
   const tampon = useRef<Enregistrement[]>([])
-  const graine = useRef<number>(AU3_INSTRUMENTS.ui.graineInitiale)
+  const graine = useRef<number>(MISE_EN_PAGE.ui.graineInitiale)
 
   // Acquisition en Run : une nouvelle acquisition par rafraîchissement ; moyennage glissant sur les N dernières
   useEffect(() => {
     tampon.current = []
     if (!osc.run) return
     const une = () => {
+      const debut = performance.now()
       const g = graine.current++
       const plan = planAcquisition(osc, periode, pasEuler)
       const r = acquerir(osc, simuler(g, plan), plan, mulberry32(g)())
       if (!r) return
       tampon.current = [...tampon.current, r].slice(-osc.moyennage)
       setRec(moyenner(tampon.current))
+      performance.measure(MESURE_IMAGE, { start: debut })
     }
     une()
     const id = setInterval(une, O.rafraichissementMs)
     return () => clearInterval(id)
   }, [osc, simuler, periode, pasEuler])
+
+  useEffect(() => onEnregistrement?.(rec), [rec, onEnregistrement])
 
   const lecture = lireCurseurs(curseurs, osc, rec)
   const mesures = mesurer(rec, voieMesure)
@@ -136,9 +145,10 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             width={LARGEUR_PX}
             height={HAUTEUR_PX}
             viewBox={`0 0 ${LARGEUR_PX} ${HAUTEUR_PX}`}
-            className="block touch-none bg-black font-mono"
+            className="relative z-10 block touch-none bg-black font-mono"
             role="img"
             aria-label="Écran de l’oscilloscope"
+            data-exclusion="ecran-oscilloscope"
             onPointerDown={pointer}
             onPointerMove={pointer}
           >
@@ -147,11 +157,11 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
                 <rect width={LARGEUR_PX} height={HAUTEUR_PX} />
               </clipPath>
             </defs>
-            {Array.from({ length: O.divX + 1 }, (_, i) => (
-              <line key={`gx${i}`} x1={i * PX} x2={i * PX} y1={0} y2={HAUTEUR_PX} stroke="#3a3a3a" strokeDasharray={i * 2 === O.divX ? undefined : '1 4'} />
+            {Array.from({ length: au3('OSC_DIV_X') + 1 }, (_, i) => (
+              <line key={`gx${i}`} x1={i * PX} x2={i * PX} y1={0} y2={HAUTEUR_PX} stroke="#3a3a3a" strokeDasharray={i * 2 === au3('OSC_DIV_X') ? undefined : '1 4'} />
             ))}
-            {Array.from({ length: O.divY + 1 }, (_, i) => (
-              <line key={`gy${i}`} x1={0} x2={LARGEUR_PX} y1={i * PX} y2={i * PX} stroke="#3a3a3a" strokeDasharray={i * 2 === O.divY ? undefined : '1 4'} />
+            {Array.from({ length: au3('OSC_DIV_Y') + 1 }, (_, i) => (
+              <line key={`gy${i}`} x1={0} x2={LARGEUR_PX} y1={i * PX} y2={i * PX} stroke="#3a3a3a" strokeDasharray={i * 2 === au3('OSC_DIV_Y') ? undefined : '1 4'} />
             ))}
             <g clipPath="url(#au3-ecran)">{osc.voies.map((_, j) => trace(j))}</g>
             {/* Repères : instant du déclenchement (T), 0 V de chaque voie */}
@@ -188,7 +198,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
         </div>
 
         {/* Colonne de droite : Acquisition, Voies, Déclenchement, Curseurs, Mesures */}
-        <div className="w-56 space-y-1.5 text-[11px] text-[#e3e6ea]">
+        <div data-exclusion="commandes-oscilloscope" className="relative z-10 w-56 space-y-1.5 rounded bg-[#3b3f46] text-[11px] text-[#e3e6ea]">
           <div className="flex gap-1">
             <button type="button" onClick={() => onOsc({ run: !osc.run })} className={`flex-1 rounded px-2 py-1 font-semibold ${osc.run ? 'bg-[#2e7d32]' : 'bg-[#c62828]'}`}>
               {osc.run ? 'Run → Stop' : 'Stop → Run'}
@@ -206,7 +216,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             <label className="flex items-center justify-between">
               s/div
               <select value={osc.sdiv} onChange={(e) => onOsc({ sdiv: Number(e.target.value) })} className="rounded bg-[#222] px-1">
-                {O.calibresS.map((s) => (
+                {AU3_LISTES.CALIBRES_S.valeurs.map((s) => (
                   <option key={s} value={s}>
                     {fmtS(s)}
                   </option>
@@ -216,7 +226,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             <label className="mt-1 flex items-center justify-between">
               Moyennage
               <select value={osc.moyennage} onChange={(e) => onOsc({ moyennage: Number(e.target.value) })} className="rounded bg-[#222] px-1">
-                {O.moyennages.map((n) => (
+                {AU3_LISTES.MOYENNAGES.valeurs.map((n) => (
                   <option key={n} value={n}>
                     {n === 1 ? 'Normal' : `Moyenne ${n}`}
                   </option>
@@ -234,7 +244,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
                   {j + 1}
                 </label>
                 <select value={v.vdiv} onChange={(e) => setVoie(j, { vdiv: Number(e.target.value) })} className="w-[4.6rem] rounded bg-[#222] px-0.5" aria-label={`Calibre voie ${j + 1}`}>
-                  {O.calibresV.map((c) => (
+                  {AU3_LISTES.CALIBRES_V.valeurs.map((c) => (
                     <option key={c} value={c}>
                       {fmtV(c)}
                     </option>

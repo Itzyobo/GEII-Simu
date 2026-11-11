@@ -17,10 +17,11 @@ const TOLERES = new Set([0, 1, 2])
 /**
  * Liste blanche explicite :
  * - prng.ts : constantes de l'algorithme mulberry32 (pas des valeurs de modèle ni de réglage) ;
+ * - miseEnPage.ts : pixels, couleurs, pas des boutons (pas des paramètres de modèle, correction 4 de l'étape 2) ;
  * - index de tableau `x[3]` (accès par position) ;
  * - les classes Tailwind et les attributs SVG de présentation sont des chaînes : jamais des NumericLiteral.
  */
-const FICHIERS_BLANCS = new Set(['/src/au3/sim/prng.ts'])
+const FICHIERS_BLANCS = new Set(['/src/au3/sim/prng.ts', '/src/au3/miseEnPage.ts'])
 
 function litterauxInterdits(chemin: string, texte: string): string[] {
   const src = ts.createSourceFile(chemin, texte, ts.ScriptTarget.Latest, true, chemin.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
@@ -73,15 +74,15 @@ describe('13. attendus officiels et intitulés', () => {
     for (const a of AU3_ATTENDUS) expect(ENONCE, a.texte).toContain(normaliser(a.texte))
   })
 
-  it('les attendus du TP3 sont « non couverts », tous les autres sont reliés à des questions', () => {
-    for (const a of AU3_ATTENDUS) expect(couverture(a).etat, a.id).toBe(a.tp === 'tp3' ? 'non-couvert' : 'a-venir')
+  it('TP3 « non couvert », TP1 couvert (étape 2), TP2 et TP4 reliés à des questions à venir', () => {
+    for (const a of AU3_ATTENDUS) expect(couverture(a).etat, a.id).toBe(a.tp === 'tp3' ? 'non-couvert' : a.tp === 'tp1' ? 'couvert' : 'a-venir')
   })
 
   it('chaque question a une ancre dans l’énoncé et reprend son intitulé exact', () => {
     for (const q of AU3_QUESTIONS) {
       expect(enonce, q.id).toContain(`<a id="${q.id}"></a>`)
       expect(ENONCE, q.id).toContain(normaliser(q.intitule))
-      expect(q.statut).toBe('a-venir')
+      expect(q.statut).toBe(q.tp === 'tp1' ? 'disponible' : 'a-venir')
       for (const id of q.attendus) expect(AU3_ATTENDUS.map((a) => a.id)).toContain(id)
     }
     expect(new Set(AU3_QUESTIONS.map((q) => q.id)).size).toBe(AU3_QUESTIONS.length)

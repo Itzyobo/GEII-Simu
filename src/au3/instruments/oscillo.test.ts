@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { au3, AU3_INSTRUMENTS } from '../../data/reference'
+import { au3 } from '../../data/reference'
+import { MISE_EN_PAGE } from '../miseEnPage'
 import { sessionNeuve } from '../session'
 import { PRESET_TP1 } from '../sim/cablage'
-import { BANC_REEL, simulate, type Banc } from '../sim/simulate'
+import { BANC_REEL, simulate, type Banc, type ReglagesPlatine } from '../sim/simulate'
 import { GBF_DEFAUT, periodeGbf } from './gbf'
 import {
   acquerir,
@@ -21,7 +22,7 @@ import {
   type ReglagesOscillo,
 } from './oscillo'
 
-const O = AU3_INSTRUMENTS.oscillo
+const O = { divX: au3('OSC_DIV_X'), divY: au3('OSC_DIV_Y'), refGaucheDiv: au3('OSC_REF_GAUCHE_DIV'), points: au3('OSC_POINTS'), pxParDiv: MISE_EN_PAGE.oscillo.pxParDiv }
 // Tolérances du PRD : ne jamais les élargir
 const TOL_MOYENNAGE = 0.1
 const TOL_CONVERSION = 0.005
@@ -29,7 +30,7 @@ const TOL_QUANTIF = 0.01
 const TOL_CSV = 1e-7
 
 const gbfTp1 = { ...GBF_DEFAUT, forme: 'carre' as const, frequence: au3('TP1_GBF_FREQ'), vpp: au3('CR_TP1_DU'), offset: 0 }
-const platine = { sousTension: true, g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null }
+const platine: ReglagesPlatine = { sousTension: true, ampli: 'normal', g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null }
 
 /** Une acquisition complète du TP1 (simulation + oscilloscope) pour une graine */
 function acquisition(osc: ReglagesOscillo, banc: Banc, graine: number): Enregistrement {

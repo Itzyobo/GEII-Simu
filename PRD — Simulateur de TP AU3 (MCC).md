@@ -143,6 +143,8 @@ L'énoncé annonce zb ≈ 0,7 avec K = 25,8. Le modèle prédit plutôt un dépa
 7. Toutes les valeurs du TP4 (aucune mesure).
 8. TP2 : erreurs de manip (DT inversée, ampli oublié) simulées avec le même modèle, sans mesure réelle.
 
+Règle du badge : une question affiche « valeur non vérifiée » si sa réponse attendue dépend d'une hypothèse ET n'est pas validée par un test contre une valeur du CR dans sa tolérance. Exemple : τ du TP1 est validé (12,09 ms contre 11,8 ms, +2,5 %), donc pas de badge ; TR5% du TP1 ne l'est pas (−7 %), donc badge et écart affiché. Ajout après l'étape 1 : R\_INDUIT = 12 Ω, ONDULATION\_HZ\_PAR\_V = 200 Hz/V, entrée en l'air 50 Hz / 0,2 V, limites du GBF, 1 période de chauffe, blocage de l'ampli de courant (TP1), dissymétrie du GBF platine éteinte — toutes hypothèses.
+
 ## 4. Modèles de simulation
 
 Un seul moteur de simulation temporelle pour les 3 TP : une fonction pure simulate(banc, réglages, câblage, graine) qui renvoie les 4 voies de l'oscilloscope échantillonnées. Elle n'a pas d'état caché. Le bruit vient d'un générateur pseudo-aléatoire à graine fixe, pour que les tests soient reproductibles.
@@ -197,7 +199,7 @@ Sortie G2 bornée à ±10,6 V. L'intégrateur du PI continue pendant la saturati
 | Trigger en mode Auto ou seuil hors du signal | Trace qui défile, pas de mesure possible |
 | Bouton Autoscale | Autorisé mais compté comme faute (« NE JAMAIS APPUYER SUR AUTOSCALE ») |
 | TP4 : R2 sur Z1, ou C2 en parallèle avec R2 | Autre régulateur calculé depuis les impédances réelles : erreur statique non nulle, ou réponse différente |
-| Modifier un câble sous tension | Bloqué, avec message ; pénalité en mode examen |
+| Modifier un câble sous tension | Bloqué, avec message ; pénalité en mode examen. Seule exception, prévue par l'énoncé (TP1, remarque après « Mettre sous tension ») : remplacer la masse par le GBF sur l'entrée de l'ampli de courant, sans éteindre la platine, uniquement quand l'ampli est bloqué |
 
 ## 5. Direction visuelle
 

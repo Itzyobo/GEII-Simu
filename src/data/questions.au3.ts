@@ -3,7 +3,11 @@ import type { RefKey } from './reference'
 /**
  * AU3 : attendus officiels (« A la fin du TPx, vous devez savoir », copiés mot pour mot de docs/au3/enonce.md)
  * et catalogue des questions. L'id d'une question est l'ancre <a id="…"> de l'énoncé ; son intitulé est le
- * texte exact de l'énoncé. Aucune logique de correction à l'étape 1 : statut « à venir ».
+ * texte exact de l'énoncé. TP1 disponible (étape 2) ; TP2 et TP4 « à venir ».
+ *
+ * Règle du badge (PRD §3.4) : « valeur non vérifiée » si la réponse attendue dépend d'une hypothèse (`cles`)
+ * ET n'est pas validée par un test contre une valeur du CR dans sa tolérance (`validee` : clés CR testées,
+ * voir src/au3/regles.test.ts).
  */
 
 export type TpAu3 = 'tp1' | 'tp2' | 'tp3' | 'tp4'
@@ -45,35 +49,47 @@ export interface QuestionAu3 {
   attendus: readonly string[]
   /** Clés de reference.ts dont dépend la réponse attendue (badge si l'une est une hypothèse) */
   cles: readonly RefKey[]
+  /** Clés CR (avec tolérance) contre lesquelles la réponse attendue du modèle est testée */
+  validee: readonly RefKey[]
   statut: StatutQuestion
 }
 
-const TP1_CR: RefKey[] = ['TP1_GBF_FREQ', 'TP1_GBF_VPP', 'CR_TP1_DU', 'CR_TP1_DM']
+/** TP1 : les réponses attendues viennent du modèle (hypothèses H1 à H3) */
+const TP1: RefKey[] = ['TP1_GBF_FREQ', 'TP1_GBF_VPP', 'G0R', 'UF', 'TAU_A', 'TAU_B']
+/** La forme d'ordre 2 de la courbe (tangente horizontale) est attestée par t1 et t3 du CR */
+const FORME: RefKey[] = ['CR_TP1_T1', 'CR_TP1_T3']
 const TP2_K38: RefKey[] = ['TP2_GBF_FREQ', 'TP2_K38_GBF_VPP', 'TP2_K38_G1', 'TP2_K38_G2', 'CR_TP2K38_C0', 'CR_TP2K38_DM']
 const TP2_K40: RefKey[] = ['TP2_GBF_FREQ', 'TP2_K40_GBF_VPP', 'TP2_K40_G1', 'TP2_K40_G2', 'CR_TP2K40_C0', 'CR_TP2K40_DM']
 /** TP4 : aucune mesure, tout vient du modèle extrapolé (hypothèses H1 à H3, H6, H7) */
 const TP4_MODELE: RefKey[] = ['TP4_GBF_FREQ', 'TP4_GBF_VPP', 'TP4_G1', 'TP4_G2', 'R1', 'R2', 'C2', 'G0R', 'UF', 'TAU_A', 'TAU_B']
 const TP4_BOUTEILLE: RefKey[] = [...TP4_MODELE, 'BOUTEILLE', 'TP4_BOUTEILLE_T']
 
-const q = (id: string, tp: TpAu3, numero: string, intitule: string, attendus: string[], cles: RefKey[]): QuestionAu3 => ({ id, tp, numero, intitule, attendus, cles, statut: 'a-venir' })
+const q = (id: string, tp: TpAu3, numero: string, intitule: string, attendus: string[], cles: RefKey[]): QuestionAu3 => ({ id, tp, numero, intitule, attendus, cles, validee: [], statut: 'a-venir' })
+const q1 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], validee: RefKey[] = []): QuestionAu3 => ({ id, tp: 'tp1', numero, intitule, attendus, cles, validee, statut: 'disponible' })
 
 export const AU3_QUESTIONS: readonly QuestionAu3[] = [
-  /* ───────────── TP1 ───────────── */
-  q('tp1-cablage', 'tp1', 'Câblage', 'Câblages à réaliser (platine éteinte) :', ['tp1-a1'], ['TP1_GBF_FREQ', 'TP1_GBF_VPP']),
-  q('tp1-i21-q1', 'tp1', 'I.2.1 Q1', 'Mesurez m(∞) (ΔY sur la courbe verte),', ['tp1-a1', 'tp1-a3'], TP1_CR),
-  q('tp1-i21-q2', 'tp1', 'I.2.1 Q2', 'Mesurez U0, amplitude crête-à-crête de la variation du signal d’alimentation carré (ΔY sur la courbe jaune),', ['tp1-a1', 'tp1-a3'], [...TP1_CR, 'CR_TP1_G0']),
-  q('tp1-i21-q3', 'tp1', 'I.2.1 Q3', 'Mesurez τ (ΔX sur la courbe verte),', ['tp1-a1', 'tp1-a3'], [...TP1_CR, 'CR_TP1_TAU']),
-  q('tp1-i21-q4', 'tp1', 'I.2.1 Q4', 'Mesurez le temps de réponse à 5%, TR5%, en donnant tous les petits calculs nécessaires (0,95*m(∞), …).', ['tp1-a1'], [...TP1_CR, 'CR_TP1_TR5']),
-  q('tp1-i22-q1', 'tp1', 'I.2.2 Q1', 'Le gain statique du système, G0, a déjà été déterminé en I.2.1. Redonnez-le.', ['tp1-a3'], [...TP1_CR, 'CR_TP1_G0']),
-  q('tp1-i22-q2', 'tp1', 'I.2.2 Q2', 'Pour déterminer la valeur de z, mesurez sur l’oscilloscope les temps t1 et t3 pour atteindre respectivement 26.4% et 80.1% de la valeur finale m(∞).', ['tp1-a1', 'tp1-a3'], [...TP1_CR, 'CR_TP1_T1', 'CR_TP1_T3', 'CR_TP1_Z']),
-  q('tp1-i22-q3', 'tp1', 'I.2.2 Q3', 'z étant estimé, mettez une croix au point de la courbe ωnt3 qui a comme abscisse z. La valeur de ωn est l’ordonnée de ce point divisée par t3, en secondes.', ['tp1-a3'], [...TP1_CR, 'CR_TP1_WN']),
-  q('tp1-i22-q4', 'tp1', 'I.2.2 Q4', 'Le TR5%, a déjà été déterminé en I.2.1. Redonnez-le.', ['tp1-a1'], [...TP1_CR, 'CR_TP1_TR5']),
-  q('tp1-i23-q11', 'tp1', 'I.2.3 Q11', 'Est-ce qu’un modèle d’ordre 1 représente bien le comportement du démarrage du moteur et la stabilisation de sa vitesse ?', ['tp1-a2', 'tp1-a4'], TP1_CR),
-  q('tp1-i23-q12', 'tp1', 'I.2.3 Q12', 'Est-ce que les paramètres G0 et τ du modèle optimisé par Matlab (donnés dans la « Command Window ») sont les mêmes que ceux que vous avez obtenus avec des mesures directement sur l’écran de l’oscilloscope question 1.2.1 ?', ['tp1-a4'], [...TP1_CR, 'CR_TP1_G0', 'CR_TP1_TAU']),
-  q('tp1-i23-o2-q1', 'tp1', 'I.2.3 ordre 2 Q1', 'Est-ce qu’un modèle d’ordre 2 représente bien le comportement du démarrage du moteur et la stabilisation de sa vitesse ?', ['tp1-a2', 'tp1-a4'], TP1_CR),
-  q('tp1-i23-o2-q2', 'tp1', 'I.2.3 ordre 2 Q2', 'Est-ce que les paramètres G0, z et ωn du modèle optimisé par Matlab (donnés dans le workspace) sont les mêmes que ceux que vous avez obtenus avec des mesures directement sur l’écran de l’oscilloscope question 1.2.2 ?', ['tp1-a4'], [...TP1_CR, 'CR_TP1_Z', 'CR_TP1_WN']),
-  q('tp1-conclusion', 'tp1', 'Conclusion', 'Conclure sur l’ordre le plus probable du système réel. Justifiez', ['tp1-a2'], TP1_CR),
-  q('tp1-deviner', 'tp1', 'Conclusion', 'Aurait-on pu le deviner dès que l’on a obtenu la réponse à un échelon ? Comment ?', ['tp1-a2'], TP1_CR),
+  /* ───────────── TP1 (ordre de l'énoncé) ───────────── */
+  q1('tp1-numeros', 'Préparation', 'Notez dans votre compte-rendu le n° du moteur et de la platine de régulation.', ['tp1-a1'], ['NUMERO_MOTEUR', 'NUMERO_POSTE']),
+  q1('tp1-reglages', 'Réglages', 'Réglez la tension de la sortie MAIN OUT (50 Ω) du GBF avec une forme périodique carrée de fréquence la plus près possible de 1,3 Hz et avec une variation d’amplitude la plus près possible de 12V sans offset (entre -6V et + 6V, Vpp ≈ 12V ) sur le GBF en l’observant sur l’oscilloscope.', ['tp1-a1'], ['TP1_GBF_FREQ', 'TP1_GBF_VPP', 'GBF_DISSYMETRIE']),
+  q1('tp1-cablage', 'Câblage', 'Câblages à réaliser (platine éteinte) :', ['tp1-a1'], ['TP1_GBF_FREQ', 'TP1_GBF_VPP']),
+  q1('tp1-sous-tension', 'Mise sous tension', 'Mettre sous tension la platine Régulateur', ['tp1-a1'], ['AMPLI_BLOQUE', 'GBF_DISSYMETRIE']),
+  q1('tp1-i21-q1', 'I.2.1 Q1', 'Mesurez m(∞) (ΔY sur la courbe verte),', ['tp1-a1', 'tp1-a3'], TP1, ['CR_TP1_DM']),
+  q1('tp1-i21-q2', 'I.2.1 Q2', 'Mesurez U0, amplitude crête-à-crête de la variation du signal d’alimentation carré (ΔY sur la courbe jaune),', ['tp1-a1', 'tp1-a3'], ['TP1_GBF_VPP', 'CR_TP1_DU']),
+  q1('tp1-i21-g0', 'I.2.1 G0', 'Calculez alors le gain statique du système,', ['tp1-a3'], TP1, ['CR_TP1_G0']),
+  q1('tp1-i21-q3', 'I.2.1 Q3', 'Mesurez τ (ΔX sur la courbe verte),', ['tp1-a1', 'tp1-a3'], TP1, ['CR_TP1_TAU']),
+  q1('tp1-i21-g1', 'I.2.1 G1(p)', 'Donner alors la fonction de transfert du 1ier ordre du système, G1(p).', ['tp1-a3'], TP1, ['CR_TP1_G0', 'CR_TP1_TAU']),
+  q1('tp1-i21-q4', 'I.2.1 Q4', 'Mesurez le temps de réponse à 5%, TR5%, en donnant tous les petits calculs nécessaires (0,95*m(∞), …).', ['tp1-a1'], [...TP1, 'CR_TP1_TR5']),
+  q1('tp1-i22-q1', 'I.2.2 Q1', 'Le gain statique du système, G0, a déjà été déterminé en I.2.1. Redonnez-le.', ['tp1-a3'], TP1, ['CR_TP1_G0']),
+  q1('tp1-i22-q2', 'I.2.2 Q2', 'Pour déterminer la valeur de z, mesurez sur l’oscilloscope les temps t1 et t3 pour atteindre respectivement 26.4% et 80.1% de la valeur finale m(∞).', ['tp1-a1', 'tp1-a3'], TP1, ['CR_TP1_T1', 'CR_TP1_T3', 'CR_TP1_Z']),
+  q1('tp1-i22-q3', 'I.2.2 Q3', 'z étant estimé, mettez une croix au point de la courbe ωnt3 qui a comme abscisse z. La valeur de ωn est l’ordonnée de ce point divisée par t3, en secondes.', ['tp1-a3'], TP1, ['CR_TP1_WN']),
+  q1('tp1-i22-g2', 'I.2.2 G2(p)', 'Donner alors la fonction de transfert du 2ième ordre du système, G2(p).', ['tp1-a3'], TP1, ['CR_TP1_G0', 'CR_TP1_Z', 'CR_TP1_WN']),
+  q1('tp1-i22-q4', 'I.2.2 Q4', 'Le TR5%, a déjà été déterminé en I.2.1. Redonnez-le.', ['tp1-a1'], [...TP1, 'CR_TP1_TR5']),
+  q1('tp1-i23-q11', 'I.2.3 Q11', 'Est-ce qu’un modèle d’ordre 1 représente bien le comportement du démarrage du moteur et la stabilisation de sa vitesse ?', ['tp1-a2', 'tp1-a4'], TP1, FORME),
+  q1('tp1-i23-q12', 'I.2.3 Q12', 'Est-ce que les paramètres G0 et τ du modèle optimisé par Matlab (donnés dans la « Command Window ») sont les mêmes que ceux que vous avez obtenus avec des mesures directement sur l’écran de l’oscilloscope question 1.2.1 ?', ['tp1-a4'], [...TP1, 'CR_TP1_MATLAB_O1_G0', 'CR_TP1_MATLAB_O1_TAU']),
+  q1('tp1-i23-o2-q1', 'I.2.3 ordre 2 Q1', 'Est-ce qu’un modèle d’ordre 2 représente bien le comportement du démarrage du moteur et la stabilisation de sa vitesse ?', ['tp1-a2', 'tp1-a4'], TP1, FORME),
+  q1('tp1-i23-o2-q2', 'I.2.3 ordre 2 Q2', 'Est-ce que les paramètres G0, z et ωn du modèle optimisé par Matlab (donnés dans le workspace) sont les mêmes que ceux que vous avez obtenus avec des mesures directement sur l’écran de l’oscilloscope question 1.2.2 ?', ['tp1-a4'], [...TP1, 'CR_TP1_MATLAB_O2_G0', 'CR_TP1_MATLAB_O2_Z', 'CR_TP1_MATLAB_O2_WN']),
+  q1('tp1-conclusion', 'Conclusion', 'Conclure sur l’ordre le plus probable du système réel. Justifiez', ['tp1-a2'], TP1, FORME),
+  q1('tp1-deviner', 'Conclusion', 'Aurait-on pu le deviner dès que l’on a obtenu la réponse à un échelon ? Comment ?', ['tp1-a2'], TP1, FORME),
 
   /* ───────────── TP2 ───────────── */
   q('tp2-cablage', 'tp2', 'Câblage', 'Câblages à réaliser (en boucle fermée cette fois) (platine éteinte) :', ['tp2-a1'], ['TP2_K38_G1', 'TP2_K38_G2']),

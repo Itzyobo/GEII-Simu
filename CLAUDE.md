@@ -34,9 +34,10 @@ Simulateur PIC16F18875 / Curiosity HPC. PRD : `PRD — Simulateur INFO3 Curiosit
 
 Simulateur MCC + dynamo tachymétrique (GBF TG315, DSOX2004A, platine « Régulateur analogique »). PRD : `PRD — Simulateur de TP AU3 (MCC).md` (fait foi). Suivi : `docs/au3/STATUS.md`.
 
-- **Constantes** : objet `AU3` (entrées `{ valeur, unite, source: 'CR' | 'enonce' | 'hypothese', note?, tol? }`) et `AU3_INSTRUMENTS` dans `src/data/reference.au3.ts`, réexportés par `reference.ts`. Aucun nombre hors {0, 1, -1, 2} et index dans `src/au3/` ni `questions.au3.ts` (test `src/au3/regles.test.ts`, liste blanche : `prng.ts`).
+- **Constantes** : objet `AU3` (`RefEntry` : `{ valeur, unite, source: 'CR' | 'enonce' | 'hypothese', note?, tol? }`) et `AU3_LISTES` (`RefListe`) dans `src/data/reference.au3.ts`, réexportés par `reference.ts`. Mise en page (pixels, couleurs) : `src/au3/miseEnPage.ts`. Aucun nombre hors {0, 1, -1, 2} et index dans `src/au3/` ni `questions.au3.ts` (test `src/au3/regles.test.ts`, liste blanche : `prng.ts`, `miseEnPage.ts`).
 - **Énoncé** : `docs/au3/enonce.md`, mot pour mot ; ancres `<a id="…">` = id des questions (`src/data/questions.au3.ts`). Attendus officiels = listes « A la fin du TPx, vous devez savoir » ; TP3 non couvert.
-- **Badge** : `dependDHypothese(cles)` (`src/au3/hypothese.ts`) + `<BadgeNonVerifie/>`.
+- **Badge** : `badgeAffiche(cles, validee)` (`src/au3/hypothese.ts`) + `<BadgeNonVerifie/>` : hypothèse ET non validée par un test CR (`validee` des questions, vérifié dans `src/au3/tp1/tp1.test.ts`).
+- **TP1** : `src/au3/tp1/` (attendus du modèle, abaque, moindres carrés, correction) et `src/au3/pages/Tp1.tsx`. Test de perf : `npm run test:perf`.
 - **Câblage** : bornes nommées (`src/au3/sim/cablage.ts`) ; verrouillage sous tension et « Faire vérifier » dans le réducteur pur `src/au3/banc.ts`.
 - **Session** : `src/au3/session.ts`, versionnée (`SESSION_VERSION`).
 - TypeScript plus strict pour AU3 : `tsconfig.au3.json` (`noUncheckedIndexedAccess`, `noImplicitOverride`).

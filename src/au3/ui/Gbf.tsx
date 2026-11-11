@@ -1,10 +1,11 @@
-import { au3, AU3_INSTRUMENTS } from '../../data/reference'
+import { au3 } from '../../data/reference'
+import { MISE_EN_PAGE } from '../miseEnPage'
 import type { FormeGbf, ReglagesGbf } from '../instruments/gbf'
 import { Borne } from './Borne'
 import { formatSi } from './format'
 import type { PropsBornes } from './types'
 
-const G = AU3_INSTRUMENTS.gbf
+const G = MISE_EN_PAGE.gbf
 const FORMES: { id: FormeGbf; label: string; symbole: string }[] = [
   { id: 'carre', label: 'Carré', symbole: '⊓⊔' },
   { id: 'triangle', label: 'Triangle', symbole: '/\\/' },

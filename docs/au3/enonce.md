@@ -224,6 +224,7 @@ Le compte-rendu (fichier word) que vous allez faire de ce TP1 doit contenir les 
 l’oscilloscope, avec les mesures faites avec les Cursors qui sont copiées à l’aide d’une clé USB et les
 courbes obtenues avec Matlab. La réponse aux questions peut être dans le même fichier ou sur papier.
 
+<a id="tp1-numeros"></a>
 Notez dans votre compte-rendu le n° du moteur et de la platine de régulation.
 
 Lisez les fiches GBF et oscilloscope page 4. Elles donnent des conseils pour une utilisation bien adaptée
@@ -281,6 +282,7 @@ l’oscilloscope.
 Souvent, le signal carré de sortie du GBF n’est pas symétrique ni correct quand le GBF est relié à la
 platine « régulateur » éteinte. Il faut la mettre sous tension pour que le signal soit correct.
 
+<a id="tp1-sous-tension"></a>
 **Mettre sous tension la platine Régulateur**
 
 Remarque : si le moteur se met à tourner tout le temps dans le même sens ou ne tourne pas du tout,
@@ -355,11 +357,13 @@ courbe jaune),
 
 <!-- p. 8 -->
 
+<a id="tp1-i21-g0"></a>
 ⇨ Calculez alors le gain statique du système, $G_0 = \dfrac{\Delta M(p\to 0)}{\Delta U} = \dfrac{m(t\to\infty)}{U_0}$ (sans unité)
 
 <a id="tp1-i21-q3"></a>
 3. Mesurez τ (ΔX sur la courbe verte),
 
+<a id="tp1-i21-g1"></a>
 ⇨ Donner alors la fonction de transfert du 1ier ordre du système, G1(p).
 
 <a id="tp1-i21-q4"></a>
@@ -404,6 +408,7 @@ Abaque valide pour tous les systèmes d’ordre 2 tels que 0,5 < z < 3 (échelle
 La précision du résultat final dépend essentiellement de votre capacité à mesurer avec précision les temps
 t1 et t3.
 
+<a id="tp1-i22-g2"></a>
 ⇨ Donner alors la fonction de transfert du 2ième ordre du système, G2(p).
 
 <a id="tp1-i22-q4"></a>

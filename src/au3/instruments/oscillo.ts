@@ -1,13 +1,18 @@
-import { au3, AU3_INSTRUMENTS } from '../../data/reference'
+import { au3 } from '../../data/reference'
+import { MISE_EN_PAGE } from '../miseEnPage'
 
 /**
  * Oscilloscope Keysight DSOX2004A, en fonctions pures : plan d'acquisition, déclenchement, couplage AC,
  * quantification 8 bits sur la plage affichée (trace écrêtée hors écran), moyennage, curseurs, mesures, .csv.
  */
-const O = AU3_INSTRUMENTS.oscillo
-export const LARGEUR_PX = O.divX * O.pxParDiv
-export const HAUTEUR_PX = O.divY * O.pxParDiv
-export const NB_VOIES = O.couleurs.length
+const DIV_X = au3('OSC_DIV_X')
+const DIV_Y = au3('OSC_DIV_Y')
+const REF_GAUCHE = au3('OSC_REF_GAUCHE_DIV')
+const POINTS = au3('OSC_POINTS')
+const PX = MISE_EN_PAGE.oscillo.pxParDiv
+export const LARGEUR_PX = DIV_X * PX
+export const HAUTEUR_PX = DIV_Y * PX
+export const NB_VOIES = MISE_EN_PAGE.oscillo.couleurs.length
 
 export type Couplage = 'DC' | 'AC'
 export interface Voie {
@@ -62,11 +67,11 @@ export interface PlanAcquisition {
 
 /** Durée à simuler et pas d'échantillonnage pour une acquisition à la base de temps courante */
 export function planAcquisition(osc: ReglagesOscillo, periodeGbf: number | null, pasEuler: number): PlanAcquisition {
-  const fenetre = O.divX * osc.sdiv
+  const fenetre = DIV_X * osc.sdiv
   const periode = periodeGbf ?? fenetre
-  const avant = O.refGaucheDiv * osc.sdiv
+  const avant = REF_GAUCHE * osc.sdiv
   const debutRecherche = Math.max(au3('PERIODES_CHAUFFE') * periode - periode / 2, avant)
-  const pasSortie = Math.max(pasEuler, Math.floor(fenetre / O.points / pasEuler) * pasEuler)
+  const pasSortie = Math.max(pasEuler, Math.floor(fenetre / POINTS / pasEuler) * pasEuler)
   return { duree: debutRecherche + periode + fenetre, pasSortie, debutRecherche, periode }
 }
 
@@ -80,10 +85,10 @@ export function passeHaut(x: Float64Array, dt: number, fc = au3('COUPURE_AC_OSCI
 }
 
 /** Pas de quantification : plage affichée (divY divisions) sur 2^bits niveaux */
-export const pasQuantif = (vdiv: number) => (O.divY * vdiv) / 2 ** au3('QUANTIF_OSCILLO_BITS')
+export const pasQuantif = (vdiv: number) => (DIV_Y * vdiv) / 2 ** au3('QUANTIF_OSCILLO_BITS')
 
 /** Plage visible d'une voie (V) */
-export const plageVoie = (vdiv: number, position: number) => ({ min: (-O.divY / 2 - position) * vdiv, max: (O.divY / 2 - position) * vdiv })
+export const plageVoie = (vdiv: number, position: number) => ({ min: (-DIV_Y / 2 - position) * vdiv, max: (DIV_Y / 2 - position) * vdiv })
 
 /** Quantification 8 bits sur la plage affichée ; hors écran la trace est écrêtée au bord */
 export function quantifier(v: number, vdiv: number, position: number): number {
@@ -123,15 +128,15 @@ export function acquerir(osc: ReglagesOscillo, s: Signaux, plan: PlanAcquisition
   const trouve = chercherDeclenchement(s, osc.declenchement, plan.debutRecherche)
   if (trouve === null && osc.declenchement.mode === 'normal') return null
   const tTrig = trouve ?? plan.debutRecherche + decalage * plan.periode
-  const avant = O.refGaucheDiv * osc.sdiv
-  const dt = (O.divX * osc.sdiv) / O.points
+  const avant = REF_GAUCHE * osc.sdiv
+  const dt = (DIV_X * osc.sdiv) / POINTS
   const dtSim = s.t[1]! - s.t[0]!
   const voies = osc.voies.map((v, j) => {
     const brut = s.voies[j]
     if (!v.active || !brut) return null
     const x = v.couplage === 'AC' ? passeHaut(brut, dtSim) : brut
-    const r = new Float64Array(O.points)
-    for (let k = 0; k < O.points; k++) r[k] = quantifier(interp(s, x, tTrig - avant + k * dt), v.vdiv, v.position)
+    const r = new Float64Array(POINTS)
+    for (let k = 0; k < POINTS; k++) r[k] = quantifier(interp(s, x, tTrig - avant + k * dt), v.vdiv, v.position)
     return r
   })
   return { t0: -avant, dt, voies, calibres: osc.voies.map((v) => ({ vdiv: v.vdiv, position: v.position })), sdiv: osc.sdiv, declenche: trouve !== null }
@@ -152,11 +157,11 @@ export function moyenner(recs: Enregistrement[]): Enregistrement | null {
 
 /* ───────────── Écran : conversions pixel ↔ unité ───────────── */
 
-const refPx = O.refGaucheDiv * O.pxParDiv
-export const pxVersTemps = (px: number, sdiv: number) => ((px - refPx) * sdiv) / O.pxParDiv
-export const tempsVersPx = (t: number, sdiv: number) => refPx + (t * O.pxParDiv) / sdiv
-export const pxVersTension = (py: number, vdiv: number, position: number) => ((HAUTEUR_PX / 2 - py) / O.pxParDiv - position) * vdiv
-export const tensionVersPx = (v: number, vdiv: number, position: number) => HAUTEUR_PX / 2 - (v / vdiv + position) * O.pxParDiv
+const refPx = REF_GAUCHE * PX
+export const pxVersTemps = (px: number, sdiv: number) => ((px - refPx) * sdiv) / PX
+export const tempsVersPx = (t: number, sdiv: number) => refPx + (t * PX) / sdiv
+export const pxVersTension = (py: number, vdiv: number, position: number) => ((HAUTEUR_PX / 2 - py) / PX - position) * vdiv
+export const tensionVersPx = (v: number, vdiv: number, position: number) => HAUTEUR_PX / 2 - (v / vdiv + position) * PX
 
 /** Valeur d'une voie enregistrée à l'instant t (relatif au déclenchement), ou null hors enregistrement */
 export function valeurA(rec: Enregistrement, voie: number, t: number): number | null {
@@ -238,7 +243,7 @@ export function mesurer(rec: Enregistrement | null, voie: number): MesuresAuto |
 /* ───────────── Export .csv (format de l'oscilloscope) ───────────── */
 
 /** -1.0000000E-02 : mantisse à csvChiffres décimales, exposant signé sur 2 chiffres au moins */
-const nombreCsv = (v: number) => v.toExponential(O.csvChiffres).replace(/e([+-])(\d+)$/, (_, s: string, d: string) => `E${s}${d.padStart(2, '0')}`)
+const nombreCsv = (v: number) => v.toExponential(MISE_EN_PAGE.oscillo.csvChiffres).replace(/e([+-])(\d+)$/, (_, s: string, d: string) => `E${s}${d.padStart(2, '0')}`)
 
 /** Lignes « x-axis,1,2 » puis « second,Volt,Volt », puis une ligne par point */
 export function exporterCsv(rec: Enregistrement): string {
@@ -262,3 +267,6 @@ export function lireCsv(texte: string): Csv {
   const colonnes = Array.from({ length: largeur }, (_, j) => lignes.slice(2).map((l) => Number(l[j])))
   return { entetes, colonnes }
 }
+
+/** Nom de la mesure de performance d'une image (simulation + acquisition + moyennage), lue par le test navigateur */
+export const MESURE_IMAGE = 'au3-image'

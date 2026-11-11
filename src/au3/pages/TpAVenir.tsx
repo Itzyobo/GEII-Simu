@@ -29,7 +29,7 @@ export default function TpAVenir({ tp }: { tp: TpAu3 }) {
             <li key={q.id} className="rounded-lg bg-au3-panel px-3 py-2 text-sm ring-1 ring-au3-line">
               <span className="mr-2 font-mono text-xs text-au3-accent">{q.numero}</span>
               {q.intitule}
-              <BadgeNonVerifie cles={q.cles} />
+              <BadgeNonVerifie cles={q.cles} validee={q.validee} />
               <span className="ml-2 text-xs text-au3-muted">· à venir</span>
             </li>
           ))}

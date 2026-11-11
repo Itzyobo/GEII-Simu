@@ -15,3 +15,24 @@
 **Vérifications** : `npm run build` OK ; `npm test` 642/642 (AU3 : 38) ; `npx oxlint` 0 warning dans AU3 (26 préexistants ENER3/INFO3) ; `npm run check:375` 40 routes OK ; `npm run check:size` budgets respectés ; parcours navigateur (Playwright) : câblage TP1 → vérifier 6/6 → marche → 4 traces, manip sous tension refusée, curseurs, Stop, .csv, aucune erreur console.
 
 **Reste (étape 2)** : page TP1 (questions I.2.1 à I.2.3, abaque, moindres carrés), réponses calculées depuis le modèle.
+
+## Étape 2 — TP1 (terminée)
+
+**PRD** : §4.5 (exception de verrouillage, ampli bloqué) et §3.4 (règle du badge) déjà appliqués mot pour mot dans le fichier.
+
+**Corrections de l'étape 1**
+1. Exception au verrouillage : ampli bloqué (variante enseignant, `AMPLI_BLOQUE`), sortie collée à +USAT ou 0 V ; seule la procédure de l'énoncé le débloque (éteindre, entrée ampli à la masse, rallumer, masse → GBF sous tension). Le déplacement masse → GBF MAIN OUT sous tension est accepté sans événement ; toute autre manipulation reste refusée et journalisée. Rallumer pendant la procédure ne redemande pas « Faire vérifier ».
+2. Dissymétrie du GBF relié à la platine éteinte : palier bas −20 % (`GBF_DISSYMETRIE`).
+3. Animation du moteur = vitesse simulée (`vitesseAffichee`), arrêt sous 1 % de G0r·USAT.
+4. `RefListe` + `AU3_LISTES` (calibres V/div et s/div, moyennages, avec source) ; divisions et points en `RefEntry` (`OSC_*`) ; pixels, couleurs, pas des boutons dans `src/au3/miseEnPage.ts` (liste blanche du test des constantes).
+5. Strict TS : un `liste[0]` dans `src/au3` fait échouer `npm run build` (TS2322) alors que `tsconfig.app.json` seul l'accepte.
+6. Câbles : contournent l'écran et le panneau de commandes de l'oscilloscope (`data-exclusion`) ; sans route possible, ils passent dessous.
+7. Performance : `simulate()` 1,54 s au pas de 5 µs (bruit, 2 passes) en 41 à 51 ms (Node, `npm run test:perf`) ; navigateur, 100 ms/div, moyennage 16 : 31 à 38 ms par image (médiane), max 46 ms.
+
+**Page `/au3/tp1`** : questions dans l'ordre de l'énoncé, panneau rétractable à droite (sous l'établi à 375 px), progression dans la session (version 2, clé `au3.session.libre.tp1`). Réponses attendues calculées : algorithme de curseur sur la courbe du modèle sans bruit (`src/au3/tp1/attendus.ts`), abaque calculé (`abaque.ts`), moindres carrés Nelder–Mead (`identification.ts`), correction ±5 % / ±10 %, unité manquante = « incomplète » (`correction.ts`).
+
+**Modèle / CR (12,3 Vpp, 1,3 Hz, sans bruit)** : G0 0,1512 / 0,151 ; τ 12,15 ms / 11,8 ms (+2,9 %) ; t1 5,22 / 5,2 ms ; t3 17,91 / 18 ms ; z 1,217 / 1,22 ; ωn 206,2 / 211,5 rad/s (−2,5 %) ; TR5% 30,7 / 33 ms (−7 %, badge).
+
+**Vérifications** : `npm run build` OK ; `tsc -b` OK ; `npm test` 662/662 (AU3 : 58) ; `npm run test:perf` OK ; oxlint 0 warning dans AU3 ; `check:375` 40 routes ; `check:size` OK ; parcours Playwright complet sans message console. Captures : `docs/au3/captures/`.
+
+**Reste (étape 3)** : page TP2 (10 liaisons, K = 3,8 et K = 40, valeurs théoriques, identification, DT inversée, ampli oublié).

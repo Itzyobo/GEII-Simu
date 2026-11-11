@@ -221,4 +221,4 @@ export const PINCE_SENSIBILITE = 0.1
 export { INFO3, info3Hypothese, type Info3Hypothese, type SfrDef } from './reference.info3'
 
 /* ───────────── AU3 : constantes dans reference.au3.ts, réexportées ici (seule source) ───────────── */
-export { AU3, AU3_INSTRUMENTS, AU3_EPSILON, au3, type RefKey, type RefEntry, type RefSource } from './reference.au3'
+export { AU3, AU3_LISTES, AU3_EPSILON, au3, type RefKey, type RefEntry, type RefListe, type RefSource } from './reference.au3'

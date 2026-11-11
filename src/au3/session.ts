@@ -1,4 +1,5 @@
-import { au3, AU3_INSTRUMENTS } from '../data/reference'
+import { au3 } from '../data/reference'
+import { MISE_EN_PAGE } from './miseEnPage'
 import { GBF_DEFAUT, type ReglagesGbf } from './instruments/gbf'
 import type { Curseurs, ReglagesOscillo } from './instruments/oscillo'
 import type { Cable } from './sim/cablage'
@@ -10,9 +11,11 @@ import type { ReglagesPlatine } from './sim/simulate'
  * Le mode examen (étape 5) réutilise ce schéma : chrono, réponses, essais de vérification,
  * événements sous tension et câblage survivent à un rechargement.
  */
-export const SESSION_VERSION = 1
+export const SESSION_VERSION = 2
 export type ModeSession = 'libre' | 'examen'
-export const cleSession = (mode: ModeSession) => `au3.session.${mode}`
+/** Page qui porte la session : banc libre ou TP (chacune garde son câblage et ses réponses) */
+export type EspaceSession = 'banc' | 'tp1'
+export const cleSession = (mode: ModeSession, espace: EspaceSession = 'banc') => (espace === 'banc' ? `au3.session.${mode}` : `au3.session.${mode}.${espace}`)
 
 export interface EvenementManip {
   /** Date (ms depuis l'époque Unix) */
@@ -20,6 +23,36 @@ export interface EvenementManip {
   type: 'manip-sous-tension' | 'autoscale'
   detail: string
 }
+
+/** Croix posée sur l'abaque : abscisse z et ordonnée lue sur la courbe */
+export interface Croix {
+  z: number
+  y: number
+}
+
+/** Paramètres trouvés par les moindres carrés (ordre 1 : g0, tau ; ordre 2 : g0, z, wn) */
+export interface ResultatFit {
+  ordre: 1 | 2
+  g0: number
+  tau?: number
+  z?: number
+  wn?: number
+  critere: number
+  iterations: number
+}
+
+/** Progression du TP1 hors réponses saisies : abaque, .csv exporté, identifications */
+export interface ProgressionTp1 {
+  croixT3T1: Croix | null
+  croixWnT: Croix | null
+  /** Méthode du calcul de ωn : t3 (énoncé) ou t1 (écart de méthode signalé) */
+  methodeWn: 't3' | 't1'
+  csv: string | null
+  ordre1: ResultatFit | null
+  ordre2: ResultatFit | null
+}
+
+export const progressionNeuve = (): ProgressionTp1 => ({ croixT3T1: null, croixWnT: null, methodeWn: 't3', csv: null, ordre1: null, ordre2: null })
 
 export interface SessionAu3 {
   version: typeof SESSION_VERSION
@@ -39,9 +72,10 @@ export interface SessionAu3 {
   platine: ReglagesPlatine
   oscillo: ReglagesOscillo
   curseurs: Curseurs
+  tp1: ProgressionTp1
 }
 
-const D = AU3_INSTRUMENTS.oscillo.defaut
+const D = MISE_EN_PAGE.oscillo.defaut
 
 export function sessionNeuve(mode: ModeSession): SessionAu3 {
   return {
@@ -55,7 +89,7 @@ export function sessionNeuve(mode: ModeSession): SessionAu3 {
     fautes: [],
     cablage: [],
     gbf: GBF_DEFAUT,
-    platine: { sousTension: false, g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null },
+    platine: { sousTension: false, ampli: 'normal', g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2'), z1: null, z2: null },
     oscillo: {
       voies: D.vdiv.map((vdiv) => ({ active: true, vdiv, position: 0, couplage: 'DC' as const })),
       sdiv: D.sdiv,
@@ -64,13 +98,14 @@ export function sessionNeuve(mode: ModeSession): SessionAu3 {
       run: true,
     },
     curseurs: { ...D.curseurs, source: 1, suivre: false },
+    tp1: progressionNeuve(),
   }
 }
 
 /** Relit une session ; null si absente, illisible ou d'une autre version */
-export function chargerSession(stockage: Pick<Storage, 'getItem'>, mode: ModeSession): SessionAu3 | null {
+export function chargerSession(stockage: Pick<Storage, 'getItem'>, mode: ModeSession, espace: EspaceSession = 'banc'): SessionAu3 | null {
   try {
-    const brut = stockage.getItem(cleSession(mode))
+    const brut = stockage.getItem(cleSession(mode, espace))
     if (!brut) return null
     const s = JSON.parse(brut) as Partial<SessionAu3>
     return s.version === SESSION_VERSION && s.mode === mode ? (s as SessionAu3) : null
@@ -79,9 +114,9 @@ export function chargerSession(stockage: Pick<Storage, 'getItem'>, mode: ModeSes
   }
 }
 
-export function sauverSession(stockage: Pick<Storage, 'setItem'>, s: SessionAu3): void {
+export function sauverSession(stockage: Pick<Storage, 'setItem'>, s: SessionAu3, espace: EspaceSession = 'banc'): void {
   try {
-    stockage.setItem(cleSession(s.mode), JSON.stringify(s))
+    stockage.setItem(cleSession(s.mode, espace), JSON.stringify(s))
   } catch {
     // stockage plein ou interdit (navigation privée) : la session reste en mémoire
   }
