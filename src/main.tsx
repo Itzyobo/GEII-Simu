@@ -25,6 +25,7 @@ const INFO3_PAGES = {
   tp4: lazy(() => import('./pages/info3/Tp4')),
   tp5: lazy(() => import('./pages/info3/Tp5')),
   tp6: lazy(() => import('./pages/info3/Tp6')),
+  examen: lazy(() => import('./pages/info3/Examen')),
   libre: lazy(() => import('./pages/info3/Libre')),
   dev: lazy(() => import('./pages/info3/Dev')),
 }
@@ -64,6 +65,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/info3/tp4" element={<INFO3_PAGES.tp4 />} />
           <Route path="/info3/tp5" element={<INFO3_PAGES.tp5 />} />
           <Route path="/info3/tp6" element={<INFO3_PAGES.tp6 />} />
+          <Route path="/info3/examen" element={<INFO3_PAGES.examen />} />
           <Route path="/info3/libre" element={<INFO3_PAGES.libre />} />
           <Route path="/info3/dev" element={<INFO3_PAGES.dev />} />
           <Route path="*" element={<Dashboard />} />

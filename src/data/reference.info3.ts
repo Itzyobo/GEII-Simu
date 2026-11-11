@@ -628,6 +628,24 @@ export const INFO3 = {
     printTolerance: 0.02,
     source: 'énoncé TP6 et consigne étape 6 (pas de CR du TP6)',
   },
+  /** Mode examen (/info3/examen) : barème = H54 sauf durée par défaut et pénalité (consigne étape 7, PRD §7) */
+  exam: {
+    /** Durée par défaut — min (consigne : 1 h 30) */
+    defaultMinutes: 90,
+    /** Nombre de questions tirées (consigne : 3 à 5) */
+    questions: { min: 3, max: 5 },
+    /** Part de la configuration (Faire vérifier) dans les points d'une question — H54 */
+    configShare: 0.25,
+    /** Pénalité par manipulation sous tension — points (consigne : 2, barème à confirmer) */
+    penaltyPerLiveManip: 2,
+    /** Note maximale */
+    scale: 20,
+    /** Défis exclus du tirage : aucune solution de référence validée (TP1 4.3, bonus) */
+    excluded: ['tp1-4-3'],
+    /** Pages du cours citées à la correction, par TP (références déjà utilisées par les modèles et MCC) */
+    coursePages: { 1: 'cours p. 9 à 22', 2: 'cours p. 36 à 40', 3: 'cours p. 58 à 65', 4: 'cours p. 71 à 82', 5: 'cours p. 85 à 110', 6: 'cours p. 92 à 100' } as Record<number, string>,
+    hyp: ['H54'],
+  },
   /** Chaîne de deux 74HC595 de la carte Rotary : 16 LED (annexe 3, cours p. 81 et 82) */
   ring: {
     leds: 16,
@@ -822,6 +840,7 @@ export const INFO3 = {
     { id: 'H51', texte: 'TAD de l’oscillateur FRC = 2 µs', commentVerifier: 'datasheet DS40001802, « ADC Clock Period (TAD) »' },
     { id: 'H52', texte: 'ADCC simulé en mode de base : échantillonnage au lancement (ADGO = 1), pas de déclenchement automatique (ADACT), de mode continu ni de calcul (filtre, moyenne, seuils)', commentVerifier: 'sans objet au TP6 (conversions lancées par logiciel)' },
     { id: 'H53', texte: 'MAX7219 simulé : DOUT non relié au PIC (le MISO du bus SPI reste à la carte Rotary) ; contenu des registres de digits à la mise sous tension = 0 (annexe 6 muette) ; balayage non simulé (lueur = intensité / nombre de digits balayés)', commentVerifier: 'annexe 6 ; oscilloscope sur DOUT' },
+    { id: 'H54', texte: 'Barème du mode examen : chaque question vaut 20 / n points, dont 25 % pour la configuration (Faire vérifier : 100 % au 1er essai, 50 % au 2e, 0 ensuite) et 75 % pour le défi du professeur virtuel ; 2 points retirés par manipulation sous tension ; note plancher 0', commentVerifier: 'barème à confirmer avec l’enseignant' },
     { id: 'H22', texte: 'main() qui retourne, ou appel d’un pointeur de fonction nul : le programme s’arrête (message dans Output) au lieu du saut au vecteur de reset', commentVerifier: 'XC8 User’s Guide, « main function » ; débogueur' },
   ] as const satisfies readonly Info3Hypothese[],
 } as const

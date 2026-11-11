@@ -34,6 +34,10 @@ export interface WorkbenchProps {
   scopeProbes?: [string, string]
   dark: boolean
   onDarkChange(dark: boolean): void
+  /** Examen « registres seuls » : MCC indisponible */
+  mccDisabled?: boolean
+  /** Mode examen : aucune infobulle d’aide */
+  exam?: boolean
 }
 
 const SLOT_NAMES: Record<SlotId, string> = { mikrobus1: 'mikroBUS 1', mikrobus2: 'mikroBUS 2' }
@@ -41,7 +45,7 @@ const DEFAULT_CHANNELS = ['RA4', 'RB4', 'RC5', 'ISR']
 /** TP17 (SCK) et TP16 (MOSI) */
 const DEFAULT_PROBES: [string, string] = [INFO3.scope.testPoints[0].pin, INFO3.scope.testPoints[1].pin]
 
-export default function Workbench({ project, onProject, sideLabel, side, benchExtra, analyzerChannels = DEFAULT_CHANNELS, scopeProbes = DEFAULT_PROBES, dark, onDarkChange }: WorkbenchProps) {
+export default function Workbench({ project, onProject, sideLabel, side, benchExtra, analyzerChannels = DEFAULT_CHANNELS, scopeProbes = DEFAULT_PROBES, dark, onDarkChange, mccDisabled = false, exam = false }: WorkbenchProps) {
   const sim = useSim()
   const rotarySlot = (Object.keys(project.bench.slots) as SlotId[]).find((s) => project.bench.slots[s] === 'rotary') ?? null
   const { setBench } = sim
@@ -171,7 +175,10 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               onDarkChange={onDarkChange}
             />
           </div>
-          {main === 'mcc' && (
+          {main === 'mcc' && mccDisabled && (
+            <p className={`rounded-card bg-card p-3 text-sm ring-1 ring-line ${tab === 'mcc' ? '' : 'hidden lg:block'}`}>MCC désactivé (épreuve « Registres seuls ») : écrire #include &lt;xc.h&gt;, la configuration des registres et l’ISR __interrupt() dans le code.</p>
+          )}
+          {main === 'mcc' && !mccDisabled && (
             <div className={tab === 'mcc' ? '' : 'hidden lg:block'}>
               <Suspense fallback={<p className="p-3 text-sm text-muted">Chargement de MCC…</p>}>
                 <Mcc config={project.mcc} onChange={(mcc) => onProject({ ...project, mcc })} onGenerate={generate} message={genMsg} />
@@ -199,7 +206,7 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               onCard={(slot, card) => apply(setCard(project, slot, card))}
             />
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-              <label className="flex items-center gap-1.5" title={INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
+              <label className="flex items-center gap-1.5" title={exam ? undefined : INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
                 <input type="checkbox" checked={bounce} onChange={(e) => setBounce(e.target.checked)} /> Rebonds des boutons S1 et S2 (H3)
               </label>
               <label className="flex items-center gap-1.5">
