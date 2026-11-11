@@ -34,6 +34,8 @@ export interface Project {
   generatedFrom: string | null
   mcc: MccConfig
   bench: Bench
+  /** Projet « registres seuls » : pas de MCC, mcc_generated_files vide */
+  registersOnly?: boolean
   /** « Faire vérifier » validé dans ce projet */
   verified: boolean
 }
@@ -134,5 +136,9 @@ export function parseProject(x: unknown): Project | null {
     mcc,
     bench,
     verified: !!o.verified,
+    ...(o.registersOnly === true ? { registersOnly: true } : {}),
   }
 }
+
+/** main.c d'un projet « registres seuls » (examen, mode libre) : pas de MCC */
+export const REGISTERS_MAIN = '#include <xc.h>\n\nvoid main(void)\n{\n    while (1)\n    {\n    }\n}\n'

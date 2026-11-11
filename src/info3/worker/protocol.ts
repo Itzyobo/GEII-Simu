@@ -33,6 +33,8 @@ export type InMsg =
   | { type: 'terminalSend'; bytes: number[] }
   /** Banc analogique : potentiomètre (0 à 1), joystick (x vers la droite, y vers le haut, -1 à 1), bouton du joystick */
   | { type: 'analog'; pot?: number; joy?: [number, number]; joySw?: boolean }
+  /** Diagnostic (mode libre) : relève des accès concurrents dans la VM (coût par accès mémoire, jamais en TP ni en examen) */
+  | { type: 'diagWatch'; on: boolean }
   /** Codeur : crans (signe = sens), rotation continue (crans/s, 0 = arrêt), bouton SW */
   | { type: 'rotary'; action: 'turn'; detents: number }
   | { type: 'rotary'; action: 'spin'; rate: number }
@@ -81,6 +83,15 @@ export type OutMsg =
   /** Analyseur logique : changements des voies observées depuis l'image précédente ; `reset` = nouvelle origine des temps */
   | { type: 'trace'; changes: TraceChange[]; reset: boolean }
   /** Diagnostic (mode libre) : lu dans les registres et pendant l'exécution */
-  | { type: 'diag'; analogReads: string[]; inputWrites: string[]; fosc: number }
+  | {
+      type: 'diag'
+      analogReads: string[]
+      inputWrites: string[]
+      fosc: number
+      /** Octets émis par l'EUSART, baud réel, baud du terminal, USB blanc */
+      uart: { sent: number; baud: number; termBaud: number; usbWhite: boolean }
+      /** Variables > 8 bits écrites sous IT et lues dans main avec GIE = 1 (si diagWatch) */
+      shared: string[]
+    }
   /** Terminal : octets reçus depuis l'image précédente (instant du start, s simulées) */
   | { type: 'serial'; bytes: number[]; t: number[] }

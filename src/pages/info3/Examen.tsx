@@ -10,7 +10,7 @@ import { INFO3_QUESTIONS } from '../../data/questions'
 import { INFO3 } from '../../data/reference'
 import { clearSession, coursePageOf, drawSubject, examSheet, loadSession, recordCheck, recordHandIn, remainingS, saveSession, showCorrectionByDefault, startSession, submit, type ExamSession, type ExamTopic, type ExamVariant } from '../../info3/exam/exam'
 import { examVerify } from '../../info3/exam/verify'
-import { blankProject, projectFiles, type Project } from '../../info3/project/project'
+import { blankProject, projectFiles, REGISTERS_MAIN, type Project } from '../../info3/project/project'
 import { questionTitle } from '../../info3/tp1/content'
 import Markdown from '../../info3/ui/Markdown'
 import Workbench from '../../info3/ui/Workbench'
@@ -19,7 +19,6 @@ import type { SimControls } from '../../info3/ui/useSim'
 const E = INFO3.exam
 /** Heure courante (gestionnaires d'événements et minuterie uniquement) */
 const nowMs = () => Date.now()
-const REGISTERS_MAIN = '#include <xc.h>\n\nvoid main(void)\n{\n    while (1)\n    {\n    }\n}\n'
 const fmtClock = (s: number) => `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')} min ${String(Math.floor(s % 60)).padStart(2, '0')} s`
 const pts = (x: number) => x.toFixed(2).replace('.', ',')
 const BTN = 'rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent disabled:opacity-40'
@@ -59,7 +58,7 @@ function ExamStart({ onStart }: { onStart(s: ExamSession): void }) {
   const preview = drawSubject(topic, seed, variant, minutes)
   const start = () => {
     const base = blankProject('examen', 'Examen', 'examen')
-    const project: Project = variant === 'registres' ? { ...base, files: { 'main.c': REGISTERS_MAIN }, generated: {} } : base
+    const project: Project = variant === 'registres' ? { ...base, files: { 'main.c': REGISTERS_MAIN }, generated: {}, registersOnly: true } : base
     onStart(startSession(preview, project, nowMs()))
   }
   const field = 'rounded border border-line bg-card px-2 py-1 text-sm'

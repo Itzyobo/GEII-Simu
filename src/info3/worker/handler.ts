@@ -60,6 +60,8 @@ export interface SimState {
   /** Carte 8x8 R click : mikroBUS ; lueur des 64 LED (actuelle, cumulée sur l'image), dernier instant, dernière image envoyée */
   matrixSlot: RotarySlot | null
   mx: { now: number[]; acc: number[]; lastT: number; sent: string }
+  /** Diagnostic : relève des accès concurrents demandée (mode libre) */
+  watchShared: boolean
   /** Banc analogique (repris par chaque nouveau PIC programmé) */
   analog: { pot: number; joy: [number, number]; joySw: boolean }
 }
@@ -89,7 +91,7 @@ function ringAccumulate(state: SimState, t: number) {
 }
 
 export function createSimState(now: () => number = () => performance.now()): SimState {
-  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, matrixSlot: null, mx: blankMx(), analog: { pot: INFO3.analog.potStart, joy: [0, 0], joySw: false }, usbWhite: false, terminal: new SerialTerminal(INFO3.clock.timeBaseHz), sendBusyUntil: 0, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
+  return { vm: null, running: false, speed: 1, frameAccumMs: 0, lastPins: {}, lastDuty: {}, frameStartT: 0, ledHigh: {}, ledLevel: {}, ledLastT: {}, queue: [], now, debtMs: 0, lastDiag: '', lastIrq: '', rotary: null, watchShared: false, matrixSlot: null, mx: blankMx(), analog: { pot: INFO3.analog.potStart, joy: [0, 0], joySw: false }, usbWhite: false, terminal: new SerialTerminal(INFO3.clock.timeBaseHz), sendBusyUntil: 0, channels: new Set(), trace: [], traceReset: false, ring: blankRing() }
 }
 
 const PROBES = new Set<string>(INFO3.analyzer.probes)
@@ -133,6 +135,7 @@ function plugUsbWhite(state: SimState) {
 }
 
 function attach(state: SimState, vm: Vm) {
+  if (state.watchShared) vm.access = { isrWrites: new Set(), mainReads: new Map() }
   vm.setRotarySlot(state.rotary)
   vm.setMatrixSlot(state.matrixSlot)
   state.mx = blankMx()
@@ -224,7 +227,14 @@ export function makeFrame(state: SimState, out: OutMsg[]): void {
   }
   const got = state.terminal.poll(vm.t)
   if (got.length) out.push({ type: 'serial', bytes: got.map((b) => b.byte), t: got.map((b) => vm.toS(b.t)) })
-  const diag = { type: 'diag' as const, analogReads: [...vm.analogReads].sort(), inputWrites: [...vm.inputWrites].sort(), fosc: vm.fosc }
+  const diag = {
+    type: 'diag' as const,
+    analogReads: [...vm.analogReads].sort(),
+    inputWrites: [...vm.inputWrites].sort(),
+    fosc: vm.fosc,
+    uart: { sent: vm.eusart.sent.length, baud: Math.round(vm.baud), termBaud: state.terminal.baud, usbWhite: state.usbWhite },
+    shared: vm.access ? vm.unprotectedShared() : [],
+  }
   const key = JSON.stringify(diag)
   if (key !== state.lastDiag) {
     state.lastDiag = key
@@ -396,6 +406,10 @@ export function handleMessage(state: SimState, msg: InMsg): OutMsg[] {
     case 'analog':
       state.analog = { pot: msg.pot ?? state.analog.pot, joy: msg.joy ?? state.analog.joy, joySw: msg.joySw ?? state.analog.joySw }
       applyAnalog(state)
+      return out
+    case 'diagWatch':
+      state.watchShared = msg.on
+      if (state.vm) state.vm.access = msg.on ? { isrWrites: new Set(), mainReads: new Map() } : null
       return out
     case 'terminal':
       state.terminal.configure(msg.baud, msg.format)

@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { diagnose } from '../../info3/project/diagnostic'
-import { blankProject, runGenerate, type Project } from '../../info3/project/project'
+import type { Project } from '../../info3/project/project'
+import { starterProject, STARTERS } from '../../info3/project/starters'
+import type { SimControls } from '../../info3/ui/useSim'
 import { exportProject, importProject, loadLibre, loadPrefs, saveLibre, savePrefs, type LibreState } from '../../info3/project/storage'
 import Workbench from '../../info3/ui/Workbench'
 
@@ -22,11 +24,8 @@ export default function LibrePage() {
   const update = (p: Project) => commit({ ...state, projects: state.projects.map((x) => (x.id === p.id ? p : x)) })
   const add = (p: Project) => commit({ ...state, projects: [...state.projects, p], currentId: p.id })
 
-  const create = () => {
-    // Projet vierge : configuration MCC par défaut et main.c du cours (premier Generate)
-    const p = runGenerate(blankProject('libre', `Projet ${state.projects.length + 1}`, newId())).project
-    add(p)
-  }
+  const [starter, setStarter] = useState(STARTERS[0].id)
+  const create = () => add(starterProject(STARTERS.find((x) => x.id === starter) ?? STARTERS[0], newId()))
   const remove = () => {
     if (state.projects.length < 2) return
     const rest = state.projects.filter((p) => p.id !== project.id)
@@ -75,6 +74,13 @@ export default function LibrePage() {
           </select>
         </label>
         <input aria-label="Nom du projet" value={project.name} onChange={(e) => update({ ...project, name: e.target.value })} className="w-36 min-w-0 rounded border border-line bg-field px-2 py-1 text-sm" />
+        <select aria-label="Projet de départ" value={starter} onChange={(e) => setStarter(e.target.value)} className="min-w-0 rounded border border-line bg-field px-2 py-1 text-sm">
+          {STARTERS.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.label}
+            </option>
+          ))}
+        </select>
         <button type="button" onClick={create} className="rounded-lg bg-card px-2.5 py-1 text-sm ring-1 ring-line hover:bg-card-2">
           Nouveau
         </button>
@@ -110,11 +116,25 @@ export default function LibrePage() {
           setDark(d)
           savePrefs({ dark: d })
         }}
+        mccDisabled={!!project.registersOnly}
         sideLabel="Diagnostic"
-        side={({ sim }) => {
-          const d = sim.view.diag
-          const findings = diagnose(project, d ? { analogReads: d.analogReads, inputWrites: d.inputWrites, fosc: d.fosc } : null)
-          return (
+        side={({ sim }) => <DiagnosticPanel sim={sim} project={project} />}
+      />
+    </main>
+  )
+}
+
+/** Diagnostic étendu (R1 à R12) : registres et exécution, sans jamais modifier le code. Jamais en examen. */
+function DiagnosticPanel({ sim, project }: { sim: SimControls; project: Project }) {
+  const programmed = sim.view.programmed
+  const { send } = sim
+  // Relève des accès concurrents (R11) dès qu'un programme tourne
+  useEffect(() => {
+    if (programmed) send({ type: 'diagWatch', on: true })
+  }, [programmed, send])
+  const d = sim.view.diag
+  const findings = diagnose(project, d ? { analogReads: d.analogReads, inputWrites: d.inputWrites, fosc: d.fosc, irq: sim.view.irq, uart: d.uart, shared: d.shared } : null)
+  return (
             <section className="space-y-2 rounded-card bg-card p-3 ring-1 ring-line" aria-label="Diagnostic">
               <h2 className="text-sm font-semibold">Diagnostic</h2>
               <p className="text-xs text-muted">Lu dans les registres et pendant l’exécution ; le code n’est jamais modifié.</p>
@@ -130,9 +150,5 @@ export default function LibrePage() {
                 </ul>
               )}
             </section>
-          )
-        }}
-      />
-    </main>
   )
 }

@@ -244,6 +244,7 @@ export class EusartTx {
     const t0 = this.host.now()
     this.busy = true
     this.sent.push({ t: t0, byte: v })
+    if (this.sent.length > INFO3.analyzer.maxChanges) this.sent.splice(0, this.sent.length - INFO3.analyzer.maxChanges)
     const bits = frameBits(v)
     let prev: Level = this.level
     bits.forEach((b, i) => {
