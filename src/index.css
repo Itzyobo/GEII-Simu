@@ -18,6 +18,16 @@
   --color-ch1: #e8b500;
   --color-ch2: #12b5c9;
   --color-seg: #3dff86;
+  /* Cours : pôles, cuivre des bobinages, phases L1 L2 L3, tôles */
+  --color-north: #c43c2b;
+  --color-south: #2c68ad;
+  --color-copper: #b05f22;
+  --color-l1: #8a4b1f;
+  --color-l2: #1d2228;
+  --color-l3: #8f979f;
+  --color-steel: #cdd5dc;
+  --color-steel-2: #a9b4be;
+  --color-rotor: #97a3ad;
   --radius-card: 16px;
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -36,3 +46,13 @@ body {
   stroke-dashoffset: var(--flow, 0);
 }
 
+
+/* Cours : maille parcourue par le courant (points qui défilent) */
+.flux-anim {
+  animation: flux 0.7s linear infinite;
+}
+@keyframes flux {
+  to {
+    stroke-dashoffset: -14.1;
+  }
+}

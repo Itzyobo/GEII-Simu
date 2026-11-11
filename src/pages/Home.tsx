@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { TPS } from './tps'
+import { CHAPITRES } from '../cours/chapitres'
 import { ATTENDUS, LABEL_OF, QUESTIONS } from '../data/questions'
 import { resetProgress, useProgress } from '../lib/progress'
 
@@ -22,7 +23,29 @@ export default function Home() {
         Réglez, câblez, mesurez, puis répondez aux questions de l’énoncé. Les valeurs simulées sont calées sur les comptes rendus.
       </p>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
+      <section className="mt-8 rounded-card bg-card p-5 ring-1 ring-line">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1">
+            <h2 className="font-semibold">Cours animé</h2>
+            <p className="text-sm text-muted">Les {CHAPITRES.length} chapitres du diaporama, chacun avec ses animations interactives.</p>
+          </div>
+          <Link to="/ener/cours" className="inline-flex min-h-11 items-center rounded-lg bg-copper px-4 py-2 text-sm font-semibold text-white">
+            Ouvrir le cours
+          </Link>
+        </div>
+        <ol className="mt-3 flex flex-wrap gap-2 text-sm">
+          {CHAPITRES.map((c, i) => (
+            <li key={c.slug}>
+              <Link to={`/ener/cours/${c.slug}`} className="inline-flex min-h-9 items-center rounded-lg bg-card-2 px-3 ring-1 ring-line hover:ring-copper">
+                {i + 1}. {c.titre}
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <h2 className="mt-10 text-sm font-semibold tracking-wide text-muted">TRAVAUX PRATIQUES</h2>
+      <div className="mt-3 grid gap-4 md:grid-cols-3">
         {TPS.map((tp) => {
           const ids = QUESTIONS[tp.slug].map((q) => q.id)
           const pct = (100 * ids.filter(ok).length) / ids.length

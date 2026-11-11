@@ -4,7 +4,9 @@ Site React 100 % front qui reproduit trois TP d'électrotechnique : moteur pas �
 Chaque page comporte un câblage simplifié, des instruments et les questions de l'énoncé, corrigées et notées.
 Les valeurs simulées sont calées sur les comptes rendus (CR). Toutes les constantes vivent dans `src/data/reference.ts`.
 
-Le TP2 (liaison série / MODBUS, sous `/modbus`) a son propre README : [docs/modbus/README.md](docs/modbus/README.md).
+L'accueil classe le site par matière : **ENER3** (les 3 TP sous `/ener`, et le cours animé sous `/ener/cours`) et **Réseaux** (TP2 liaison série / MODBUS, sous `/modbus`, avec son propre README : [docs/modbus/README.md](docs/modbus/README.md)).
+
+Le cours animé reprend le diaporama `docs/Énergie - Cours.pdf` en 7 chapitres génériques (circuits magnétiques, alimentations à découpage, moteurs pas à pas, champ tournant, machine synchrone, machine asynchrone, onduleurs et variation de vitesse). Il intègre les animations de `Moteurs ENER3.html` (rotor pas à pas, pont en H, champ tournant, moteur asynchrone, couplage). Code : `src/cours/` (modèles dans `physique.ts`, testés dans `physique.test.ts`).
 
 ## Lancement
 
@@ -46,6 +48,7 @@ src/models/               modèles purs, testés sans React
 src/lib/                  oscilloscope (trigger, mesures), câblage, notation, examen (barème, clés de correction, session), progression, formats
 src/components/           instruments et commandes (oscilloscope, bouton rotatif, afficheurs, câblage, feuilles de calcul notées, coquille d'examen…)
 src/pages/                accueil, démo, pages TP et leurs questions / feuilles de calcul
+src/cours/                cours animé ENER3 : chapitres (chapitres/), modèles génériques (physique.ts), hook canvas à 30 images/s (canvas.ts)
 ```
 
 ## Questions couvertes

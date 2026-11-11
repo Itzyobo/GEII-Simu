@@ -9,8 +9,9 @@ const base = server.resolvedUrls.local[0].replace(/\/$/, '')
 
 const { TPS } = await server.ssrLoadModule('/src/pages/tps.ts')
 const { MODBUS_PAGES } = await server.ssrLoadModule('/src/modbus/routes.ts')
+const { CHAPITRES } = await server.ssrLoadModule('/src/cours/chapitres.ts')
 // Routes de premier niveau : à tenir à jour avec src/main.tsx
-const routes = ['/', '/ener', ...TPS.map((t) => `/tp/${t.slug}`), '/examen-blanc', '/demo', ...MODBUS_PAGES.map(([p]) => (p ? `/modbus/${p}` : '/modbus')), '/info3', '/info3/tp1', '/info3/tp2', '/info3/tp3', '/info3/tp4', '/info3/tp5', '/info3/tp6', '/info3/examen', '/info3/hypotheses', '/info3/libre', '/info3/dev']
+const routes = ['/', '/ener', ...TPS.map((t) => `/tp/${t.slug}`), '/examen-blanc', '/demo', '/ener/cours', ...CHAPITRES.map((c) => `/ener/cours/${c.slug}`), ...MODBUS_PAGES.map(([p]) => (p ? `/modbus/${p}` : '/modbus')), '/info3', '/info3/tp1', '/info3/tp2', '/info3/tp3', '/info3/tp4', '/info3/tp5', '/info3/tp6', '/info3/examen', '/info3/hypotheses', '/info3/libre', '/info3/dev']
 
 const browser = await chromium.launch()
 const failures = []

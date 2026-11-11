@@ -31,6 +31,8 @@ const INFO3_PAGES = {
   // Page technique : développement seulement (absente du build de production)
   dev: import.meta.env.DEV ? lazy(() => import('./pages/info3/Dev')) : null,
 }
+const Sommaire = lazy(() => import('./cours/CoursPages').then((m) => ({ default: m.Sommaire })))
+const ChapitrePage = lazy(() => import('./cours/CoursPages').then((m) => ({ default: m.ChapitrePage })))
 const renderTp = (tp: { slug: Tp['slug'] }) => {
   const full = TPS.find((t) => t.slug === tp.slug)!
   const Page = PAGES[full.slug]
@@ -54,6 +56,8 @@ createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/ener" element={<Home />} />
+          <Route path="/ener/cours" element={<Sommaire />} />
+          <Route path="/ener/cours/:slug" element={<ChapitrePage />} />
           {TPS.map((tp) => (
             <Route key={tp.slug} path={`/tp/${tp.slug}`} element={<ExamShell tps={[tp]} minutes={30} kind={tp.slug} render={renderTp} />} />
           ))}
