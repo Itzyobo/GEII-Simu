@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { coverage, INFO3_QUESTIONS, INFO3_VALIDATION, type CoverageState } from '../../data/questions'
+import { loadProgress } from '../../info3/project/progress'
 
 const STATE: Record<CoverageState, { label: string; cls: string }> = {
   covered: { label: 'couvert', cls: 'bg-ok/10 text-ok ring-ok/30' },
@@ -20,8 +21,13 @@ const label = (id: string) => {
   return q ? `TP${q.tp} ${q.numero}` : m ? `TP${m[1]} ${m[2].replace(/-/g, '.')}` : id
 }
 
-/** Accueil INFO3 : points de validation A1 à A10, TP1 à TP6, mode libre */
+/** Accueil INFO3 : progression par TP, TP1 à TP6, examen, mode libre, hypothèses, points de validation A1 à A10 */
 export default function Info3Home() {
+  const progress = loadProgress()
+  const done = (tp: number) => {
+    const ids = INFO3_QUESTIONS.filter((q) => q.tp === tp).map((q) => q.id)
+    return { passed: ids.filter((id) => progress[id]?.state === 'passed').length, total: ids.length }
+  }
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <header>
@@ -40,25 +46,40 @@ export default function Info3Home() {
           Travaux pratiques
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {TPS.map((t) =>
-            t.to ? (
+          {TPS.map((t) => {
+            const d = done(t.tp)
+            return (
               <Link key={t.tp} to={t.to} className="rounded-card bg-card p-4 ring-1 ring-line hover:ring-accent">
                 <p className="text-xs text-muted">TP{t.tp}</p>
                 <p className="font-semibold">{t.title}</p>
+                <p className="mt-2 text-xs text-muted" aria-label={`TP${t.tp} : ${d.passed} questions validées sur ${d.total}`}>
+                  {d.passed} / {d.total} questions validées
+                </p>
+                <div className="mt-1 h-1.5 rounded bg-card-2" aria-hidden>
+                  <div className="h-1.5 rounded bg-accent" style={{ width: `${(100 * d.passed) / d.total}%` }} />
+                </div>
               </Link>
-            ) : (
-              <div key={t.tp} className="rounded-card bg-card-2 p-4 opacity-70 ring-1 ring-line" aria-disabled>
-                <p className="text-xs text-muted">TP{t.tp} · à venir</p>
-                <p className="font-semibold">{t.title}</p>
-              </div>
-            ),
-          )}
-          <Link to="/info3/libre" className="rounded-card bg-card p-4 ring-1 ring-line hover:ring-accent">
-            <p className="text-xs text-muted">Hors TP</p>
-            <p className="font-semibold">Mode libre</p>
-            <p className="text-xs text-muted">Projet vierge, Diagnostic, export et import JSON</p>
-          </Link>
+            )
+          })}
         </div>
+      </section>
+
+      <section aria-labelledby="hors" className="grid gap-3 sm:grid-cols-3">
+        <h2 id="hors" className="sr-only">
+          Hors TP
+        </h2>
+        <Link to="/info3/examen" className="rounded-card bg-card p-4 ring-1 ring-line hover:ring-accent">
+          <p className="font-semibold">Mode examen</p>
+          <p className="text-xs text-muted">Sujet tiré au sort, chrono, note sur 20 et correction</p>
+        </Link>
+        <Link to="/info3/libre" className="rounded-card bg-card p-4 ring-1 ring-line hover:ring-accent">
+          <p className="font-semibold">Mode libre</p>
+          <p className="text-xs text-muted">8 projets de départ, Diagnostic, export et import JSON</p>
+        </Link>
+        <Link to="/info3/hypotheses" className="rounded-card bg-card p-4 ring-1 ring-line hover:ring-accent">
+          <p className="font-semibold">Hypothèses</p>
+          <p className="text-xs text-muted">Valeurs non vérifiées, à confirmer en séance</p>
+        </Link>
       </section>
 
       <section aria-labelledby="valid">

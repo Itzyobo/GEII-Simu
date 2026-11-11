@@ -50,7 +50,7 @@ const SLOT_LABEL: Record<SlotId, string> = { mikrobus1: 'MODULE 1', mikrobus2: '
 const DRAG_TYPE = 'application/x-info3-card'
 
 /** Lueur des LED : --duty (0 à 1) fixé à chaque image, transition courte pour une animation fluide */
-const BOARD_CSS = `.info3-led-on{opacity:var(--duty);transition:opacity 40ms linear}.info3-led-glow{opacity:calc(var(--duty) * .85);transition:opacity 40ms linear}`
+const BOARD_CSS = `.info3-board [tabindex]:focus-visible{outline:2px solid #ffd600;outline-offset:2px}.info3-led-on{opacity:var(--duty);transition:opacity 40ms linear}.info3-led-glow{opacity:calc(var(--duty) * .85);transition:opacity 40ms linear}`
 
 const isEditable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || !!t.closest('.cm-editor'))
 
@@ -207,7 +207,7 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
   return (
     <div className="space-y-2">
       <style>{BOARD_CSS}</style>
-      <svg viewBox="0 0 560 360" className="block w-full max-w-full rounded-card bg-[#0f1411] ring-1 ring-line" role="img" aria-label="Banc Curiosity HPC et carte fille GEII">
+      <svg viewBox="0 0 560 360" className="info3-board block w-full max-w-full rounded-card bg-[#0f1411] ring-1 ring-line" role="group" aria-label="Banc Curiosity HPC et carte fille GEII">
         <defs>
           <filter id="ledGlow" x="-1" y="-1" width="3" height="3">
             <feGaussianBlur stdDeviation="4" />
@@ -217,7 +217,7 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
         <rect x={40} y={14} width={380} height={300} rx={10} fill="#1d5c42" stroke="#0e2f22" strokeWidth={2} />
         <text x={56} y={34} className="fill-[#e9f5ee] text-[11px] font-semibold">Curiosity HPC</text>
         {/* USB noir (PKOB) */}
-        <g role="button" tabIndex={0} aria-label={`USB noir (PKOB) : ${powered ? 'branché, cliquer pour débrancher' : 'débranché, cliquer pour brancher'}`} className="cursor-pointer outline-none" onClick={() => onUsbBlack(!powered)} onKeyDown={(e) => e.key === 'Enter' && onUsbBlack(!powered)}>
+        <g role="button" tabIndex={0} aria-label={`USB noir (PKOB) : ${powered ? 'branché, cliquer pour débrancher' : 'débranché, cliquer pour brancher'}`} className="cursor-pointer outline-none" onClick={() => onUsbBlack(!powered)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onUsbBlack(!powered))}>
           <rect x={44} y={142} width={30} height={26} rx={2} fill="#c9ced1" stroke="#7d868c" />
           <rect x={50} y={149} width={18} height={12} fill="#2d3135" />
           {powered && (
@@ -328,7 +328,7 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
           <circle cx={490 + jx * 12} cy={190 - jy * 12} r={10} fill="#3a3f46" />
           <text x={490} y={225} textAnchor="middle" className="fill-[#e9eefc] text-[8px]">JOYSTICK</text>
         </g>
-        <g role="button" tabIndex={0} aria-label={`USB blanc (UART) : ${bench.usbWhite ? 'branché' : 'débranché'}`} className="cursor-pointer outline-none" onClick={() => onUsbWhite(!bench.usbWhite)} onKeyDown={(e) => e.key === 'Enter' && onUsbWhite(!bench.usbWhite)}>
+        <g role="button" tabIndex={0} aria-label={`USB blanc (UART) : ${bench.usbWhite ? 'branché' : 'débranché'}`} className="cursor-pointer outline-none" onClick={() => onUsbWhite(!bench.usbWhite)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onUsbWhite(!bench.usbWhite))}>
           <rect x={474} y={268} width={32} height={22} rx={2} fill="#c9ced1" stroke="#7d868c" />
           <rect x={481} y={274} width={18} height={10} fill="#2d3135" />
           {bench.usbWhite && <path d="M490 290 V352" stroke="#f4f4f4" strokeWidth={9} strokeLinecap="round" />}

@@ -123,3 +123,27 @@ Questions affichant le badge « valeur non vérifiée » :
 
 `MAS.variateurUh` n'intervient dans aucune réponse attendue : U/f est demandé sur le fondamental (mode harmonique du wattmètre), Uh ne sert qu'à l'affichage RMS.
 D'autres hypothèses de modèle sont documentées en commentaire dans `src/models/`, par exemple le bilan simple en étoile ou le maintien des pertes au variateur.
+
+## INFO3 — simulateur Curiosity HPC (PIC16F18875)
+
+Module `/info3` : TP1 à TP6 d'informatique industrielle (énoncé : `docs/info3/enonce.md`), mode examen, mode libre, page des hypothèses. Suivi détaillé : `docs/info3/STATUS.md` ; règles de travail : `CLAUDE.md` (section INFO3).
+
+**Lancer** : `npm run dev` puis `/info3`. Tests : `npm test` (rapides), `npm run test:perf` (temps réel, en série). Contrôles : `npm run build`, `npx oxlint`, `npm run check:375`.
+
+**Structure** :
+
+```
+src/info3/compiler/   préprocesseur, lexer, parser C (XC8 v2), bytecode ; xc.h généré depuis INFO3.sfr
+src/info3/vm/         VM à pile, bus SFR, événements datés, interruptions, pile matérielle
+src/info3/models/     gpio, ioc, timer246, msspSpi, hc595x2, ec12d, pwm, rgbLed, eusart, terminal, adcc, max7219
+src/info3/mcc/        MCC Classic (System, Pin Manager, Interrupt Module, TMR2/4/6, MSSP1, CCP1/PWM6/PWM7, EUSART, ADCC) et générateur (gabarits réels du TP1)
+src/info3/prof/       professeurs virtuels TP1 à TP6 (chargés à la demande dans le Worker)
+src/info3/worker/     protocole, handleMessage, Worker
+src/info3/exam/       mode examen (sujet par graine, barème, session)
+src/info3/solutions/  solutions de référence ; src/info3/fixtures/ : code des CR (jamais corrigé)
+src/pages/info3/      accueil, TP1 à TP6, examen, libre, hypothèses (/info3/dev en développement seulement)
+```
+
+**Règles** : toutes les constantes dans `src/data/reference.ts` (`INFO3`) ; réponses attendues calculées depuis les modèles ; comportement issu des registres ; fichiers réels du TP prioritaires ; tolérances jamais élargies ; aucun `git push`.
+
+**Hypothèses** : toute valeur non sourcée est une hypothèse Hx de `INFO3.hypotheses` (badge « valeur non vérifiée » sur les questions qui en dépendent). Liste, état et façon de les vérifier : page `/info3/hypotheses`.

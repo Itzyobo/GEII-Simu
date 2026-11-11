@@ -4,7 +4,8 @@
  */
 import { blankProject, parseProject, runGenerate, type Project } from './project'
 
-export const STORAGE_PREFIX = 'tpsim.info3.v1.'
+import { STORAGE_PREFIX } from './progress'
+export { STORAGE_PREFIX }
 export const KEYS = {
   tp1: `${STORAGE_PREFIX}project.tp1`,
   tp2: `${STORAGE_PREFIX}project.tp2`,
@@ -119,27 +120,8 @@ export function importProject(text: string, newId: string): Project | null {
   }
 }
 
-/* ───────────── Progression des questions ───────────── */
-
-export type QuestionState = 'todo' | 'failed' | 'passed'
-export type Progress = Record<string, { state: QuestionState; attempts: number; answer?: string }>
-
-export function loadProgress(s?: KeyValueStore | null): Progress {
-  const x = readJson(KEYS.progress, s === undefined ? store() : s)
-  if (!x || typeof x !== 'object' || Array.isArray(x)) return {}
-  const out: Progress = {}
-  for (const [k, v] of Object.entries(x as Record<string, unknown>)) {
-    const o = v as Record<string, unknown> | null
-    if (o && (o.state === 'todo' || o.state === 'failed' || o.state === 'passed') && typeof o.attempts === 'number') {
-      out[k] = { state: o.state, attempts: o.attempts, answer: typeof o.answer === 'string' ? o.answer : undefined }
-    }
-  }
-  return out
-}
-
-export function saveProgress(p: Progress, s?: KeyValueStore | null) {
-  writeJson(KEYS.progress, p, s === undefined ? store() : s)
-}
+/* ───────────── Progression des questions : src/info3/project/progress.ts (accueil sans le modèle de projet) ───────────── */
+export { loadProgress, saveProgress, type Progress, type QuestionState } from './progress'
 
 /* ───────────── Préférences d'affichage ───────────── */
 

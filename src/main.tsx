@@ -26,8 +26,10 @@ const INFO3_PAGES = {
   tp5: lazy(() => import('./pages/info3/Tp5')),
   tp6: lazy(() => import('./pages/info3/Tp6')),
   examen: lazy(() => import('./pages/info3/Examen')),
+  hypotheses: lazy(() => import('./pages/info3/Hypotheses')),
   libre: lazy(() => import('./pages/info3/Libre')),
-  dev: lazy(() => import('./pages/info3/Dev')),
+  // Page technique : développement seulement (absente du build de production)
+  dev: import.meta.env.DEV ? lazy(() => import('./pages/info3/Dev')) : null,
 }
 const renderTp = (tp: { slug: Tp['slug'] }) => {
   const full = TPS.find((t) => t.slug === tp.slug)!
@@ -66,8 +68,9 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/info3/tp5" element={<INFO3_PAGES.tp5 />} />
           <Route path="/info3/tp6" element={<INFO3_PAGES.tp6 />} />
           <Route path="/info3/examen" element={<INFO3_PAGES.examen />} />
+          <Route path="/info3/hypotheses" element={<INFO3_PAGES.hypotheses />} />
           <Route path="/info3/libre" element={<INFO3_PAGES.libre />} />
-          <Route path="/info3/dev" element={<INFO3_PAGES.dev />} />
+          {INFO3_PAGES.dev && <Route path="/info3/dev" element={<INFO3_PAGES.dev />} />}
           <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>
