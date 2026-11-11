@@ -1,6 +1,6 @@
 # INFO3 — état d'avancement
 
-Mis à jour à chaque bloc terminé. Étape en cours : **7** (mode examen, mode libre complet, finitions). Étape 6 terminée (commit da5489f), étape 5 (74db13a), étape 4 (bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
+Mis à jour à chaque bloc terminé. Étape 7 (mode examen, mode libre complet, finitions) terminée. Étape 6 terminée (commit da5489f), étape 5 (74db13a), étape 4 (bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
 
 ## Étape 7
 
@@ -10,6 +10,46 @@ Mis à jour à chaque bloc terminé. Étape en cours : **7** (mode examen, mode 
 | B1 | fait | Mode examen /info3/examen (src/info3/exam/exam.ts, verify.ts, corrections.ts ; src/pages/info3/Examen.tsx). Départ : sujet TP1 à TP6 ou Aléatoire, 3 à 5 défis tirés avec une graine affichée (rejouable ; TP1 4.3 exclu, aucune référence validée), durée 1 h 30 par défaut, variante « Avec MCC » ou « Registres seuls » (MCC désactivé, mcc_generated_files vide, main.c en #include <xc.h>, comportements seuls notés). Épreuve : chrono fixe toujours visible, remise automatique à 0 ; Faire vérifier par question (avec MCC : vérification du TP ; registres seuls : cartes et câbles), échec = nombre d’erreurs seulement ; « Rendre la question » enregistre le verdict du professeur sans l’afficher ; aucun Diagnostic, aucune infobulle d’aide (Workbench exam), badges « valeur non vérifiée » sans explication. Barème INFO3.exam (H54) : 20 / n par question, 25 % configuration (wiringScore de src/lib/exam : 100 % / 50 % / 0), 75 % défi ; −2 points par manipulation refusée sous tension (bench.lockAttempts) ; plancher 0. Fin : note sur 20, configuration par essai, pénalités, points par question, temps utilisé ; correction ouverte par défaut pour une question refusée ou non traitée (verdict sur la copie, explications des QCM, page du cours, code de référence chargé à la remise). Session dans sessionStorage (sujet, graine, projet, essais, copies, pénalités ; chrono recalculé depuis l’heure de départ). Tests 2 à 9 |
 | B2 | fait | Mode libre complet. 8 projets de départ (src/info3/project/starters.ts) : configuration MCC seule de TP1 à TP6 avec le main.c du premier Generate, projet vide, projet vide « registres seuls » (champ registersOnly du projet : MCC désactivé dans le poste de travail, mcc_generated_files vide). Export / import JSON (fichiers, MCC, cartes, câbles ; inchangé, testé octet pour octet). Diagnostic étendu, sans jamais modifier le code : R5 IE de second niveau avec PEIE = 0, R6 IOC configurée et GIE = 0, R7 carte Click sur un mikroBUS dont les broches ne sont pas celles du code (celles de l’autre le sont), R8 PWM sur un timer non FOSC/4, R9 SPI mode 1 ou 2 avec la Rotary, R10 printf sans USB blanc ou terminal à un autre baud (> 5 %), R11 variable > 8 bits écrite sous IT et lue dans main avec GIE = 1 (relève des accès de la VM activée par le panneau Diagnostic seulement, message diagWatch), R12 TAD < 1 µs ; données du Worker : diag.uart, diag.shared, inspecteur d’interruptions. Diagnostic absent du mode examen. Journal des octets émis par l’EUSART borné. Tests 10 et 11 |
 | B3 | fait | Finitions. Page /info3/hypotheses (src/pages/info3/Hypotheses.tsx) : toutes les Hx de INFO3.hypotheses avec leur état (non vérifiée, partielle, vérifiée, réfutée), la façon de les vérifier en TP, la preuve, les questions qui en dépendent ; lien depuis l’accueil. Accueil : progression par TP (questions validées sur le total, lue dans src/info3/project/progress.ts, sans charger le modèle de projet), cartes TP1 à TP6, liens Mode examen, Mode libre, Hypothèses, tableau A1 à A10. README : section INFO3 (lancer, structure, règles, hypothèses). /info3/dev : route et import en développement seulement (import.meta.env.DEV), plus aucun chunk Dev dans le build. Accessibilité : contour de focus visible (jaune) sur les commandes du banc, SVG du banc en role=group (ses commandes n’étaient pas exposées sous role=img), USB au clavier (Entrée ou Espace) ; S1/S2 touches 1 et 2, codeur et joystick aux flèches, potentiomètre aux flèches ; libellés aria. Test 12 |
+| P | fait | Charge CPU à ×1 (chenillard TP1) : une image du Worker sans changement visible ne redessine plus le poste de travail (horloge rafraîchie au plus toutes les 0,1 s simulée, INFO3.vm.idleRefreshS) ; format numérique français partagé (Intl.NumberFormat créé une fois, au lieu de toLocaleString à chaque appel) ; intitulés de l’énoncé mis en cache et Markdown mémoïsé. Processus de rendu (page + Worker) : 29 % d’un cœur avant, 12,7 % après |
+| V | fait | Vérifications finales (ci-dessous) |
+
+### Résultats de l'étape 7 (HEAD cd72943 vérifié dans un worktree propre, sans le travail ENER3 non commité)
+
+- `npm test` : 10 passages sur 10, 588 tests chacun (604 dans la copie de travail avec les tests du cours animé) ; `npm run test:perf` : 5 sur 5.
+- `npm run build` : 0 erreur, 0 warning. oxlint : 23 avertissements (23 à l’étape 6), 0 dans INFO3.
+- 375 px strict : 27 routes conformes, dont /info3/examen, /info3/libre et /info3/hypotheses.
+- Non-régression : 30 verdicts (fixtures du CR TP1 à TP3, solutions TP1 à TP6) recalculés à da5489f et à HEAD : identiques, sauf le message de TP6 §2 (R1) ; toujours validé.
+- Lighthouse 12.6.1, bureau, build de production (vite preview) : /info3 → Performance 100 ; /info3/tp1 → 100 (FCP 0,5 s, LCP 0,7 s, TBT 0 ms, CLS 0).
+- CPU à ×1 sur le chenillard du TP1 (CR q3_5), build de production, 10 s : processus de rendu (page + Worker, SystemInfo.getProcessInfo) 12,6 à 12,9 % d’un cœur, dont fil principal 6,5 à 6,8 % (cible < 25 %).
+- Navigateur (Playwright headless ; extension Chrome non connectée), 0 erreur console :
+  1. sujet TP2 avec MCC, graine 1 : TP2 1.1, 2.2, 2.3, 2.4 ; chrono 1 h 29 min 59 s ;
+  2. Faire vérifier sans configuration : « 7 erreurs » ; configuration TP2 1.1 cliquée dans MCC (LED_D2…D5, BP_S1/S2, Analog décoché, IOC negative), Generate, 2e essai conforme ;
+  3. carte Rotary enfichée sous tension : refusée (« Débrancher l’USB avant de manipuler une carte »), 1 pénalité ;
+  4. code du CR TP2 1.1, Program, question rendue ; rechargement : session identique (sujet, code, MCC, essais, pénalités), chrono inchangé (1 h 29 min 56 s) ;
+  5. remise : 2,38 / 20 = TP2 1.1 (configuration 50 % = 0,63 + défi 3,75) − 2 (pénalité) ; corrections des 3 questions non traitées ouvertes, avec le code de référence ;
+  6. registres seuls, TP1 3.3 (TRISA, ANSELA, LATA, __delay_ms) : MCC désactivé, Faire vérifier conforme au 1er essai, BUILD SUCCESSFUL, question validée (5,00 points).
+- Aucun git push.
+
+| Page (gzip, worktree propre) | Page hors éditeur | + Worker (55,6 Ko) et professeur du TP | Budget |
+| --- | --- | --- | --- |
+| /info3 | 3,1 Ko | — | — |
+| /info3/tp1 | 71,1 Ko | 130,1 Ko (professeur 3,4) | ≤ 150 Ko |
+| /info3/tp2, /info3/tp3 | 79,9 Ko | 137,8 Ko (2,3) | ≤ 150 Ko |
+| /info3/tp4 | 80,0 Ko | 141,4 Ko (3,5 + 2,3) | ≤ 150 Ko |
+| /info3/tp5 | 80,0 Ko | 139,4 Ko (3,8) | ≤ 150 Ko |
+| /info3/tp6 | 80,0 Ko | 140,3 Ko (4,7) | ≤ 150 Ko |
+| /info3/examen | 74,1 Ko | 129,7 Ko ; + correction 10,4 Ko et un professeur (≤ 7 Ko) à la remise : ≤ 147,1 Ko | ≤ 150 Ko |
+| /info3/libre | 57,7 Ko | 113,3 Ko (CodeMirror 103,5 Ko à part) | ≤ 150 Ko |
+| /info3/hypotheses | 14,2 Ko | — | — |
+| Bundle initial | 80,3 Ko (80,1 à l’étape 6) | — | ≤ base + 3 Ko |
+
+Écarts de l’étape 7 :
+- Le chrono et la session de l’examen utilisent sessionStorage avec un type de session propre à INFO3 (sujet, graine, projet, essais, copies) ; de src/lib/exam sont repris wiringScore (100 / 50 / 0 %), la convention « réponses enregistrées sans verdict » et la remise ; ExamSession de src/lib (localStorage, ENER3) n’est pas réutilisé tel quel.
+- « Manipulation sous tension » = manipulation refusée par le verrouillage (carte Click enfichée ou retirée sous tension, compteur bench.lockAttempts) ; débrancher un USB n’est jamais refusé, donc jamais pénalisé.
+- Lighthouse a été téléchargé le temps de la mesure (npx, accord de l’utilisateur) ; il n’est pas ajouté au projet.
+- CPU mesuré sur le processus de rendu entier (page + Worker + composition), plus strict que le seul fil principal du panneau Performance.
+
+Reste : hypothèses à vérifier en séance (51 non vérifiées ou partielles, liste classée par TP sur /info3/hypotheses).
 
 ## Étape 6 (terminée)
 
