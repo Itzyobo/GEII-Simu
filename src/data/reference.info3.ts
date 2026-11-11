@@ -751,6 +751,8 @@ export const INFO3 = {
     sliceOps: 50_000,
     /** Images envoyées par le Worker au plus — par seconde */
     frameRateHz: 30,
+    /** Image sans changement visible : affichage rafraîchi au plus toutes les idleRefreshS secondes simulées */
+    idleRefreshS: 0.1,
     /** Vitesses de simulation proposées */
     speeds: [0.1, 1, 10],
     /** Opérations au plus pour un pas à pas avant abandon */

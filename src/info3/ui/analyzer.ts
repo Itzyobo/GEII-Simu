@@ -6,11 +6,15 @@ export const TRACE_W = 1000
 export const TRACE_HIGH = 6
 export const TRACE_LOW = 28
 
+/** Format numérique français, créé une fois (toLocaleString en recrée un à chaque appel : coûteux à 30 images/s) */
+const NF_FR = new Intl.NumberFormat('fr-FR')
+export const fmtNumberFr = (x: number) => NF_FR.format(x)
+
 /** Durée lisible : 9,984 ms, 64,52 µs, 1,2 s */
 export function fmtTime(s: number): string {
   const abs = Math.abs(s)
   const [k, u] = abs >= 1 ? [1, 's'] : abs >= 1e-3 ? [1e3, 'ms'] : abs >= 1e-6 ? [1e6, 'µs'] : [1e9, 'ns']
-  return `${Number((s * k).toPrecision(4)).toLocaleString('fr-FR')} ${u}`
+  return `${fmtNumberFr(Number((s * k).toPrecision(4)))} ${u}`
 }
 
 /** Dernier indice de `a` dont t ≤ x (−1 si aucun) */

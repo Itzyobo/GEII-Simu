@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { INFO3 } from '../../data/reference'
 import { acquire, SCOPE_POINTS } from '../../lib/scope'
 import { ALL_PINS } from '../models/gpio'
-import { fmtTime } from './analyzer'
+import { fmtNumberFr, fmtTime } from './analyzer'
 import { autoPeriod, decodeSpi, findTriggerTime, signalOf, type TriggerEdge } from './scope'
 import type { SimControls } from './useSim'
 
@@ -191,7 +191,7 @@ export default function Oscilloscope({ sim, defaults }: { sim: SimControls; defa
         </div>
         <p className="tabular-nums" data-testid="scope-measures">
           ΔT = <span className="font-mono font-semibold">{fmtTime(dt)}</span>
-          {dt > 0 && <span> · 1/ΔT = {Number((1 / dt).toPrecision(4)).toLocaleString('fr-FR')} Hz</span>}
+          {dt > 0 && <span> · 1/ΔT = {fmtNumberFr(Number((1 / dt).toPrecision(4)))} Hz</span>}
           {' · '}Période CH{trig.ch + 1} : <span className="font-mono font-semibold">{Number.isFinite(period) ? fmtTime(period) : '—'}</span>
         </p>
         <div className="flex flex-wrap items-center gap-2">

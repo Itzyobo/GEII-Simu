@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import { INFO3 } from '../../data/reference'
 import { ALL_PINS } from '../models/gpio'
-import { fmtTime, tracePoints, TRACE_W as W } from './analyzer'
+import { fmtNumberFr, fmtTime, tracePoints, TRACE_W as W } from './analyzer'
 import type { SimControls } from './useSim'
 
 const A = INFO3.analyzer
@@ -94,7 +94,7 @@ export default function LogicAnalyzer({ sim, defaults }: { sim: SimControls; def
         </div>
         <p className="tabular-nums">
           Δt = <span className="font-mono font-semibold">{fmtTime(dt)}</span>
-          {dt > 0 && <span className="text-muted"> ({Number((1 / dt).toPrecision(4)).toLocaleString('fr-FR')} Hz)</span>}
+          {dt > 0 && <span className="text-muted"> ({fmtNumberFr(Number((1 / dt).toPrecision(4)))} Hz)</span>}
         </p>
       </div>
     </details>

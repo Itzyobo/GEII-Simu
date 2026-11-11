@@ -15,7 +15,22 @@ const lf = (s: string) => s.replace(/\r\n/g, '\n')
  * Intitulé d'une question : texte (Markdown) qui suit l'ancre `<a id="…"></a>`, jusqu'à l'ancre suivante,
  * un filet `---` ou un titre (sauf s'il est la première ligne : « ### 1. Interruption Timer2 … »).
  */
+/** Intitulés déjà lus, pour le dernier énoncé (la liste des questions est redessinée à chaque image) */
+let cacheSrc = ''
+const cache = new Map<string, string | null>()
+
 export function questionTitle(src: string, id: string): string | null {
+  if (src !== cacheSrc) {
+    cacheSrc = src
+    cache.clear()
+  }
+  if (cache.has(id)) return cache.get(id)!
+  const t = readTitle(src, id)
+  cache.set(id, t)
+  return t
+}
+
+function readTitle(src: string, id: string): string | null {
   const md = lf(src)
   const marker = `<a id="${id}"></a>`
   const at = md.indexOf(marker)

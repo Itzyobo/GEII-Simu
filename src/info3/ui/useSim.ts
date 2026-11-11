@@ -57,6 +57,8 @@ function reducer(s: SimView, a: Action): SimView {
       const m = a.m
       switch (m.type) {
         case 'frame':
+          // Image sans changement visible : on ne redessine que pour avancer l'horloge, au plus toutes les idleRefreshS (charge CPU)
+          if (!Object.keys(m.ledDuty).length && !Object.keys(m.pinsDiff).length && !m.ringDuty && !m.matrixGlow && Math.abs(m.tSim - s.tSim) < INFO3.vm.idleRefreshS) return s
           return {
             ...s,
             tSim: m.tSim,

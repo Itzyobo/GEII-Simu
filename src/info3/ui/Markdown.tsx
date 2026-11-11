@@ -3,7 +3,7 @@
  * citations, blocs de code (clôturés, même indentés dans un élément de liste, ou indentés de 4 espaces),
  * tableaux, filets, ancres.
  */
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 
 /** Indentation d'un bloc de code par rapport au texte courant (Markdown) */
 const CODE_INDENT = 4
@@ -22,7 +22,8 @@ const cells = (l: string) =>
     .split('|')
     .map((c) => c.trim())
 
-export default function Markdown({ text }: { text: string }) {
+/** Mémoïsé : le texte ne change pas d’une image du Worker à l’autre */
+export default memo(function Markdown({ text }: { text: string }) {
   const out: ReactNode[] = []
   const lines = text.replace(/\r\n/g, '\n').split('\n')
   let i = 0
@@ -129,4 +130,4 @@ export default function Markdown({ text }: { text: string }) {
   }
   flush()
   return <div className="space-y-2 text-sm leading-6">{out}</div>
-}
+})
