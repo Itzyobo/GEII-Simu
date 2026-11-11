@@ -19,6 +19,11 @@ const MATIERES = [
     titre: 'Réseaux locaux industriels',
     cartes: [{ to: '/modbus', tag: 'TP2 · GEII', title: 'Liaison série / MODBUS', items: ['Liaison série (SERIE_1 à 3, RealTerm)', 'Scrutation du réseau', 'Esclaves OTB, TDS, TQS, THT'], ener: false }],
   },
+  {
+    code: 'AU3',
+    titre: 'Automatique',
+    cartes: [{ to: '/au3', tag: 'TP · MCC', title: 'Moteur à courant continu + DT', items: ['TP1 : boucle ouverte, identification', 'TP2 : régulateur proportionnel', 'TP4 : régulateur PI série', 'Banc libre : GBF, oscilloscope, platine'], ener: false }],
+  },
 ]
 
 export default function Dashboard() {

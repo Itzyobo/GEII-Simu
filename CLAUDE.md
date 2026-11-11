@@ -29,3 +29,14 @@ Simulateur PIC16F18875 / Curiosity HPC. PRD : `PRD — Simulateur INFO3 Curiosit
 - `src/info3/worker/` : protocole typé, `handleMessage` pur, `sim.worker.ts`, `createSimClient()`.
 - `src/info3/fixtures/` : MCC TP1 écrit à la main (`mcc-tp1/`), code des CR copié tel quel (`cr/`). Ne jamais corriger le code des CR.
 - Page technique : `/info3/dev` (`src/pages/info3/Dev.tsx`), sans lien public.
+
+## AU3
+
+Simulateur MCC + dynamo tachymétrique (GBF TG315, DSOX2004A, platine « Régulateur analogique »). PRD : `PRD — Simulateur de TP AU3 (MCC).md` (fait foi). Suivi : `docs/au3/STATUS.md`.
+
+- **Constantes** : objet `AU3` (entrées `{ valeur, unite, source: 'CR' | 'enonce' | 'hypothese', note?, tol? }`) et `AU3_INSTRUMENTS` dans `src/data/reference.au3.ts`, réexportés par `reference.ts`. Aucun nombre hors {0, 1, -1, 2} et index dans `src/au3/` ni `questions.au3.ts` (test `src/au3/regles.test.ts`, liste blanche : `prng.ts`).
+- **Énoncé** : `docs/au3/enonce.md`, mot pour mot ; ancres `<a id="…">` = id des questions (`src/data/questions.au3.ts`). Attendus officiels = listes « A la fin du TPx, vous devez savoir » ; TP3 non couvert.
+- **Badge** : `dependDHypothese(cles)` (`src/au3/hypothese.ts`) + `<BadgeNonVerifie/>`.
+- **Câblage** : bornes nommées (`src/au3/sim/cablage.ts`) ; verrouillage sous tension et « Faire vérifier » dans le réducteur pur `src/au3/banc.ts`.
+- **Session** : `src/au3/session.ts`, versionnée (`SESSION_VERSION`).
+- TypeScript plus strict pour AU3 : `tsconfig.au3.json` (`noUncheckedIndexedAccess`, `noImplicitOverride`).

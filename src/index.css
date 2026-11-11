@@ -28,6 +28,18 @@
   --color-steel: #cdd5dc;
   --color-steel-2: #a9b4be;
   --color-rotor: #97a3ad;
+  /* AU3 : établi de labo sombre (PRD AU3 §5) */
+  --color-au3-bg: #14161a;
+  --color-au3-panel: #1e2127;
+  --color-au3-panel-2: #272b33;
+  --color-au3-line: #353a44;
+  --color-au3-ink: #e6e6e6;
+  --color-au3-muted: #a3a9b3;
+  --color-au3-accent: #f5a524;
+  --color-au3-warn: #ff9a3c;
+  --color-au3-ok: #5ad48a;
+  --color-au3-err: #ff6b6b;
+  --color-au3-bois: #c9a66b;
   --radius-card: 16px;
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
