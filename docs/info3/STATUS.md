@@ -11,6 +11,39 @@ Mis à jour à chaque bloc terminé. Étape en cours : **6** (TP6 : CAN, joystic
 | B2 | fait | MAX7219 et matrice 8x8 R click. Modèle max7219 (src/info3/models/max7219.ts) : registre à décalage 16 bits au front montant de CLK (MSB en premier), verrouillage des 16 derniers bits au front montant de LOAD (D11–D8 adresse, D7–D0 donnée), registres No-Op, Digit 0–7, Decode Mode (par digit, police Code B), Intensity ((2n+1)/32), Scan Limit, Shutdown, Display Test (64 LED à 31/32 sur 8 digits, même en shutdown) ; mise sous tension : shutdown, scan limit 0, pas de décodage, intensité minimale, digits à 0 (H53). Matrice : Digit 0 = colonne de droite, DP = ligne du haut, G = ligne du bas (H11 vérifiée par l'annexe 5). Câblage selon le mikroBUS : LOAD ← CS (RA3 sur le mikroBUS 1, RD3 sur le 2), CLK ← SCK, DIN ← MOSI ; bus SPI partagé avec la Rotary (ses 74HC595 reçoivent aussi les fronts) ; DOUT non relié (H53). LOAD remonté entre les 2 octets : trames mélangées verrouillées (comportement réel). Banc : 64 LED rouges, lueur = intensité / digits balayés (moyenne par image, message frame.matrixGlow). Bibliothèque LED8x8.c / LED8x8.h compilée et liée avec main.c (solutions tp6). Écarts avec l'annexe 6 : DOUT 16,5 cycles plus tard (front descendant), Decode Mode par digit, Display Test prioritaire sur shutdown et scan limit. Tests 8 à 11 (+ Code B) |
 | B3 | fait | Page /info3/tp6 (analyseur RB1/RB3/RA3/RC6, oscilloscope TP17/TP16), 6 questions par ancre : tp6-1-1 défi (valeurs brutes ± 1 LSB et % ± 1 point des 3 entrées pour POT 0 / 50 / 100 % et joystick au repos / butée droite / butée haute ; message « dépassement sur 16 bits » si res*100/1023 est calculé sur 16 bits) + QCM « Que constatez-vous ? » ; tp6-1-2 QCM calibration ; tp6-1-3 signatures Joy_Cal_X/Y de l'énoncé, appels unitaires (repos 0 ± 2, butées |v| ≥ 480, signes) ; tp6-2 X toutes les 10 ms ± 1 %, Y < 50 µs après la fin de X, affichage toutes les 1 s ± 2 %, fonctions bloquantes interdites, section critique vérifiée à l'exécution (journal des accès de la VM : variables > 8 bits écrites sous IT et lues dans main avec GIE = 1 → « accès concurrent non protégé ») ; tp6-3 LED8x8.c/.h et 4 signatures exactes, appels unitaires (Initialize, Write, Clear, blank_100ms 300 ms ± 1 %), séquence colonnes / lignes 200 ms, diagonale × 5 et Tab[8] 500 ms, motif personnel ; tp6-4 carré 2x2 sur 9 positions du joystick. Professeur TP6 chargé à la demande (reçoit le mikroBUS de la 8x8 R click). Faire vérifier TP6 (USB blanc, ADCC POT/JOY_HORZ/JOY_VERT et noms, EUSART redirigé, §2 TMR2 10 ms + ADI + PEIE dans main.c, §3–§4 8x8 R click mikroBUS 1, SPI mode 0 ou 3, LOAD RA3 sortie Start High). Solutions src/info3/solutions/tp6/q1_1, q1_3, q2, q3, q4, LED8x8.c/.h. Conflit signalé : à Fosc = 4 MHz l'enchaînement de Y prend ~81 µs dans le modèle (> 50 µs) ; référence §2 à 32 MHz (INFO3.tp6.fastSystem). Accueil : carte TP6, A1 à A10 tous couverts. Tests 12, 13 + refus et Faire vérifier |
 
+| V | fait | Vérifications finales (ci-dessous) |
+
+### Résultats de l'étape 6 (HEAD b1ffabf vérifié dans un worktree propre, sans le travail ENER3 non commité)
+
+- `npm test` : 10 passages sur 10, 565 tests chacun (581 dans la copie de travail avec les tests du cours animé). `npm run test:perf` : 5 sur 5.
+- `npm run build` : 0 erreur, 0 warning. oxlint : 23 avertissements (23 à l'étape 5), 0 dans INFO3.
+- 375 px strict : 25 routes conformes (/info3/tp6 comprise).
+- Navigateur (Playwright headless ; extension Chrome non connectée), /info3/tp6, tout par l'interface, sans configuration de référence, 0 erreur console :
+  1. §1.1 : MCC (ADCC + voies RA0, RD5, RD6 cliquées dans la grille, Custom Name POT, JOY_HORZ, JOY_VERT ; EUSART + Redirect STDIO), « Aucune notification », Generate, Faire vérifier conforme, Program ; terminal « POT=513 (50%) X=499 … » ; POT à fond → POT=1023 (100%) ; joystick à droite → X=1023 ; en haut → Y=0 ; relâché → X=497, Y=531 ;
+  2. §3 : MSSP1 ajouté (mode 0, SCK1 RB1 et SDO1 RB3 verrouillées dans la grille), RA3 cliquée en GPIO output, Custom Name LOAD, Start High ; LED8x8.c et LED8x8.h créés dans l'IDE ; carte 8x8 R click sur MODULE 1 ; Faire vérifier conforme ; séquence observée : fin des colonnes, lignes 1 à 8, diagonale × 5 (allumée / éteinte), Tab[8] (32 LED) × 3 ;
+  3. §4 : carré au repos (4,4)(4,5)(5,4)(5,5) ; droite → colonnes 7–8 ; gauche → 1–2 ; haut → lignes 1–2 ; bas → 7–8 ; relâché → centre.
+- Accueil : A1 à A10 tous au vert.
+- Aucun git push.
+
+| Page (gzip, worktree propre) | Page hors éditeur | + Worker (55,2 Ko) + professeur du TP | Budget |
+| --- | --- | --- | --- |
+| /info3/tp1 | 69,8 Ko | 128,4 Ko (professeur 3,4) | ≤ 150 Ko |
+| /info3/tp2, /info3/tp3 | 77,8 Ko | 135,3 Ko (2,3) | ≤ 150 Ko |
+| /info3/tp4 | 77,9 Ko | 138,9 Ko (3,5 + 2,3 partagé avec TP2/TP3) | ≤ 150 Ko |
+| /info3/tp5 | 77,9 Ko | 136,9 Ko (3,8) | ≤ 150 Ko |
+| /info3/tp6 | 77,9 Ko | 137,8 Ko (4,7) | ≤ 150 Ko |
+| Bundle initial | 80,1 Ko (80,04 à l'étape 5) | — | ≤ base + 3 Ko |
+| CodeMirror | 103,5 Ko | — | ≤ 120 Ko |
+
+Écarts de l'étape 6 :
+- PDF de l'énoncé lu dans Downloads/Informatique - TP.pdf (docs/sources/INFO3_TP.pdf absent), pages 29 à 36 rendues en images (pdf.js).
+- Annexe 6 face à la consigne : DOUT 16,5 cycles plus tard au front descendant (et non 16 fronts) ; Decode Mode par digit ; Display Test prioritaire sur shutdown et scan limit (31/32, 8 digits) ; LOAD à monter après le 16e front et avant le suivant ; contenu des digits à la mise sous tension non précisé (0 : H53).
+- TP6 §2 : à Fosc = 4 MHz, l'enchaînement de Y dure ~81 µs dans le modèle (> 50 µs demandés) ; tolérance conservée, solution de référence à Fosc = 32 MHz.
+- LOAD remonté entre les 2 octets : le dernier verrouillage reste correct ; ce sont les verrouillages intermédiaires (octet précédent + adresse) qui allument des LED parasites.
+- R4 : aucun écart entre ccp1.c et le cours p. 89.
+
+Reste pour l'étape 7 : selon le PRD (examen, mode libre complet, finitions) ; TP6 : ADACT, mode continu et calculs de l'ADCC non simulés (H52).
+
 ## Étape 5 (terminée)
 
 | Bloc | État | Contenu |
