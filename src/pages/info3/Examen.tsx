@@ -203,9 +203,15 @@ export function ExamRunning({ session, onChange }: { session: ExamSession; onCha
 function ExamResults({ session, onRestart }: { session: ExamSession; onRestart(): void }) {
   const sheet = examSheet(session)
   const [corr, setCorr] = useState<typeof import('../../info3/exam/corrections') | null>(null)
+  const [codes, setCodes] = useState<Record<string, string>>({})
+  const questions = session.subject.questions
   useEffect(() => {
-    void import('../../info3/exam/corrections').then(setCorr)
-  }, [])
+    void import('../../info3/exam/corrections').then(async (m) => {
+      setCorr(m)
+      const codes = await Promise.all(questions.map(async (id) => [id, await m.referenceCode(id)] as const))
+      setCodes(Object.fromEntries(codes))
+    })
+  }, [questions])
   return (
     <section className="space-y-3" aria-label="Feuille de notes">
       <div className="rounded-card bg-card p-4 ring-1 ring-line">
@@ -266,7 +272,7 @@ function ExamResults({ session, onRestart }: { session: ExamSession; onRestart()
               <p key={x}>{x}</p>
             ))}
             <p className="text-muted">Voir {coursePageOf(l.id)}.</p>
-            <pre className="max-h-80 overflow-auto rounded bg-screen p-2 text-xs text-[#d8e2dc]">{corr ? corr.referenceCode(l.id) : 'Chargement…'}</pre>
+            <pre className="max-h-80 overflow-auto rounded bg-screen p-2 text-xs text-[#d8e2dc]">{codes[l.id] ?? 'Chargement…'}</pre>
           </div>
         </details>
       ))}

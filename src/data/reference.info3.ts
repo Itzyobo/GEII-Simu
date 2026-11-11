@@ -628,6 +628,14 @@ export const INFO3 = {
     printTolerance: 0.02,
     source: 'énoncé TP6 et consigne étape 6 (pas de CR du TP6)',
   },
+  /** Budgets de taille (PRD §5.1), contrôlés par npm run check:size sur le build de production — Ko gzip */
+  budget: {
+    /** Page INFO3 + Worker (+ professeur et correction chargés à la demande) */
+    pageWithWorkerKb: 150,
+    /** Bundle initial : base (premier relevé dans un worktree propre, étape 3) + marge */
+    initialBaseKb: 79.93,
+    initialMarginKb: 3,
+  },
   /** Mode examen (/info3/examen) : barème = H54 sauf durée par défaut et pénalité (consigne étape 7, PRD §7) */
   exam: {
     /** Durée par défaut — min (consigne : 1 h 30) */

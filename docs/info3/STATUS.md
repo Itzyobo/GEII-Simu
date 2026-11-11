@@ -13,6 +13,12 @@ Mis à jour à chaque bloc terminé. Étape 7 (mode examen, mode libre complet, 
 | P | fait | Charge CPU à ×1 (chenillard TP1) : une image du Worker sans changement visible ne redessine plus le poste de travail (horloge rafraîchie au plus toutes les 0,1 s simulée, INFO3.vm.idleRefreshS) ; format numérique français partagé (Intl.NumberFormat créé une fois, au lieu de toLocaleString à chaque appel) ; intitulés de l’énoncé mis en cache et Markdown mémoïsé. Processus de rendu (page + Worker) : 29 % d’un cœur avant, 12,7 % après |
 | V | fait | Vérifications finales (ci-dessous) |
 
+### Corrections de clôture
+
+- Hypothèses : H5 = « VDD = 3,3 V » et H48 = « Y croît vers le bas » vérifiées dans INFO3.hypotheses et sur /info3/hypotheses (test ajouté) ; aucune confusion côté INFO3 (MODBUS a ses propres H5 et H48, liste séparée). États : 1 vérifiée (H11), 5 partielles (H8, H18, H25, H28, H42), 2 réfutées (H1, H24), 46 non vérifiées, total 54.
+- `npm run check:size` (scripts/check-size.mjs, budgets INFO3.budget) : construit, sert le build, ouvre chaque page INFO3 et échoue si une page + Worker + le plus gros professeur dépasse 150 Ko gzip, ou si le bundle initial dépasse 79,93 + 3 Ko ; l’examen est mesuré à la remise. Premier passage : examen à la remise 152,3 Ko (code de référence de toutes les questions chargé d’un bloc) ; corrections chargées fichier par fichier → 144,0 Ko. Pages TP 133,9 à 142,8 Ko, libre 120,3, hypothèses 76,8, bundle initial 80,28 Ko.
+- Lighthouse 12.6.1, bureau, build de production : /info3 Performance 100, Accessibilité 95 ; /info3/tp1 99 et 89 ; /info3/examen 99 et 95. Points relevés (non corrigés) : contrastes du texte « muted » et des liens du fil d’Ariane ; aria-label interdit sur le pre du terminal ; ordre des titres (h3 après h1 dans les questions) ; cases à cocher du banc trop petites (target-size).
+
 ### Résultats de l'étape 7 (HEAD cd72943 vérifié dans un worktree propre, sans le travail ENER3 non commité)
 
 - `npm test` : 10 passages sur 10, 588 tests chacun (604 dans la copie de travail avec les tests du cours animé) ; `npm run test:perf` : 5 sur 5.
