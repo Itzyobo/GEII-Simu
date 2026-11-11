@@ -207,7 +207,7 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
             />
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
               <label className="flex items-center gap-1.5" title={exam ? undefined : INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
-                <input type="checkbox" checked={bounce} onChange={(e) => setBounce(e.target.checked)} /> Rebonds des boutons S1 et S2 (H3)
+                <input type="checkbox" className="size-6" checked={bounce} onChange={(e) => setBounce(e.target.checked)} /> Rebonds des boutons S1 et S2 (H3)
               </label>
               <label className="flex items-center gap-1.5">
                 Vitesse

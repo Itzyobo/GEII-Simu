@@ -360,14 +360,14 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
           )
         })}
         <label className="ml-auto flex items-center gap-1.5 text-xs">
-          <input type="checkbox" checked={bench.usbBlack} onChange={(e) => onUsbBlack(e.target.checked)} /> USB noir
+          <input type="checkbox" className="size-6" checked={bench.usbBlack} onChange={(e) => onUsbBlack(e.target.checked)} /> USB noir
         </label>
         <label className="flex items-center gap-1.5 text-xs">
-          <input type="checkbox" checked={bench.usbWhite} onChange={(e) => onUsbWhite(e.target.checked)} /> USB blanc
+          <input type="checkbox" className="size-6" checked={bench.usbWhite} onChange={(e) => onUsbWhite(e.target.checked)} /> USB blanc
         </label>
         {onCover && (
           <label className="flex items-center gap-1.5 text-xs">
-            <input type="checkbox" checked={bench.cover} onChange={(e) => onCover(e.target.checked)} /> Cache LED RGB
+            <input type="checkbox" className="size-6" checked={bench.cover} onChange={(e) => onCover(e.target.checked)} /> Cache LED RGB
           </label>
         )}
       </div>

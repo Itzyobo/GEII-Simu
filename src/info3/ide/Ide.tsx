@@ -219,9 +219,9 @@ export default function Ide({ files, generated, onFilesChange, sim, onProgram, o
           <p className="text-xs font-semibold">Source Files</p>
           <ul className="mb-1 pl-2">{sources.map((f) => treeItem(f))}</ul>
           <p className="text-xs font-semibold">Header Files</p>
-          <ul className="mb-1 pl-2">{headers.length ? headers.map((f) => treeItem(f)) : <li className="px-1.5 text-xs opacity-50">—</li>}</ul>
+          <ul className="mb-1 pl-2">{headers.length ? headers.map((f) => treeItem(f)) : <li className="px-1.5 text-xs opacity-70">—</li>}</ul>
           <p className="text-xs font-semibold">{MCC_DIR}</p>
-          <ul className="mb-2 pl-2">{mcc.length ? mcc.map((f) => treeItem(f)) : <li className="px-1.5 text-xs opacity-50">Generate dans MCC</li>}</ul>
+          <ul className="mb-2 pl-2">{mcc.length ? mcc.map((f) => treeItem(f)) : <li className="px-1.5 text-xs opacity-70">Generate dans MCC</li>}</ul>
           <div className="flex gap-1">
             <input
               aria-label="Nouveau fichier (.c ou .h)"
@@ -291,7 +291,7 @@ export default function Ide({ files, generated, onFilesChange, sim, onProgram, o
         <div className={`h-40 overflow-y-auto p-2 font-mono text-xs leading-5 ${th.out}`} aria-live="polite">
           {bottom === 'output' &&
             (v.output.length === 0 ? (
-              <p className="opacity-60">Output vide.</p>
+              <p className="opacity-70">Output vide.</p>
             ) : (
               v.output.map((o, i) =>
                 o.file && o.line && o.file in all ? (
@@ -307,7 +307,7 @@ export default function Ide({ files, generated, onFilesChange, sim, onProgram, o
             ))}
           {bottom !== 'output' &&
             (!stopped || !v.snapshot ? (
-              <p className="opacity-60">Disponible quand le débogueur est arrêté (point d’arrêt, Pause ou pas à pas).</p>
+              <p className="opacity-70">Disponible quand le débogueur est arrêté (point d’arrêt, Pause ou pas à pas).</p>
             ) : bottom === 'variables' ? (
               <table className="w-full text-left">
                 <thead>
@@ -320,7 +320,7 @@ export default function Ide({ files, generated, onFilesChange, sim, onProgram, o
                   {v.snapshot.locals.map((r) => (
                     <tr key={`l-${r.name}`}>
                       <td className="pr-3">
-                        {r.name} <span className="opacity-50">({v.snapshot!.func})</span>
+                        {r.name} <span className="opacity-70">({v.snapshot!.func})</span>
                       </td>
                       <td className="break-all">{r.value}</td>
                     </tr>
@@ -328,7 +328,7 @@ export default function Ide({ files, generated, onFilesChange, sim, onProgram, o
                   {v.snapshot.globals.map((r) => (
                     <tr key={`g-${r.name}`}>
                       <td className="pr-3">
-                        {r.name} <span className="opacity-50">(globale)</span>
+                        {r.name} <span className="opacity-70">(globale)</span>
                       </td>
                       <td className="break-all">{r.value}</td>
                     </tr>

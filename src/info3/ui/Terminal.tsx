@@ -43,7 +43,7 @@ export default function Terminal({ sim, connected }: { sim: SimControls; connect
   return (
     <section className="space-y-2 rounded-card bg-card p-3 ring-1 ring-line" aria-label="Terminal série">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <h3 className="text-sm font-semibold">Terminal</h3>
+        <h2 className="text-sm font-semibold">Terminal</h2>
         <span className={connected ? 'text-ok' : 'text-muted'}>{connected ? 'COM (USB blanc) ouvert' : 'Aucun port COM : brancher l’USB blanc'}</span>
         <label className="ml-auto flex items-center gap-1">
           Baud
@@ -83,16 +83,16 @@ export default function Terminal({ sim, connected }: { sim: SimControls; connect
       </div>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
         <label className="flex items-center gap-1">
-          <input type="checkbox" checked={showControl} onChange={(e) => setShowControl(e.target.checked)} /> Afficher \r et \n
+          <input type="checkbox" className="size-6" checked={showControl} onChange={(e) => setShowControl(e.target.checked)} /> Afficher \r et \n
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" checked={stamp} onChange={(e) => setStamp(e.target.checked)} /> Horodatage
+          <input type="checkbox" className="size-6" checked={stamp} onChange={(e) => setStamp(e.target.checked)} /> Horodatage
         </label>
         <button type="button" onClick={() => sim.clearSerial()} className="ml-auto rounded border border-line px-2 py-0.5 hover:bg-card-2">
           Effacer
         </button>
       </div>
-      <pre aria-label="Écran du terminal" aria-live="polite" className="h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-screen p-2 font-mono text-xs text-[#d8e2dc]">
+      <pre role="log" aria-label="Écran du terminal" aria-live="polite" className="h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-screen p-2 font-mono text-xs text-[#d8e2dc]">
         {connected ? text : ''}
       </pre>
       <form

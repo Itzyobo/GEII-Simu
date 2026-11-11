@@ -112,9 +112,9 @@ export default function Oscilloscope({ sim, defaults }: { sim: SimControls; defa
         <div className="flex flex-wrap items-center gap-2">
           {probes.map((p, i) => (
             <label key={i} className="flex items-center gap-1">
-              <span className="font-semibold" style={{ color: COLORS[i] }}>
-                CH{i + 1}
-              </span>
+              {/* Couleur de la trace en pastille : en texte, jaune et cyan sont illisibles sur fond clair */}
+              <span aria-hidden="true" className="inline-block size-2.5 rounded-sm" style={{ background: COLORS[i] }} />
+              <span className="font-semibold">CH{i + 1}</span>
               <select aria-label={`Sonde CH${i + 1}`} className={sel} value={p} onChange={(e) => setProbes((ps) => ps.map((x, j) => (j === i ? e.target.value : x)))}>
                 <optgroup label="Points de test">
                   {S.testPoints.map((tp) => (
@@ -196,7 +196,7 @@ export default function Oscilloscope({ sim, defaults }: { sim: SimControls; defa
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1">
-            <input type="checkbox" checked={spi.on} onChange={(e) => setSpi({ ...spi, on: e.target.checked })} /> Décodage SPI (CH1 = SCK, CH2 = données)
+            <input type="checkbox" className="size-6" checked={spi.on} onChange={(e) => setSpi({ ...spi, on: e.target.checked })} /> Décodage SPI (CH1 = SCK, CH2 = données)
           </label>
           <select aria-label="Mode SPI du décodage" className={sel} value={spi.mode} disabled={!spi.on} onChange={(e) => setSpi({ ...spi, mode: Number(e.target.value) })}>
             {INFO3.spi.modes.map((m) => (

@@ -17,7 +17,15 @@ Mis à jour à chaque bloc terminé. Étape 7 (mode examen, mode libre complet, 
 
 - Hypothèses : H5 = « VDD = 3,3 V » et H48 = « Y croît vers le bas » vérifiées dans INFO3.hypotheses et sur /info3/hypotheses (test ajouté) ; aucune confusion côté INFO3 (MODBUS a ses propres H5 et H48, liste séparée). États : 1 vérifiée (H11), 5 partielles (H8, H18, H25, H28, H42), 2 réfutées (H1, H24), 46 non vérifiées, total 54.
 - `npm run check:size` (scripts/check-size.mjs, budgets INFO3.budget) : construit, sert le build, ouvre chaque page INFO3 et échoue si une page + Worker + le plus gros professeur dépasse 150 Ko gzip, ou si le bundle initial dépasse 79,93 + 3 Ko ; l’examen est mesuré à la remise. Premier passage : examen à la remise 152,3 Ko (code de référence de toutes les questions chargé d’un bloc) ; corrections chargées fichier par fichier → 144,0 Ko. Pages TP 133,9 à 142,8 Ko, libre 120,3, hypothèses 76,8, bundle initial 80,28 Ko.
-- Lighthouse 12.6.1, bureau, build de production : /info3 Performance 100, Accessibilité 95 ; /info3/tp1 99 et 89 ; /info3/examen 99 et 95. Points relevés (non corrigés) : contrastes du texte « muted » et des liens du fil d’Ariane ; aria-label interdit sur le pre du terminal ; ordre des titres (h3 après h1 dans les questions) ; cases à cocher du banc trop petites (target-size).
+- Lighthouse 12.6.1, bureau, build de production : /info3 Performance 100, Accessibilité 95 ; /info3/tp1 99 et 89 ; /info3/examen 99 et 95. Points relevés : contrastes du texte « muted » et des liens du fil d’Ariane ; aria-label interdit sur le pre du terminal ; ordre des titres (h3 « Terminal » directement après le h1) ; cases à cocher du banc trop petites (target-size).
+
+### Accessibilité (corrections Lighthouse)
+
+- Contraste ≥ 4,5:1 par les variables de thème (src/index.css) : muted #6a776d → #5b675e (5,26 sur card-2), ok #15803d → #116b33, warn #b45309 → #9a4708, err #dc2626 → #b91c1c, accent #2f7d4f → #276a43 (chacun ≥ 4,5:1 sur bg, card-2 et sur sa propre teinte à 10 et 15 % des badges). Hors thème : textes de l’IDE estompés à 50/60 % → 70 % (palette MPLAB propre à l’IDE, 5,6:1) ; étiquettes CH1/CH2 de l’oscilloscope en couleur d’encre, la couleur de trace passant dans une pastille.
+- Terminal : role="log" sur le pre (aria-label autorisé) ; titre « Terminal » en h2 (h1 → h2 → h3 sans saut).
+- Cases à cocher du banc et des instruments (USB noir, USB blanc, cache LED RGB, rebonds, terminal, décodage SPI) : 24 × 24 px.
+- Lighthouse 12.6.1 bureau après correction : /info3 Performance 100, Accessibilité 100 ; /info3/tp1 100 et 100 ; /info3/examen 100 et 100. Seul audit signalé : label-content-name-mismatch (expérimental, poids nul) sur le connecteur USB dessiné.
+- Build propre, npm test 588, test:perf 5 sur 5, check:size respecté (examen à la remise 143,9 Ko), oxlint 23 (inchangé), 375 px strict 27 routes.
 
 ### Résultats de l'étape 7 (HEAD cd72943 vérifié dans un worktree propre, sans le travail ENER3 non commité)
 
