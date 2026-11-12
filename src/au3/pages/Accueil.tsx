@@ -35,6 +35,10 @@ export default function Accueil() {
           <h2 id="banc" className="sr-only">
             Banc et TP
           </h2>
+          <Link to="/au3/examen" className="rounded-lg bg-au3-panel p-4 ring-1 ring-au3-accent/60 hover:ring-au3-accent" data-lien-examen>
+            <p className="font-semibold text-au3-accent">Mode examen</p>
+            <p className="text-xs text-au3-muted">TP1, TP2 ou TP4 (ou tirage au sort), chrono, aucun indice, barème du câblage et pénalités, bilan par attendu</p>
+          </Link>
           <Link to="/au3/libre" className="rounded-lg bg-au3-panel p-4 ring-1 ring-au3-accent/60 hover:ring-au3-accent">
             <p className="font-semibold text-au3-accent">Banc libre</p>
             <p className="text-xs text-au3-muted">Câblage, « Faire vérifier », mise sous tension, oscilloscope (curseurs, mesures, moyennage, Stop, .csv)</p>

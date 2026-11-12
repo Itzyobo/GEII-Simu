@@ -249,7 +249,7 @@ describe('17. corrections de l’étape 2', () => {
     expect(badgeAffiche(q('tp1-i23-o2-q2').cles, q('tp1-i23-o2-q2').validee)).toBe(false)
     expect(badgeAffiche(q('tp1-i23-q12').cles, q('tp1-i23-q12').validee)).toBe(true)
   })
-  it('3. une session v2 du TP1 est migrée en v3 : réponses, câblage et progression identiques', () => {
+  it('3. une session v2 du TP1 est migrée jusqu’à la version courante : réponses, câblage et progression identiques', () => {
     const m = new Map<string, string>()
     const st = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) }
     const { verifieReussiSur: _a, tp2: _b, ...base } = sessionNeuve('libre')
@@ -258,7 +258,7 @@ describe('17. corrections de l’étape 2', () => {
     const v2 = { ...base, version: 2, reponses: { 'tp1-i21-q3': { valeur: '12,2 ms', essais: 1 } }, cablage: [...PRESET_TP1], tp1: { ...progressionNeuve(), croixT3T1: { z: 1.2, y: 3.4 }, methodeWn: 't3' as const } }
     st.setItem(cleSession('libre', 'tp1'), JSON.stringify(v2))
     const s = chargerSession(st, 'libre', 'tp1')!
-    expect(SESSION_VERSION).toBe(3)
+    expect(SESSION_VERSION).toBe(4)
     expect(s.version).toBe(SESSION_VERSION)
     expect(s.reponses).toEqual(v2.reponses)
     expect(s.cablage).toEqual(v2.cablage)

@@ -71,3 +71,20 @@
 **Vérifications** : build, `tsc -b`, `npm test` 712/712 (aucun `it.fails`), `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 40 routes, `check:size` OK, parcours Playwright TP4 + variantes TP2 sans message console. Captures 7 à 10.
 
 **Reste (étape 5)** : mode examen (chrono, barème câblage, pénalités sous tension, bilan par attendu).
+
+## Étape 5 — mode examen et finitions (terminée)
+
+**Corrections de l'étape 4**
+1. Intégrateur pur : frontière de stabilité par Routh (Ki·G0r < (τa+τb)/(τa·τb), Ki = G1·G2/(R1·C2)) = Affichage 85,0 ; −5 points : convergence (erreur 0,08 % sur 3 s) ; +5 points et Affichage 95 : cycle limite entretenu (amplitude constante à 10⁻⁶ près). La page TP4 affiche « boucle instable » (Routh–Hurwitz général, `routhStable`).
+2. TR5% : deux lectures sur la trace affichée (entrée dans la bande sur la trace lissée, dernier franchissement sur la trace brute), enregistrées avec la réponse ; si elles diffèrent de plus de 5 %, chacune est acceptée à ±5 %, avec l'explication du creux et la définition de l'énoncé.
+3. Balayage de la Q5 dans un Worker, mémoïsé par configuration (Z1, Z2, G2, GBF) : plus longue image pendant la correction 16,8 ms (Chromium headless) ; figures Recharts mémoïsées.
+
+**Mode examen `/au3/examen`** : TP choisi ou tiré au sort, graine affichée, incident « ampli bloqué » tiré 1 fois sur 3 ; chrono depuis l'horodatage absolu ; aucun indice (verdict de câblage réduit à « accepté/refusé + n° d'essai ») ; barème du câblage 100/50/0 % (un essai = câblage modifié) ; pénalités sous tension et Autoscale ; bilan par attendu, journal horodaté, questions non traitées avec correction ; session v4 (migration v3 → v4), examen terminé consultable puis effaçable.
+
+**Catalogue unique des réponses attendues** (`src/au3/examen/catalogue.ts`) : les pages TP1, TP2, TP4 et la correction de l'examen lisent les mêmes valeurs (test de cohérence par rendu serveur).
+
+**Finitions** : lien vers l'examen sur l'accueil ; README du module (`docs/au3/README.md`, hypothèses générées depuis reference.au3.ts).
+
+**Vérifications** : build, `tsc -b`, `npm test` 735/735 (aucun `it.fails`), `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 41 routes, `check:size` OK, parcours Playwright de l'examen TP2 avec incident sans message console. Captures 11 à 13.
+
+**Hors périmètre** : TP3 ; TP4 II.2 ; QCM du partiel ; écarts TR5% connus (−7 / −10 / −11 %) ; valeurs du TP4 à confirmer par une mesure réelle.

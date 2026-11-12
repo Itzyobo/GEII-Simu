@@ -62,6 +62,8 @@ export const MISE_EN_PAGE = {
     largeurEtabli: 1360,
     hauteurEtabli: 700,
   },
+  /** Chrono d'examen : secondes par minute, rafraîchissement (ms) */
+  chrono: { secondesParMinute: 60, rafraichissementMs: 1000, chiffres: 2 },
   /** Facteur d'affichage d'une fraction en pourcentage */
   pourcent: 100,
   /** Chiffres significatifs de la note de TR5% (30,7 ms ; 33 ms) */

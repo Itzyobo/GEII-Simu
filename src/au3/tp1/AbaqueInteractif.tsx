@@ -25,7 +25,7 @@ type Courbe = 'rapport' | 'wn'
  * normalisée. L'étudiant pose une croix sur une courbe (clic, ou ◀ ▶) : on affiche sa lecture.
  * Méthode de l'énoncé : ωn = (ωn·t3)/t3 ; passer par t1 (courbe ωn·t1) est signalé comme un écart de méthode.
  */
-export default function Abaque({ tp1, onChange }: { tp1: ProgressionTp1; onChange: (p: Partial<ProgressionTp1>) => void }) {
+export default function Abaque({ tp1, onChange, examen = false }: { tp1: ProgressionTp1; onChange: (p: Partial<ProgressionTp1>) => void; examen?: boolean }) {
   const [courbe, setCourbe] = useState<Courbe>('rapport')
   const [survol, setSurvol] = useState<number | null>(null)
   const fWn = tp1.methodeWn === 't3' ? wnT3 : wnT1
@@ -134,7 +134,7 @@ export default function Abaque({ tp1, onChange }: { tp1: ProgressionTp1; onChang
         {' · '}
         {tp1.croixWnT ? `Croix ${nomWn} : z = ${nombre(tp1.croixWnT.z)}, ${nomWn} = ${nombre(tp1.croixWnT.y)}` : `Pas de croix sur ${nomWn}`}
       </p>
-      {tp1.methodeWn === 't1' && (
+      {tp1.methodeWn === 't1' && !examen && (
         <p className="text-au3-warn" role="status">
           Écart de méthode : l’énoncé impose ωn = (ωn·t3)/t3 (croix sur la courbe ωn·t3). Passer par t1 n’est pas pénalisé hors mode examen, mais la précision dépend alors de t1, plus court et moins précis.
         </p>

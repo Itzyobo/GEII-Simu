@@ -38,9 +38,18 @@ export function attendusTp4(e: ReglagesEssai = essaiTp4(), banc: Banc = BANC_SAN
 
 export const respecte = (a: AttendusTp4) => a.cahier.erreur && a.cahier.tr5 && a.cahier.d1
 
+/** Configuration qui détermine la réponse de la Q5 : composants, G2 et GBF de l'étudiant */
+export interface ConfigBalayage {
+  z1: Impedance | null
+  z2: Impedance | null
+  g2: number
+  gbf: ReglagesGbf
+}
+export const CONFIG_ENONCE: ConfigBalayage = { z1: Z1_TP4, z2: Z2_TP4, g2: au3('TP4_G2'), gbf: gbfTp4() }
+
 /** Q5 : balayage de l'Affichage G1 (00 à 99) ; l'ensemble des valeurs qui respectent le cahier des charges */
-export function balayageG1(banc: Banc = BANC_SANS_BRUIT) {
-  const tous = Array.from({ length: au3('AFFICHAGE_G1_MAX') + 1 }, (_, affichage) => ({ affichage, a: attendusTp4(essaiTp4(affichage), banc) }))
+export function balayageG1(c: ConfigBalayage = CONFIG_ENONCE, banc: Banc = BANC_SANS_BRUIT) {
+  const tous = Array.from({ length: au3('AFFICHAGE_G1_MAX') + 1 }, (_, affichage) => ({ affichage, a: attendusTp4({ gbf: c.gbf, g1: affichage, g2: c.g2, z1: c.z1, z2: c.z2 }, banc) }))
   const ok = tous.filter((x) => respecte(x.a)).map((x) => x.affichage)
   return { tous, ok, frontiere: ok.length ? Math.max(...ok) : null }
 }

@@ -25,12 +25,14 @@ export interface OptionsEtabli {
   onEnregistrement?: (rec: Enregistrement | null) => void
   /** Liaisons pré-câblées (dessinées en pointillés, ni vérifiées ni modifiables) */
   precablage?: Cablage
+  /** Examen : « Faire vérifier » répond seulement « accepté » ou « refusé » avec le numéro d'essai ; aucune alerte de câblage */
+  examen?: boolean
 }
 
 /** Établi : GBF sur l'oscilloscope à gauche, platine au centre, moteur à droite ; câbles posés borne à borne */
 const SANS_PRECABLAGE: Cablage = []
 
-export default function Etabli({ etat, agir, preset = true, variantes = false, onEnregistrement, precablage = SANS_PRECABLAGE }: { etat: EtatBanc; agir: (a: Action) => void } & OptionsEtabli) {
+export default function Etabli({ etat, agir, preset = true, variantes = false, onEnregistrement, precablage = SANS_PRECABLAGE, examen = false }: { etat: EtatBanc; agir: (a: Action) => void } & OptionsEtabli) {
   const s = etat.session
   const [choisie, setChoisie] = useState<IdBorne | null>(null)
   const [couleur, setCouleur] = useState<string>(C.couleurs[1])
@@ -156,7 +158,12 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
           </button>
         </p>
       )}
-      {verdict && (
+      {verdict && examen && (
+        <p className="rounded bg-au3-panel p-2 text-xs ring-1 ring-au3-line" role="status" data-verdict-examen>
+          Câblage {verdict.reussi ? 'accepté' : 'refusé'} (essai n° {s.essaisVerification})
+        </p>
+      )}
+      {verdict && !examen && (
         <div className="rounded bg-au3-panel p-2 text-xs ring-1 ring-au3-line" role="status">
           <p className={verdict.reussi ? 'text-au3-ok' : 'text-au3-warn'}>
             Vérification : {verdict.correctes.length + verdict.impedances.filter((z) => z.ok).length}/{verdict.total} {verdict.impedances.length ? 'liaisons et supports corrects' : 'liaisons correctes'}
@@ -173,7 +180,7 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
           ))}
         </div>
       )}
-      {alerteMasse.length > 0 && (
+      {alerteMasse.length > 0 && !examen && (
         <p className="rounded bg-au3-warn/15 px-3 py-1.5 text-xs text-au3-warn ring-1 ring-au3-warn/40" role="status">
           Masse câblée avec un câble non noir ({alerteMasse.length}) : l’énoncé demande des câbles noirs pour toutes les masses.
         </p>

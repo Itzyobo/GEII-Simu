@@ -270,3 +270,24 @@ export function lireCsv(texte: string): Csv {
 
 /** Nom de la mesure de performance d'une image (simulation + acquisition + moyennage), lue par le test navigateur */
 export const MESURE_IMAGE = 'au3-image'
+
+/** Indices du palier haut affiché : du déclenchement (t = 0) jusqu'au front descendant de la voie de déclenchement, ou la fin */
+export function palierAffiche(rec: Enregistrement, voieDecl = 0): { iFront: number; iFin: number } | null {
+  const c = rec.voies[voieDecl]
+  if (!c) return null
+  const iFront = Math.max(0, Math.round(-rec.t0 / rec.dt))
+  let haut = -Infinity
+  let bas = Infinity
+  for (const v of c) {
+    haut = Math.max(haut, v)
+    bas = Math.min(bas, v)
+  }
+  const milieu = (haut + bas) / 2
+  let iFin = c.length - 1
+  for (let i = iFront + 1; i < c.length; i++)
+    if (c[i]! < milieu) {
+      iFin = i - 1
+      break
+    }
+  return iFin > iFront + 1 ? { iFront, iFin } : null
+}

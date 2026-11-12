@@ -84,3 +84,33 @@ export function ecartTr5(): { modele: number; cr: number; ecart: number } {
   const modele = attendusTp1(gbf).tr5
   return { modele, cr: au3('CR_TP1_TR5'), ecart: ecartRelatif(modele, au3('CR_TP1_TR5')) }
 }
+
+/**
+ * Lectures possibles du TR5% sur une trace (énoncé : instant où la mesure atteint 0,95·m(∞) ou 1,05·m(∞)
+ * « sans jamais s'en éloigner de plus de 5 % ensuite ») : (i) entrée définitive dans la bande m(∞) ± 5 %ΔM sur la
+ * trace lissée du bruit (moyenne glissante de TR5_LISSAGE du palier) ; (ii) dernier franchissement de la bande sur la
+ * trace brute. Elles diffèrent quand le bruit fait sortir de la bande un creux (ou une bosse) qui la frôle.
+ * m(∞) = moyenne de la fin du palier (dernier dixième), instants relatifs au front.
+ */
+export function lecturesTr5(t: ArrayLike<number>, m: ArrayLike<number>, iFront: number, iFin: number): { entree: number; dernier: number } {
+  const nFin = Math.max(1, Math.floor((iFin - iFront) / au3('OSC_DIV_X')))
+  let somme = 0
+  for (let i = iFin - nFin + 1; i <= iFin; i++) somme += m[i]!
+  const fin = somme / nFin
+  const bande = (1 - au3('NIVEAU_TR5')) * Math.abs(fin - m[iFront]!)
+  const w = Math.max(1, Math.round((iFin - iFront) * au3('TR5_LISSAGE')))
+  const lisse = (i: number) => {
+    let s = 0
+    let n = 0
+    for (let k = Math.max(iFront, i - w); k <= Math.min(iFin, i + w); k++, n++) s += m[k]!
+    return s / n
+  }
+  let iBrut = iFront
+  let iLisse = iFront
+  for (let i = iFront; i <= iFin; i++) {
+    if (Math.abs(m[i]! - fin) > bande) iBrut = i + 1
+    if (Math.abs(lisse(i) - fin) > bande) iLisse = i + 1
+  }
+  const tf = t[iFront]!
+  return { entree: t[Math.min(iLisse, iFin)]! - tf, dernier: t[Math.min(iBrut, iFin)]! - tf }
+}

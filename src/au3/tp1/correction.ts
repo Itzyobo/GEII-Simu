@@ -57,3 +57,25 @@ export function corrigerAbsolu(saisie: string, attendu: number, unite: string, t
   const juste = Math.abs(c.valeur - attendu) <= tolerance
   return { verdict: juste ? 'juste' : 'faux', valeur: c.valeur, ecart: null, message: juste ? 'Dans la tolérance.' : 'Hors tolérance.' }
 }
+
+export const EXPLICATION_TR5 =
+  'Sur votre trace, un creux (ou une bosse) frôle la bande m(∞) ± 5 % : l’entrée dans la bande et le dernier franchissement donnent deux lectures. L’énoncé définit TR5% comme l’instant où la mesure atteint 0,95·m(∞) ou 1,05·m(∞) « sans jamais s’en éloigner de plus de 5 % ensuite » ; les deux lectures sont acceptées.'
+
+/**
+ * TR5% : si les lectures possibles sur la trace affichée (entrée dans la bande, dernier franchissement) diffèrent de
+ * plus de TOL_MESURE, chacune est acceptée à ±TOL_MESURE ; sinon, correction habituelle contre la valeur du modèle.
+ */
+export function corrigerTr5(saisie: string, attendu: number, lectures?: readonly number[]): Correction {
+  const [entree, dernier] = lectures ?? []
+  if (entree === undefined || dernier === undefined || !(entree > 0) || Math.abs(dernier / entree - 1) <= au3('TOL_MESURE')) return corrigerMesure(saisie, attendu, 's')
+  const a = corrigerMesure(saisie, entree, 's')
+  const b = corrigerMesure(saisie, dernier, 's')
+  const c = a.verdict === 'juste' ? a : b.verdict === 'juste' ? b : Math.abs(a.ecart ?? Infinity) <= Math.abs(b.ecart ?? Infinity) ? a : b
+  return { ...c, message: `${c.message} ${EXPLICATION_TR5}` }
+}
+
+/** Valeurs acceptées pour un TR5% (pour l'affichage de la correction) */
+export const valeursTr5 = (attendu: number, lectures?: readonly number[]): number[] => {
+  const [entree, dernier] = lectures ?? []
+  return entree !== undefined && dernier !== undefined && entree > 0 && Math.abs(dernier / entree - 1) > au3('TOL_MESURE') ? [entree, dernier] : [attendu]
+}

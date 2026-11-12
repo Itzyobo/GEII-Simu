@@ -5,7 +5,8 @@ import { MISE_EN_PAGE } from '../miseEnPage'
 import type { SessionAu3 } from '../session'
 import BadgeNonVerifie from '../ui/BadgeNonVerifie'
 import { afficher, pourcent } from './affichage'
-import { corriger, type Correction } from './correction'
+import type { Correction } from './correction'
+import { valeursChamp, type ChampDef } from '../examen/catalogue'
 
 const STYLE_VERDICT: Record<Correction['verdict'], string> = {
   juste: 'text-au3-ok',
@@ -45,17 +46,19 @@ export interface PropsReponse {
  * Champ numérique : l'étudiant saisit sa valeur avec son unité, « Valider » l'enregistre (essais comptés) ;
  * hors examen, la correction s'affiche ensuite (verdict, écart, valeur attendue calculée par le modèle).
  */
-export function ChampNum({ id, label, unite, attendu, tolerance, p, apres, corrigeur, attenduTexte }: { id: string; label: string; unite: string; attendu: number | null; tolerance: number; p: PropsReponse; apres?: (c: Correction) => ReactNode; corrigeur?: (saisie: string, attendu: number) => Correction; attenduTexte?: string }) {
+export function ChampNum({ champ, label, p, apres, lire }: { champ: ChampDef | undefined; label: string; p: PropsReponse; apres?: (c: Correction) => ReactNode; lire?: () => number[] | undefined }) {
+  if (!champ) throw new Error(`Champ absent du catalogue : ${label}`)
+  const { id, unite } = champ
   const enregistre = p.session.reponses[id]
   const [saisie, setSaisie] = useState(enregistre?.valeur ?? '')
-  const c = enregistre && attendu !== null ? (corrigeur ? corrigeur(enregistre.valeur, attendu) : corriger(enregistre.valeur, attendu, unite, tolerance)) : null
+  const c = enregistre && champ.attendu !== null ? champ.corriger(enregistre.valeur, enregistre.lectures) : null
   return (
     <div className="text-xs">
       <form
         className="flex flex-wrap items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          p.agir({ type: 'reponse', id, valeur: saisie })
+          p.agir({ type: 'reponse', id, valeur: saisie, lectures: lire?.() })
         }}
       >
         <label htmlFor={id + '-champ'} className="min-w-28 text-au3-muted">
@@ -70,11 +73,17 @@ export function ChampNum({ id, label, unite, attendu, tolerance, p, apres, corri
       {c && !p.examen && (
         <p className={`mt-1 ${STYLE_VERDICT[c.verdict]}`} role="status" data-verdict={c.verdict} data-champ={id}>
           {LIBELLE[c.verdict]} — {c.message}
-          {c.ecart !== null && ` Écart ${pourcent(c.ecart)} (tolérance ±${Math.round(tolerance * MISE_EN_PAGE.pourcent)} %).`} Attendu (modèle) : {attenduTexte ?? afficher(attendu, unite)}.{apres?.(c)}
+          {c.ecart !== null && champ.tolerance !== null && ` Écart ${pourcent(c.ecart)} (tolérance ±${Math.round(champ.tolerance * MISE_EN_PAGE.pourcent)} %).`} Attendu (modèle) : {lecturesTexte(champ, enregistre?.lectures)}.{apres?.(c)}
         </p>
       )}
     </div>
   )
+}
+
+/** Valeur(s) attendue(s) affichée(s) : deux lectures du TR5% quand un creux frôle la bande, sinon le texte du catalogue */
+function lecturesTexte(champ: ChampDef, lectures?: readonly number[]) {
+  const v = valeursChamp(champ, lectures)
+  return v.length > 1 ? v.map((x) => afficher(x, champ.unite)).join(' ou ') + ' (lectures sur votre trace)' : champ.texte
 }
 
 /**

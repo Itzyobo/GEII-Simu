@@ -15,6 +15,8 @@ import type { ReglagesPlatine } from './sim/simulate'
 export type ModeSession = 'libre' | 'examen'
 /** Page qui porte la session : banc libre ou TP (chacune garde son câblage et ses réponses) */
 export type EspaceSession = 'banc' | 'tp1' | 'tp2' | 'tp4'
+/** Clé de la session d'examen (une seule à la fois) */
+export const ESPACE_EXAMEN: EspaceSession = 'banc'
 export const cleSession = (mode: ModeSession, espace: EspaceSession = 'banc') => (espace === 'banc' ? `au3.session.${mode}` : `au3.session.${mode}.${espace}`)
 
 export interface EvenementManip {
@@ -57,14 +59,32 @@ export type ProgressionEssai = ProgressionTp1
 
 export const progressionNeuve = (): ProgressionTp1 => ({ croixT3T1: null, croixWnT: null, methodeWn: 't3', csv: null, ordre1: null, ordre2: null })
 
+export type TpExamen = 'tp1' | 'tp2' | 'tp4'
+export type IncidentExamen = 'aucun' | 'ampli-bloque'
+
+/** Examen : TP, graine du tirage, incident, horodatage absolu de début (le temps page fermée compte), fin */
+export interface SessionExamen {
+  tp: TpExamen
+  graine: number
+  incident: IncidentExamen
+  /** Date.now() au démarrage */
+  debut: number
+  termine: boolean
+  /** Date.now() à la fin (chrono à 0 ou fin anticipée) */
+  finA: number | null
+}
+
 export interface SessionAu3 {
   version: typeof SESSION_VERSION
   mode: ModeSession
   chrono: { debut: number | null; ecouleMs: number }
   /** Réponses par id de question */
-  reponses: Record<string, { valeur: string; essais: number }>
+  /** Réponses par id de question ; `lectures` : lectures du TR5% sur la trace affichée au moment de la réponse */
+  reponses: Record<string, { valeur: string; essais: number; lectures?: number[] }>
   /** Nombre de « Faire vérifier » demandés */
   essaisVerification: number
+  /** Numéro de l'essai de « Faire vérifier » qui a réussi le premier (barème du câblage), null sinon */
+  essaiReussi: number | null
   /** Signature du câblage au dernier « Faire vérifier » (null = jamais vérifié) */
   verifieSur: string | null
   /** Signature du câblage à la dernière vérification réussie (toutes les liaisons correctes) */
@@ -79,6 +99,8 @@ export interface SessionAu3 {
   curseurs: Curseurs
   tp1: ProgressionTp1
   tp2: { k38: ProgressionEssai; k40: ProgressionEssai }
+  /** Examen en cours ou terminé (mode « examen ») ; null en entraînement */
+  examen: SessionExamen | null
 }
 
 const D = MISE_EN_PAGE.oscillo.defaut
@@ -107,25 +129,29 @@ export function sessionNeuve(mode: ModeSession): SessionAu3 {
     curseurs: { ...D.curseurs, source: 1, suivre: false },
     tp1: progressionNeuve(),
     tp2: { k38: progressionNeuve(), k40: progressionNeuve() },
+    essaiReussi: null,
+    examen: null,
   }
 }
 
 type SessionBrute = Record<string, unknown> & { version?: unknown; mode?: unknown; platine?: Record<string, unknown> }
 
-/** Migrations explicites, une par version : v1 → v2 (ampli de courant, progression TP1), v2 → v3 (vérification réussie, TP2) */
-const MIGRATIONS: Record<number, (s: SessionBrute) => SessionBrute> = {
-  1: (s) => ({ ...s, version: Number(s.version) + 1, platine: { ...s.platine, ampli: 'normal' }, tp1: progressionNeuve() }),
-  2: (s) => ({ ...s, version: Number(s.version) + 1, verifieReussiSur: null, tp2: { k38: progressionNeuve(), k40: progressionNeuve() } }),
-}
+/** Migrations explicites, une par version : v1 → v2 (ampli de courant, progression TP1), v2 → v3 (vérification réussie, TP2),
+ * v3 → v4 (barème du câblage, examen) */
+const MIGRATIONS: readonly ((s: SessionBrute) => SessionBrute)[] = [
+  (s) => ({ ...s, version: Number(s.version) + 1, platine: { ...s.platine, ampli: 'normal' }, tp1: progressionNeuve() }),
+  (s) => ({ ...s, version: Number(s.version) + 1, verifieReussiSur: null, tp2: { k38: progressionNeuve(), k40: progressionNeuve() } }),
+  (s) => ({ ...s, version: Number(s.version) + 1, essaiReussi: null, examen: null }),
+]
 
 /** Version courante du schéma = nombre de migrations + 1 (ajouter une migration fait monter la version) */
-export const SESSION_VERSION = Object.keys(MIGRATIONS).length + 1
+export const SESSION_VERSION = MIGRATIONS.length + 1
 
 /** Amène une session d'une version antérieure à SESSION_VERSION ; null si version inconnue */
 export function migrerSession(brute: SessionBrute): SessionAu3 | null {
   let s = brute
   while (typeof s.version === 'number' && s.version < SESSION_VERSION) {
-    const m = MIGRATIONS[s.version]
+    const m = MIGRATIONS[s.version - 1]
     if (!m) return null
     s = m(s)
   }

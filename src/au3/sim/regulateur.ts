@@ -95,3 +95,32 @@ export function formeEtat(h: Transfert): { ordre: number; a: [number, number]; c
   const D = degre(h.num) === n ? b[n]! : 0
   return { ordre: n, a, c: [b[0]! - a[0] * D, b[1]! - (n === 2 ? a[1] : 0) * D], D }
 }
+
+/** Polynôme caractéristique de la boucle fermée R(p)·G0r/((1 + τa·p)(1 + τb·p)) : denR·(1 + τa·p)(1 + τb·p) + numR·G0r */
+export function polynomeBoucle(h: Transfert, g0r: number, tauA: number, tauB: number): Poly {
+  return plus(fois(h.den, fois([1, tauA], [1, tauB])), echelle(h.num, g0r))
+}
+
+/** Critère de Routh–Hurwitz : première colonne de la table de même signe et non nulle (cas limites = instable) */
+export function routhStable(poly: Poly): boolean {
+  const n = degre(poly)
+  if (n < 1) return true
+  const desc = poly.slice(0, n + 1).reverse()
+  const lignes: number[][] = [desc.filter((_, i) => i % 2 === 0), desc.filter((_, i) => i % 2 === 1)]
+  for (let i = 2; i <= n; i++) {
+    const [h, m] = [lignes[i - 2]!, lignes[i - 1]!]
+    if (nul(m[0] ?? 0)) return false
+    lignes.push(h.slice(1).map((x, j) => (m[0]! * x - h[0]! * (m[j + 1] ?? 0)) / m[0]!))
+  }
+  const colonne = lignes.map((l) => l[0] ?? 0)
+  return colonne.every((x) => !nul(x) && Math.sign(x) === Math.sign(colonne[0]!))
+}
+
+/**
+ * Frontière de stabilité d'un intégrateur pur Ki/p (C2 seul sur Z2, R1 sur Z1), Ki = G1·G2/(R1·C2), par Routh sur
+ * τaτb·p³ + (τa + τb)·p² + p + Ki·G0r : stable si Ki·G0r < (τa + τb)/(τa·τb). Renvoie l'Affichage G1 limite.
+ */
+export function frontiereIntegrateur(g0r: number, tauA: number, tauB: number, g2: number): number {
+  const kiMax = (tauA + tauB) / (tauA * tauB * g0r)
+  return (kiMax * au3('R1') * au3('C2') * au3('K_P_DIVISEUR')) / g2
+}

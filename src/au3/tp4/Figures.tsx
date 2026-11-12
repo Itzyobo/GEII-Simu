@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { Area, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import { formatSi } from '../ui/format'
@@ -16,7 +16,7 @@ const COULEURS: Record<SerieII, string> = { c: COUL.tangente, m: COUL.mesure, u:
  * `aire` remplit l'aire sous e(t) : « une intégrale est une aire » (II.4 b), affichée après la réponse.
  * `p` : scénario du régulateur P seul, superposé en série « mP » (II.5 : PI contre P).
  */
-export default function FigureII({ s, series, titre, aire = false, id, p }: { s: ScenarioII; series: readonly SerieII[]; titre: string; aire?: boolean; id: string; p?: ScenarioII }) {
+function FigureII({ s, series, titre, aire = false, id, p }: { s: ScenarioII; series: readonly SerieII[]; titre: string; aire?: boolean; id: string; p?: ScenarioII }) {
   const data = useMemo(() => {
     const pas = Math.max(1, Math.floor(s.t.length / I.pointsTrace))
     const pts: Record<string, number>[] = []
@@ -42,3 +42,6 @@ export default function FigureII({ s, series, titre, aire = false, id, p }: { s:
     </figure>
   )
 }
+
+/** Recharts est coûteux : une figure ne se redessine que si son scénario ou ses séries changent */
+export default memo(FigureII, (a, b) => a.s === b.s && a.p === b.p && a.aire === b.aire && a.id === b.id && a.titre === b.titre && a.series.join() === b.series.join())

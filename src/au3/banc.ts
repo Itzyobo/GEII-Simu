@@ -4,7 +4,7 @@ import { MASSES, MONTAGES, nomImpedance, reseaux, signature as signatureCablage,
 import type { ReglagesPlatine } from './sim/simulate'
 import type { Impedance } from './sim/regulateur'
 import type { EtatAmpli } from './sim/simulate'
-import type { EvenementManip, ProgressionEssai, ProgressionTp1, SessionAu3 } from './session'
+import { sessionNeuve, type EvenementManip, type IncidentExamen, type ProgressionEssai, type ProgressionTp1, type SessionAu3, type TpExamen } from './session'
 
 /**
  * Établi : règles de manipulation, en réducteur pur.
@@ -40,7 +40,11 @@ export type Action =
   | { type: 'curseurs'; patch: Partial<Curseurs> }
   | { type: 'autoscale' }
   /** Réponse saisie à une question (le nombre d'essais compte les validations) */
-  | { type: 'reponse'; id: string; valeur: string }
+  | { type: 'reponse'; id: string; valeur: string; lectures?: number[] }
+  /** Examen : démarrage (session neuve, incident appliqué), fin (réponses figées), effacement */
+  | { type: 'demarrer-examen'; tp: TpExamen; graine: number; incident: IncidentExamen }
+  | { type: 'terminer-examen' }
+  | { type: 'effacer-examen' }
   | { type: 'tp1'; patch: Partial<ProgressionTp1> }
   | { type: 'tp2'; essai: 'k38' | 'k40'; patch: Partial<ProgressionEssai> }
   | { type: 'effacer-message' }
@@ -119,6 +123,9 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
   const s = e.session
   const avec = (session: Partial<SessionAu3>, message: string | null = null): EtatBanc => ({ ...e, session: { ...s, ...session }, message })
 
+  // Examen terminé : tout est figé (consultation seule), sauf l'effacement
+  if (s.examen?.termine && a.type !== 'effacer-examen') return e
+
   if (modifieCablage(a) && s.platine.sousTension) {
     if (exceptionSousTension(s, a) && a.type === 'rebrancher') {
       const ampli: EtatAmpli = s.platine.ampli.startsWith('reamorce') ? 'normal' : s.platine.ampli
@@ -148,7 +155,9 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
       const m: Montage = MONTAGES[e.montage]
       const verdict = verifier(s.cablage, m.liaisons, s.platine, m.impedances)
       const sig = signatureBanc(s.cablage, s.platine)
-      return { ...avec({ verifieSur: sig, verifieReussiSur: verdict.reussi ? sig : s.verifieReussiSur, essaisVerification: s.essaisVerification + 1 }), verdict }
+      // Un essai = « Faire vérifier » sur un câblage modifié depuis la vérification précédente
+      const essais = sig === s.verifieSur ? s.essaisVerification : s.essaisVerification + 1
+      return { ...avec({ verifieSur: sig, verifieReussiSur: verdict.reussi ? sig : s.verifieReussiSur, essaisVerification: essais, essaiReussi: s.essaiReussi ?? (verdict.reussi ? essais : null) }), verdict }
     }
     case 'interrupteur': {
       if (s.platine.sousTension) return avec({ platine: { ...s.platine, sousTension: false } })
@@ -169,7 +178,16 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
     case 'autoscale':
       return avec({ fautes: [...s.fautes, { instant: maintenant, type: 'autoscale', detail: 'Autoscale' }] }, MESSAGE_AUTOSCALE)
     case 'reponse':
-      return avec({ reponses: { ...s.reponses, [a.id]: { valeur: a.valeur, essais: (s.reponses[a.id]?.essais ?? 0) + 1 } } }, e.message)
+      return avec({ reponses: { ...s.reponses, [a.id]: { valeur: a.valeur, essais: (s.reponses[a.id]?.essais ?? 0) + 1, ...(a.lectures ? { lectures: a.lectures } : {}) } } }, e.message)
+    case 'demarrer-examen': {
+      const neuve = sessionNeuve('examen')
+      const ampli = a.incident === 'ampli-bloque' ? 'bloque-haut' : 'normal'
+      return { session: { ...neuve, chrono: { debut: maintenant, ecouleMs: 0 }, platine: { ...neuve.platine, ampli }, examen: { tp: a.tp, graine: a.graine, incident: a.incident, debut: maintenant, termine: false, finA: null } }, montage: a.tp, verdict: null, message: null }
+    }
+    case 'terminer-examen':
+      return s.examen ? avec({ examen: { ...s.examen, termine: true, finA: maintenant }, platine: { ...s.platine, sousTension: false } }) : e
+    case 'effacer-examen':
+      return { session: sessionNeuve('examen'), montage: e.montage, verdict: null, message: null }
     case 'tp1':
       return avec({ tp1: { ...s.tp1, ...a.patch } }, e.message)
     case 'tp2':

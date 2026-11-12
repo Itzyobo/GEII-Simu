@@ -40,6 +40,7 @@ Simulateur MCC + dynamo tachymétrique (GBF TG315, DSOX2004A, platine « Régula
 - **TP1** : `src/au3/tp1/` (attendus du modèle, abaque, moindres carrés, correction) et `src/au3/pages/Tp1.tsx`. Test de perf : `npm run test:perf`.
 - **TP2** : `src/au3/tp2/` (boucle fermée, formules du dépassement, valeurs théoriques, Q12) et `src/au3/pages/Tp2.tsx` ; réutilise `src/au3/tp1/`. Consigne → voie 1 pré-câblée (`PRECABLAGE_TP2`).
 - **TP4** : `src/au3/tp4/` (PI série, balayage de G1, partie II réduite sur le moteur du banc) et `src/au3/pages/Tp4.tsx`. Régulateur à impédances : `regulateur(Z1, Z2, G1, G2)` dans `src/au3/sim/regulateur.ts`.
+- **Examen** : `/au3/examen` (`src/au3/pages/Examen.tsx`), barème et bilan dans `src/au3/examen/notation.ts` ; réponses attendues uniques dans `src/au3/examen/catalogue.ts` (les pages `PageTp1/2/4` et l'examen les lisent) ; README du module : `docs/au3/README.md` (hypothèses régénérées par `AU3_ECRIRE_README=1 npx vitest run src/au3/examen/readme.test.ts`).
 - **Vérifications obligatoires** : build, `tsc -b`, oxlint, `npm test` et `npm run test:perf`.
 - **Câblage** : bornes nommées (`src/au3/sim/cablage.ts`) ; verrouillage sous tension et « Faire vérifier » dans le réducteur pur `src/au3/banc.ts`.
 - **Session** : `src/au3/session.ts`, migrations explicites (`MIGRATIONS`) ; `SESSION_VERSION` = nombre de migrations + 1.

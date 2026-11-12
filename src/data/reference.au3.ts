@@ -65,7 +65,19 @@ const AU3_VALEURS = {
   IDENT_PASSES: { valeur: 3, unite: '', source: 'hypothese', note: 'Nelder–Mead relancé depuis le meilleur point (évite un simplexe dégénéré)' },
   SUPERPOSITION_MAX: { valeur: 0.01, unite: '', source: 'hypothese', note: 'Modèle « superposé » à la mesure si moins de 1 % de la variance de la mesure reste inexpliquée' },
   RAPPORT_NEGLIGEABLE: { valeur: 5, unite: '', source: 'hypothese', note: 'TP2 I.1.2 Q12 : une constante de temps est négligeable si τmax/τmin ≥ 5 (règle usuelle, non donnée par l’énoncé)' },
+  TR5_LISSAGE: { valeur: 0.02, unite: '', source: 'hypothese', note: 'Lecture « entrée dans la bande » du TR5% : moyenne glissante de ±2 % du palier pour ignorer le bruit' },
   TANGENTE_FENETRE: { valeur: 0.05, unite: '', source: 'hypothese', note: 'Pente de la mesure au démarrage : régression sur t ≤ 5 % de τ' },
+
+  /* ───────────── Mode examen (barème) ───────────── */
+  MS_PAR_SECONDE: { valeur: 1000, unite: 'ms/s', source: 'enonce', note: 'Conversion d’unité (horodatages Date.now en ms)' },
+  DUREE_EXAMEN: { valeur: 4500, unite: 's', source: 'enonce', note: '75 min : « PARTIEL (1h15) : QCM + Expérimentations » (le simulateur ne couvre que les expérimentations)' },
+  POINTS_QUESTION: { valeur: 1, unite: 'point', source: 'hypothese', note: 'Barème : chaque question notée sur 1 point, partagé entre ses champs' },
+  POINTS_CABLAGE: { valeur: 4, unite: 'points', source: 'hypothese', note: 'Barème : câblage d’un TP ; 1er « Faire vérifier » réussi = 100 %' },
+  COEF_DEUXIEME_ESSAI: { valeur: 0.5, unite: '', source: 'hypothese', note: 'Barème : câblage réussi au 2e essai = 50 %, ensuite 0' },
+  COEF_INCOMPLET: { valeur: 0.5, unite: '', source: 'hypothese', note: 'Barème : réponse juste mais sans unité ou sans justification' },
+  PENALITE_SOUS_TENSION: { valeur: 0.5, unite: 'point', source: 'hypothese', note: 'Barème : par tentative refusée de manipulation sous tension (câble ou composant)' },
+  PENALITE_AUTOSCALE: { valeur: 0.25, unite: 'point', source: 'hypothese', note: 'Barème : par appui sur Autoscale (« NE JAMAIS APPUYER SUR AUTOSCALE »)' },
+  INCIDENT_UN_SUR: { valeur: 3, unite: '', source: 'hypothese', note: 'Examen : incident « ampli bloqué » tiré 1 fois sur 3 par la graine' },
 
   /* ───────────── Banc du CR ───────────── */
   NUMERO_MOTEUR: { valeur: 1, unite: '', source: 'CR', note: 'Boîtier « MOTEUR 1 » (photos du CR)' },
