@@ -45,7 +45,7 @@ export default function Accueil() {
                 <p className="text-xs text-au3-muted">{t.tp.toUpperCase()}</p>
                 <p className="font-semibold">{t.titre}</p>
                 <p className="text-xs text-au3-muted">
-                  {t.note} · {t.tp === 'tp1' ? 'disponible' : 'questions à venir'}
+                  {t.note} · disponible
                   {t.tp === 'tp4' && <BadgeNonVerifie cles={['TAU_A']} />}
                 </p>
               </Link>
@@ -85,6 +85,10 @@ export default function Accueil() {
                                   <Link to={`/au3/${q.tp}#${q.id}`} className="underline hover:text-au3-accent">
                                     {q.numero}
                                   </Link>
+                                ) : q.statut === 'non-couverte' ? (
+                                  <span className="text-au3-err" data-non-couverte={q.id}>
+                                    {q.numero} (non couverte)
+                                  </span>
                                 ) : (
                                   q.numero
                                 )}

@@ -1,7 +1,7 @@
 import { au3 } from '../../data/reference'
 import type { ReglagesGbf } from '../instruments/gbf'
 import { PRECABLAGE_TP2, PRESET_TP2, type Cablage } from '../sim/cablage'
-import { gainAffichage } from '../sim/regulateur'
+import { gainAffichage, type Impedance } from '../sim/regulateur'
 import { simulate, type Banc, type ResultatSim } from '../sim/simulate'
 import { lireAbaque } from '../tp1/abaque'
 import { BANC_SANS_BRUIT, ecartRelatif, mesurerEchelon } from '../tp1/attendus'
@@ -16,6 +16,9 @@ export interface ReglagesEssai {
   gbf: ReglagesGbf
   g1: number
   g2: number
+  /** Composants des supports (TP4) ; absents = supports vides (régulateur P) */
+  z1?: Impedance | null
+  z2?: Impedance | null
 }
 
 export const essaiK38 = (vpp = au3('TP2_K38_GBF_VPP')): ReglagesEssai => ({ gbf: { forme: 'carre', frequence: au3('TP2_GBF_FREQ'), vpp, offset: 0, attenuation: false, sortie: true }, g1: au3('TP2_K38_G1'), g2: au3('TP2_K38_G2') })
@@ -28,7 +31,7 @@ export const CABLAGE_TP2: Cablage = [...PRESET_TP2, ...PRECABLAGE_TP2]
 export function courbeBf(e: ReglagesEssai, banc: Banc = BANC_SANS_BRUIT, cablage: Cablage = CABLAGE_TP2) {
   const T = 1 / e.gbf.frequence
   const front = au3('PERIODES_CHAUFFE') * T
-  const r = simulate(banc, { gbf: e.gbf, platine: { sousTension: true, ampli: 'normal', g1: e.g1, g2: e.g2, z1: null, z2: null }, duree: front + T / 2, pasSortie: banc.pas }, cablage, 0)
+  const r = simulate(banc, { gbf: e.gbf, platine: { sousTension: true, ampli: 'normal', g1: e.g1, g2: e.g2, z1: e.z1 ?? null, z2: e.z2 ?? null }, duree: front + T / 2, pasSortie: banc.pas }, cablage, 0)
   return { r, iFront: Math.round(front / banc.pas), iFin: Math.round((front + T / 2) / banc.pas) - 1 }
 }
 
@@ -75,7 +78,7 @@ export function mesurerBf(r: ResultatSim, iFront: number, iFin: number): Mesures
     tau: e.tau,
     t1: e.t1,
     t3: e.t3,
-    tr5: r.t[iSortie + 1]! - tf,
+    tr5: iSortie >= iFin ? Infinity : r.t[iSortie + 1]! - tf,
     d1,
     d1rel: d1 / e.dm,
     tpb2: r.t[iPic]! - tf,

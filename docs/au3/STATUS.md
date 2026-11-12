@@ -54,3 +54,20 @@
 **Vérifications** : build, `tsc -b`, `npm test` 691 + 1 échec attendu, `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 40 routes, `check:size` OK, parcours Playwright TP2 complet sans message console. Captures 4 à 6 dans `docs/au3/captures/`.
 
 **Reste (étape 4)** : page TP4 (PI série R1/R2/C2, G1, bouteille, P / PI).
+
+## Étape 4 — TP4 (terminée)
+
+**Corrections de l'étape 3**
+1. Test 15 réécrit sans `it.fails` : (a) 0,4 Vpp : voie 3 à 10,6 V ±0,5 % pendant ≥ 0,5 ms, D1/m(∞) saturé < linéaire, Tpb/2 saturé > linéaire (deux simulations, avec et sans saturation) ; (b) 3,26 Vpp : D1/m(∞) < 5 %, TR5%b > linéaire à 0,295 Vpp ; (c) 0,295 Vpp : pas de saturation.
+2. Variante « GBF trop fort » = amplitude du K = 3,8 non changée (TP2_K38_GBF_VPP, énoncé) ; hypothèse 0,4 V supprimée.
+3. I.2.1 Q8 : formule ou abaque (énoncé), tolérance d'abaque ±10 % ; « la formule est plus précise » devient un conseil.
+
+**Régulateur à impédances** (`src/au3/sim/regulateur.ts`) : R(p) = (Z2/Z1)·G1·G2 en polynômes, Z = R, C, série ou parallèle ; forme d'état d'ordre ≤ 2 dans `simulate` ; un seul support garni ou dérivateur pur = hors service. « Faire vérifier » contrôle aussi la nature des composants (`MONTAGES.tp4.impedances`) ; la signature vérifiée inclut Z1/Z2.
+
+**Page `/au3/tp4`** : bandeau « Aucune mesure réelle », composants posés sur la platine, réglages, I Q1 à Q7 (Q5 par balayage de l'Affichage G1), partie II réduite sur le moteur du banc (II.2 non couverte, II.3 à II.5 avec figures, aire de e(t) après la réponse, PI contre P).
+
+**Valeurs prédites (modèle, aucune mesure)** : G1 = 0,95 : erreur 0,0 %, D1/m(∞) 18,6 %, TR5%b 13,8 ms, U max 10,6 V (saturé). G1 = 0,60 : erreur 0,0 %, D1/m(∞) 2,4 %, TR5%b 8,2 ms, U max 10,39 V. Frontière : Affichage 65 (ensemble 10 à 65). Bouteille : écart max 16,6 mV (1,7 %), erreur finale PI 0,0 %, P 22,8 %.
+
+**Vérifications** : build, `tsc -b`, `npm test` 712/712 (aucun `it.fails`), `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 40 routes, `check:size` OK, parcours Playwright TP4 + variantes TP2 sans message console. Captures 7 à 10.
+
+**Reste (étape 5)** : mode examen (chrono, barème câblage, pénalités sous tension, bilan par attendu).

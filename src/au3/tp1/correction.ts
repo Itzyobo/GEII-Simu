@@ -47,3 +47,13 @@ export function corriger(saisie: string, attendu: number, unite: string, toleran
 
 export const corrigerMesure = (saisie: string, attendu: number, unite: string) => corriger(saisie, attendu, unite, au3('TOL_MESURE'))
 export const corrigerAbaque = (saisie: string, attendu: number, unite: string) => corriger(saisie, attendu, unite, au3('TOL_ABAQUE'))
+
+/**
+ * Correction en écart absolu (grandeur attendue proche de 0, ex. erreur statique en %) : |valeur − attendu| ≤ tolerance.
+ */
+export function corrigerAbsolu(saisie: string, attendu: number, unite: string, tolerance: number): Correction {
+  const c = corriger(saisie, 1, unite, Infinity) // lecture et unité seulement : l'écart relatif n'a pas de sens près de 0
+  if (c.verdict !== 'juste' || c.valeur === null) return c
+  const juste = Math.abs(c.valeur - attendu) <= tolerance
+  return { verdict: juste ? 'juste' : 'faux', valeur: c.valeur, ecart: null, message: juste ? 'Dans la tolérance.' : 'Hors tolérance.' }
+}

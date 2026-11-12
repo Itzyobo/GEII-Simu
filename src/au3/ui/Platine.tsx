@@ -1,5 +1,6 @@
 import { au3 } from '../../data/reference'
-import { gainAffichage } from '../sim/regulateur'
+import { nomImpedance } from '../sim/cablage'
+import { gainAffichage, type ComposantId, type Impedance } from '../sim/regulateur'
 import type { ReglagesPlatine } from '../sim/simulate'
 import type { Borne as IdBorne } from '../sim/cablage'
 import { Borne, type CouleurBorne } from './Borne'
@@ -11,16 +12,44 @@ function Douille({ id, couleur, etiquette, bornes }: { id: IdBorne; couleur: Cou
   return <Borne id={id} couleur={couleur} etiquette={etiquette} choisie={bornes.choisie === id} verrouillee={bornes.verrouillee} onClick={bornes.onBorne} />
 }
 
-function Support({ nom }: { nom: string }) {
+const COMPOSANTS: ComposantId[] = ['R1', 'R2', 'C2']
+type Support = 'z1' | 'z2'
+
+/**
+ * Support de composants Z1 ou Z2 : l'étudiant y pose R1, R2, C2 (seuls, en série ou en parallèle).
+ * Un composant posé sur l'autre support n'est pas disponible. Sous tension, le réducteur refuse et journalise.
+ */
+function SupportZ({ support, z, autre, verrouille, onComposant }: { support: Support; z: Impedance | null; autre: Impedance | null; verrouille: boolean; onComposant: (s: Support, z: Impedance | null) => void }) {
+  const liste = z?.composants ?? []
+  const montage = z?.montage ?? 'serie'
+  const basculer = (c: ComposantId) => {
+    const suivants = liste.includes(c) ? liste.filter((x) => x !== c) : [...liste, c]
+    onComposant(support, suivants.length ? { composants: suivants, montage } : null)
+  }
   return (
-    <div className="grid h-12 w-20 place-items-center rounded border border-dashed border-[#6b5a3a] bg-black/20 text-[10px] text-[#3b3122]" title="Support de composant (vide à cette étape)">
-      {nom} · vide
+    <div className="flex w-28 flex-col items-center gap-1 rounded border border-dashed border-[#6b5a3a] bg-black/10 p-1 text-[10px] text-[#3b3122]" role="group" aria-label={`Support ${support.toUpperCase()}`} data-support={support}>
+      <span className="font-semibold">
+        {support.toUpperCase()} · {nomImpedance(z)}
+        {verrouille && ' 🔒'}
+      </span>
+      <div className="flex gap-0.5">
+        {COMPOSANTS.map((c) => (
+          <button key={c} type="button" aria-pressed={liste.includes(c)} aria-label={`${c} sur ${support.toUpperCase()}`} disabled={!!autre?.composants.includes(c)} onClick={() => basculer(c)} className={`rounded px-1 ring-1 ring-black/30 disabled:opacity-30 ${liste.includes(c) ? 'bg-[#333] text-white' : 'bg-white'}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+      {liste.length > 1 && (
+        <button type="button" aria-label={`Montage ${support.toUpperCase()}`} onClick={() => onComposant(support, { composants: liste, montage: montage === 'serie' ? 'parallele' : 'serie' })} className="rounded bg-white px-1 ring-1 ring-black/30">
+          {montage === 'serie' ? 'en série' : 'en parallèle'}
+        </button>
+      )}
     </div>
   )
 }
 
 /** Platine « Régulateur analogique » (poste 4) : face avant non visible sur les photos, disposition approximative */
-export default function Platine({ platine, onReglage, onInterrupteur, bornes }: { platine: ReglagesPlatine; onReglage: (p: { g1?: number; g2?: number }) => void; onInterrupteur: () => void; bornes: PropsBornes }) {
+export default function Platine({ platine, onReglage, onInterrupteur, onComposant, bornes }: { platine: ReglagesPlatine; onReglage: (p: { g1?: number; g2?: number }) => void; onInterrupteur: () => void; onComposant: (s: Support, z: Impedance | null) => void; bornes: PropsBornes }) {
   const k = gainAffichage(platine.g1, platine.g2)
   return (
     <section aria-label="Platine Régulateur analogique" className="rounded-xl bg-au3-bois p-2 shadow-xl">
@@ -81,12 +110,8 @@ export default function Platine({ platine, onReglage, onInterrupteur, bornes }: 
         </p>
 
         <div className="mt-3 flex justify-around">
-          <div className="flex flex-col items-center gap-1">
-            <Support nom="Z1" />
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <Support nom="Z2" />
-          </div>
+          <SupportZ support="z1" z={platine.z1} autre={platine.z2} verrouille={bornes.verrouillee} onComposant={onComposant} />
+          <SupportZ support="z2" z={platine.z2} autre={platine.z1} verrouille={bornes.verrouillee} onComposant={onComposant} />
           <Douille id="plat.sortieG2" couleur="rouge" etiquette="Sortie G2 <25 mA" bornes={bornes} />
         </div>
 

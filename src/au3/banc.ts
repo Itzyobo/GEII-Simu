@@ -1,6 +1,7 @@
 import type { ReglagesGbf } from './instruments/gbf'
 import type { Curseurs, ReglagesOscillo } from './instruments/oscillo'
-import { MASSES, MONTAGES, reseaux, signature, TOUTES_BORNES, verifier, type Borne, type Cable, type Cablage, type MontageId, type Verdict } from './sim/cablage'
+import { MASSES, MONTAGES, nomImpedance, reseaux, signature as signatureCablage, TOUTES_BORNES, verifier, type Borne, type Cable, type Cablage, type Montage, type MontageId, type Verdict } from './sim/cablage'
+import type { ReglagesPlatine } from './sim/simulate'
 import type { Impedance } from './sim/regulateur'
 import type { EtatAmpli } from './sim/simulate'
 import type { EvenementManip, ProgressionEssai, ProgressionTp1, SessionAu3 } from './session'
@@ -56,6 +57,9 @@ const ampliAMasse = (c: Cable) => (c.a === 'plat.ampliIn' && estMasse(c.b)) || (
 
 export const ampliBloque = (etat: EtatAmpli) => etat !== 'normal'
 
+/** Signature du banc vérifié : câblage + composants des supports Z1 et Z2 */
+const signatureBanc = (cablage: Cablage, p: Pick<ReglagesPlatine, 'z1' | 'z2'>) => `${signatureCablage(cablage)}#Z1=${nomImpedance(p.z1)}#Z2=${nomImpedance(p.z2)}`
+
 /** Câblage où l'extrémité `de` du câble `id` est rebranchée sur `vers` */
 const rebranche = (cablage: Cablage, id: string, de: Borne, vers: Borne): Cable[] => cablage.map((c) => (c.id !== id ? c : c.a === de ? { ...c, a: vers } : c.b === de ? { ...c, b: vers } : c))
 
@@ -67,7 +71,7 @@ const rebranche = (cablage: Cablage, id: string, de: Borne, vers: Borne): Cable[
 export function exceptionSousTension(s: SessionAu3, a: Action): boolean {
   if (a.type !== 'rebrancher' || !ampliBloque(s.platine.ampli)) return false
   const c = s.cablage.find((x) => x.id === a.id)
-  return !!c && ampliAMasse(c) && estMasse(a.de) && s.verifieSur === signature(rebranche(s.cablage, a.id, a.de, a.vers))
+  return !!c && ampliAMasse(c) && estMasse(a.de) && s.verifieSur === signatureBanc(rebranche(s.cablage, a.id, a.de, a.vers), s.platine)
 }
 
 /**
@@ -80,7 +84,7 @@ export function procedureExacte(s: SessionAu3): boolean {
   return s.cablage.some((c) => {
     if (!ampliAMasse(c)) return false
     const masse = estMasse(c.a) ? c.a : c.b
-    return TOUTES_BORNES.some((v) => !estMasse(v) && signature(rebranche(s.cablage, c.id, masse, v)) === attendu)
+    return TOUTES_BORNES.some((v) => !estMasse(v) && signatureBanc(rebranche(s.cablage, c.id, masse, v), s.platine) === attendu)
   })
 }
 
@@ -141,13 +145,14 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
     case 'composant':
       return avec({ platine: { ...s.platine, [a.support]: a.z } })
     case 'faire-verifier': {
-      const verdict = verifier(s.cablage, MONTAGES[e.montage].liaisons)
-      const sig = signature(s.cablage)
-      return { ...avec({ verifieSur: sig, verifieReussiSur: verdict.manquantes.length ? s.verifieReussiSur : sig, essaisVerification: s.essaisVerification + 1 }), verdict }
+      const m: Montage = MONTAGES[e.montage]
+      const verdict = verifier(s.cablage, m.liaisons, s.platine, m.impedances)
+      const sig = signatureBanc(s.cablage, s.platine)
+      return { ...avec({ verifieSur: sig, verifieReussiSur: verdict.reussi ? sig : s.verifieReussiSur, essaisVerification: s.essaisVerification + 1 }), verdict }
     }
     case 'interrupteur': {
       if (s.platine.sousTension) return avec({ platine: { ...s.platine, sousTension: false } })
-      const verifie = s.verifieSur === signature(s.cablage) || procedureExacte(s)
+      const verifie = s.verifieSur === signatureBanc(s.cablage, s.platine) || procedureExacte(s)
       if (!verifie) return avec({}, MESSAGE_VERIFIER)
       return avec({ platine: { ...s.platine, sousTension: true, ampli: allumerAmpli(s.platine.ampli, s.cablage) } })
     }

@@ -1351,6 +1351,7 @@ sans offset sur le GBF (Utilisez l’atténuation d’amplitude 20dB si nécessa
 2. Sur la platine régulateur, régler « Affichage G1 » à 95 : donc G1 = 0.95,
 3. Sur la platine régulateur, régler G2 à 10.
 
+<a id="tp4-sous-tension"></a>
 **Mettre sous tension la platine Régulateur**
 
 Si nécessaire, ajustez la tension de la sortie du GBF en vérifiant sur l’écran de l’oscilloscope que la
@@ -1483,6 +1484,7 @@ Figure 4 : Schéma bloc sous Simulink du système « convoyeur de bouteilles mot
 (La variable de Laplace est notée s (et pas p) dans Matlab/Simulink)
 ### II.2
 
+<a id="tp4-ii2"></a>
 II.2 Dans le fichier du schéma bloc Simulink :
 
   - Quelle couleur correspond aux blocs qui représentent le moteur (MCC) ?

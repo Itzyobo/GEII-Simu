@@ -158,9 +158,14 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
       )}
       {verdict && (
         <div className="rounded bg-au3-panel p-2 text-xs ring-1 ring-au3-line" role="status">
-          <p className={verdict.manquantes.length ? 'text-au3-warn' : 'text-au3-ok'}>
-            Vérification : {verdict.correctes.length}/{verdict.total} liaisons correctes
+          <p className={verdict.reussi ? 'text-au3-ok' : 'text-au3-warn'}>
+            Vérification : {verdict.correctes.length + verdict.impedances.filter((z) => z.ok).length}/{verdict.total} {verdict.impedances.length ? 'liaisons et supports corrects' : 'liaisons correctes'}
           </p>
+          {verdict.impedances.map((z) => (
+            <p key={z.support} className={z.ok ? 'text-au3-ok' : 'text-au3-warn'} data-verdict-support={z.support}>
+              {z.ok ? '✓' : '✗'} {z.message}
+            </p>
+          ))}
           {verdict.manquantes.map((l) => (
             <p key={l.nom} className="text-au3-muted">
               ✗ {l.nom}
@@ -213,7 +218,7 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
             />
           </div>
           <div className="w-80 pt-10">
-            <Platine platine={platine} onReglage={(patch) => agir({ type: 'platine', patch })} onInterrupteur={() => agir({ type: 'interrupteur' })} bornes={bornes} />
+            <Platine platine={platine} onReglage={(patch) => agir({ type: 'platine', patch })} onInterrupteur={() => agir({ type: 'interrupteur' })} onComposant={(support, z) => agir({ type: 'composant', support, z })} bornes={bornes} />
           </div>
           <div className="w-48 pt-24">
             <Moteur bornes={bornes} vitesse={vitesse} />

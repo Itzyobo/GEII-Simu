@@ -382,7 +382,7 @@ export default function Tp2() {
       </Question>
       <Question q={qu('tp2-i21-q8')}>
         <p className="font-mono text-xs">zb = −ln(D1/m∞) / √(π² + ln²(D1/m∞))</p>
-        <ChampNum id="tp2-i21-q8" label="zb (formule)" unite="" attendu={a40.zbFormule} tolerance={TOL_M} p={p} corrigeur={corrigerFormule} />
+        <ChampNum id="tp2-i21-q8" label="zb (formule)" unite="" attendu={a40.zbFormule} tolerance={TOL_A} p={p} corrigeur={corrigerFormule} />
       </Question>
       <Question q={qu('tp2-i21-q9')}>
         <ChampNum id="tp2-i21-q9" label="Tpb/2" unite="s" attendu={a40.tpb2} tolerance={TOL_M} p={p} />
@@ -453,7 +453,7 @@ export default function Tp2() {
           <div className="flex flex-wrap gap-2 text-xs">
             {variante('DT inversée (verte ↔ jaune)', () => agir({ type: 'remplacer-cablage', cablage: inverserDt(s.cablage) }))}
             {variante('Ampli de courant oublié (G2 → moteur)', () => agir({ type: 'remplacer-cablage', cablage: oublierAmpli(s.cablage) }))}
-            {variante('GBF trop fort à K = 40', () => (agir({ type: 'gbf', patch: { vpp: au3('TP2_VARIANTE_VPP_FORT'), attenuation: false } }), agir({ type: 'platine', patch: { g1: au3('TP2_K40_G1'), g2: au3('TP2_K40_G2') } })))}
+            {variante('GBF trop fort à K = 40 (amplitude du K = 3,8 non changée)', () => (agir({ type: 'gbf', patch: { vpp: au3('TP2_K38_GBF_VPP'), attenuation: false } }), agir({ type: 'platine', patch: { g1: au3('TP2_K40_G1'), g2: au3('TP2_K40_G2') } })))}
             {variante('K = 40 sans changer les calibres', () => (agir({ type: 'gbf', patch: { vpp: au3('TP2_K40_GBF_VPP'), attenuation: false } }), agir({ type: 'platine', patch: { g1: au3('TP2_K40_G1'), g2: au3('TP2_K40_G2') } })))}
           </div>
         </section>

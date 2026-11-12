@@ -14,7 +14,7 @@ import type { ReglagesPlatine } from './sim/simulate'
 
 export type ModeSession = 'libre' | 'examen'
 /** Page qui porte la session : banc libre ou TP (chacune garde son câblage et ses réponses) */
-export type EspaceSession = 'banc' | 'tp1' | 'tp2'
+export type EspaceSession = 'banc' | 'tp1' | 'tp2' | 'tp4'
 export const cleSession = (mode: ModeSession, espace: EspaceSession = 'banc') => (espace === 'banc' ? `au3.session.${mode}` : `au3.session.${mode}.${espace}`)
 
 export interface EvenementManip {

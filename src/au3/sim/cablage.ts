@@ -1,4 +1,5 @@
 import { MISE_EN_PAGE } from '../miseEnPage'
+import type { Impedance } from './regulateur'
 
 /**
  * Câblage = graphe de bornes nommées. Seules les liaisons que l'étudiant fait au labo sont des câbles ;
@@ -77,7 +78,28 @@ export const MONTAGE_TP2: readonly Liaison[] = [
   { a: 'plat.erreur', b: 'osc.v4', nom: '10. Reliez la signal d’erreur (Borne « Erreur »), sur la voie 4 (rose) de l’oscilloscope.' },
 ]
 
-export const MONTAGES = { tp1: { titre: 'TP1 — boucle ouverte', liaisons: MONTAGE_TP1 }, tp2: { titre: 'TP2 — boucle fermée', liaisons: MONTAGE_TP2 } } as const
+/** TP4 : R1 sur Z1, R2 et C2 « câblés en série à l'emplacement réservé pour Z2 » */
+export const Z1_TP4: Impedance = { composants: ['R1'], montage: 'serie' }
+export const Z2_TP4: Impedance = { composants: ['R2', 'C2'], montage: 'serie' }
+
+/** Supports attendus par un montage (TP4) ; absent = supports vides (régulateur P) */
+export interface ImpedancesAttendues {
+  z1: Impedance
+  z2: Impedance
+}
+
+export interface Montage {
+  titre: string
+  liaisons: readonly Liaison[]
+  impedances?: ImpedancesAttendues
+}
+
+export const MONTAGES = {
+  tp1: { titre: 'TP1 — boucle ouverte', liaisons: MONTAGE_TP1 },
+  tp2: { titre: 'TP2 — boucle fermée', liaisons: MONTAGE_TP2 },
+  /** « Effectuer les mêmes cablages que pour le TP2 (page 13) sauf pour le régulateur » */
+  tp4: { titre: 'TP4 — boucle fermée, PI série', liaisons: MONTAGE_TP2, impedances: { z1: Z1_TP4, z2: Z2_TP4 } },
+} as const satisfies Record<string, Montage>
 export type MontageId = keyof typeof MONTAGES
 
 const [NOIR, ROUGE, VERT, JAUNE] = MISE_EN_PAGE.cable.couleurs
@@ -132,20 +154,48 @@ export function reseaux(cablage: Cablage): Reseaux {
   return { de, masse: de(MASSES[0]!), membres, degre: (b) => degres.get(b) ?? 0 }
 }
 
+/** Contrôle d'un support de composants par « Faire vérifier » */
+export interface ControleImpedance {
+  support: 'z1' | 'z2'
+  ok: boolean
+  /** « Z2 : R2 + C2 en série (attendu R2 + C2 en série) » */
+  message: string
+}
+
 export interface Verdict {
   total: number
   correctes: Liaison[]
   manquantes: Liaison[]
   /** Câbles de masse d'une autre couleur que noir (règle de l'énoncé) */
   massesNonNoires: Cable[]
+  /** Nature et valeur des composants de Z1 et Z2 (TP4) */
+  impedances: ControleImpedance[]
+  /** Toutes les liaisons et tous les supports corrects */
+  reussi: boolean
 }
 
-/** « Faire vérifier » : une liaison est correcte si ses deux bornes sont dans le même réseau */
-export function verifier(cablage: Cablage, attendu: readonly Liaison[]): Verdict {
+/** « R2 + C2 en série », « R2 // C2 », « R1 », « vide » */
+export const nomImpedance = (z: Impedance | null) => (!z || !z.composants.length ? 'vide' : z.composants.join(z.montage === 'serie' ? ' + ' : ' // ') + (z.composants.length > 1 && z.montage === 'serie' ? ' en série' : ''))
+const memeImpedance = (a: Impedance | null, b: Impedance) => !!a && [...a.composants].sort().join() === [...b.composants].sort().join() && (a.composants.length < 2 || a.montage === b.montage)
+
+/**
+ * « Faire vérifier » : une liaison est correcte si ses deux bornes sont dans le même réseau ; un support est correct
+ * s'il porte exactement les composants attendus, montés comme attendu (un support vide = régulateur non câblé).
+ */
+export function verifier(cablage: Cablage, attendu: readonly Liaison[], supports?: { z1: Impedance | null; z2: Impedance | null }, attendues?: ImpedancesAttendues): Verdict {
   const r = reseaux(cablage)
   const net = (b: Borne | 'masse') => (b === 'masse' ? r.masse : r.de(b))
   const correctes = attendu.filter((l) => net(l.a) === net(l.b))
-  return { total: attendu.length, correctes, manquantes: attendu.filter((l) => !correctes.includes(l)), massesNonNoires: massesNonNoires(cablage) }
+  const impedances: ControleImpedance[] = attendues
+    ? (['z1', 'z2'] as const).map((k) => {
+        const z = supports?.[k] ?? null
+        const ok = memeImpedance(z, attendues[k])
+        const nom = k.toUpperCase()
+        return { support: k, ok, message: !z || !z.composants.length ? `${nom} vide : régulateur non câblé (attendu ${nomImpedance(attendues[k])})` : `${nom} : ${nomImpedance(z)}${ok ? '' : ` (attendu ${nomImpedance(attendues[k])})`}` }
+      })
+    : []
+  const manquantes = attendu.filter((l) => !correctes.includes(l))
+  return { total: attendu.length + impedances.length, correctes, manquantes, massesNonNoires: massesNonNoires(cablage), impedances, reussi: !manquantes.length && impedances.every((z) => z.ok) }
 }
 
 export function massesNonNoires(cablage: Cablage): Cable[] {

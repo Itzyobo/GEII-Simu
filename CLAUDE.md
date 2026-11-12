@@ -39,6 +39,7 @@ Simulateur MCC + dynamo tachymétrique (GBF TG315, DSOX2004A, platine « Régula
 - **Badge** : `badgeAffiche(cles, validee)` (`src/au3/hypothese.ts`) + `<BadgeNonVerifie/>` : hypothèse ET non validée par un test CR (`validee` des questions, vérifié dans `src/au3/tp1/tp1.test.ts`).
 - **TP1** : `src/au3/tp1/` (attendus du modèle, abaque, moindres carrés, correction) et `src/au3/pages/Tp1.tsx`. Test de perf : `npm run test:perf`.
 - **TP2** : `src/au3/tp2/` (boucle fermée, formules du dépassement, valeurs théoriques, Q12) et `src/au3/pages/Tp2.tsx` ; réutilise `src/au3/tp1/`. Consigne → voie 1 pré-câblée (`PRECABLAGE_TP2`).
+- **TP4** : `src/au3/tp4/` (PI série, balayage de G1, partie II réduite sur le moteur du banc) et `src/au3/pages/Tp4.tsx`. Régulateur à impédances : `regulateur(Z1, Z2, G1, G2)` dans `src/au3/sim/regulateur.ts`.
 - **Vérifications obligatoires** : build, `tsc -b`, oxlint, `npm test` et `npm run test:perf`.
 - **Câblage** : bornes nommées (`src/au3/sim/cablage.ts`) ; verrouillage sous tension et « Faire vérifier » dans le réducteur pur `src/au3/banc.ts`.
 - **Session** : `src/au3/session.ts`, migrations explicites (`MIGRATIONS`) ; `SESSION_VERSION` = nombre de migrations + 1.

@@ -81,7 +81,6 @@ const AU3_VALEURS = {
   TP2_K38_G2: { valeur: 10, unite: '', source: 'enonce' },
   TP2_K40_GBF_VPP: { valeur: 0.3, unite: 'V', source: 'enonce' },
   TP2_VOIE3_VDIV: { valeur: 5, unite: 'V/div', source: 'enonce', note: 'TP2 liaison 9 : « Réglez le calibre de la voie 3 (uniquement) à 5V »' },
-  TP2_VARIANTE_VPP_FORT: { valeur: 0.4, unite: 'V', source: 'hypothese', note: 'Variante « GBF trop fort à K = 40 » : sature U (prompt de l’étape 3, test 15)' },
   TP2_K40_K: { valeur: 40, unite: '', source: 'enonce' },
   TP2_K40_G1: { valeur: 40, unite: '', source: 'enonce', note: 'Affichage G1' },
   TP2_K40_G2: { valeur: 100, unite: '', source: 'enonce' },
@@ -91,6 +90,13 @@ const AU3_VALEURS = {
   TP4_G2: { valeur: 10, unite: '', source: 'enonce' },
   TP4_TI_ENONCE: { valeur: 0.0091, unite: 's', source: 'enonce', note: 'Ti ≈ 0.0091 s (placement de pôles)' },
   TP4_K_ENONCE: { valeur: 25.8, unite: '', source: 'enonce', note: 'K ≈ 25.8 (zb ≈ 0.7 annoncé)' },
+  TP4_TR5_MAX: { valeur: 0.2, unite: 's', source: 'enonce', note: 'Cahier des charges du TP4 (I) : TR5%b inférieur à 200 ms' },
+  TP4_D1_MAX: { valeur: 0.05, unite: '', source: 'enonce', note: 'Cahier des charges du TP4 (I) : 1er dépassement inférieur à 5 %' },
+  TP4_ERREUR_MAX: { valeur: 0.005, unite: '', source: 'hypothese', note: '« Sans erreur statique » (énoncé) mesuré à 0,5 % près (PRD §6, étape 4)' },
+  TP4_II_CONSIGNE: { valeur: 1, unite: 'V', source: 'enonce', note: 'II : mesure de vitesse égale à 1 V en régime permanent' },
+  TP4_II_TR5_MAX: { valeur: 0.03, unite: 's', source: 'enonce', note: 'II : redémarrage et bonne vitesse en moins de 30 ms' },
+  TP4_II_VARIATION_MAX: { valeur: 0.05, unite: '', source: 'enonce', note: 'II : variation de vitesse inférieure à 5 % à l’arrivée d’une bouteille' },
+  TP4_II_DUREE: { valeur: 0.3, unite: 's', source: 'hypothese', note: 'II : durée simulée (démarrage, puis bouteille à 0,15 s)' },
   TP4_BOUTEILLE_T: { valeur: 0.15, unite: 's', source: 'enonce', note: 'Arrivée d’une bouteille à t = 0.15 s (II.4)' },
 
   /* ───────────── Hypothèses (PRD §3.2 et §3.4, ajustées sur le CR) ───────────── */

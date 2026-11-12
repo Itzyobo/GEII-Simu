@@ -2,7 +2,7 @@ import { au3 } from '../../data/reference'
 import { generateurGbf, type ReglagesGbf } from '../instruments/gbf'
 import { reseaux, type Borne, type Cablage } from './cablage'
 import { gaussien, mulberry32 } from './prng'
-import { formeEtat, gainAffichage, transfertRegulateur, type Impedance } from './regulateur'
+import { formeEtat, regulateur as transfertPlatine, type Impedance } from './regulateur'
 
 /** Paramètres physiques du banc (poste 4, moteur 1). Par défaut : reference.ts ; les tests peuvent en remplacer. */
 export interface Banc {
@@ -186,8 +186,8 @@ const borne = (v: number, max: number) => Math.max(-max, Math.min(max, v))
 export function simulate(banc: Banc, reglages: ReglagesSim, cablage: Cablage, graine: number): ResultatSim {
   const topo = analyserTopologie(cablage)
   const evenements = [...topo.defauts]
-  const h = transfertRegulateur(reglages.platine.z1, reglages.platine.z2)
-  if (!h) evenements.push({ t: 0, type: 'defaut', code: 'regulateur-non-gere', message: 'Composants de Z1/Z2 non gérés : régulateur hors service' })
+  const h = transfertPlatine(reglages.platine.z1, reglages.platine.z2, reglages.platine.g1, reglages.platine.g2)
+  if (!h) evenements.push({ t: 0, type: 'defaut', code: 'regulateur-non-gere', message: 'Régulateur non câblé (un seul support garni) ou non réalisable (dérivateur pur) : hors service' })
   if (banc.bruit > 0) {
     const sansBruit = boucle(banc, reglages, topo, graine, 0, [])
     let max = -Infinity
@@ -205,9 +205,8 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
   const { pas, uf, tauA, tauB, g0r, usat } = banc
   const p = reglages.platine
   const on = p.sousTension
-  const h = transfertRegulateur(p.z1, p.z2)
-  const { A, B, D } = h ? formeEtat(h) : { A: 0, B: 0, D: 0 }
-  const K = gainAffichage(p.g1, p.g2)
+  const h = transfertPlatine(p.z1, p.z2, p.g1, p.g2)
+  const { ordre, a: [a0, a1], c: [c0, c1], D } = h ? formeEtat(h) : { ordre: 0, a: [0, 0], c: [0, 0], D: 0 }
   const n = Math.max(1, Math.round(reglages.duree / pas))
   const decim = Math.max(1, Math.round(reglages.pasSortie / pas))
   const nOut = Math.floor(n / decim) + 1
@@ -244,7 +243,9 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
   let x1 = 0
   let m = 0
   let arret = true
-  let xi = 0
+  // États du régulateur (forme commandable) : continuent d'intégrer pendant la saturation (hypothèse 6)
+  let r1 = 0
+  let r2 = 0
   let g2 = 0
   let erreur = 0
   let ampli = 0
@@ -292,13 +293,18 @@ function boucle(banc: Banc, reglages: ReglagesSim, topo: AnalyseTopologie, grain
     const c = lire(L.consigne)
     if (regulateur) {
       const e = c - lire(L.mesure)
-      const y = K * (D * e + xi)
+      const y = D * e + c0 * r1 + c1 * r2
       g2 = borne(y, usat)
       if (!sature && Math.abs(y) >= usat) {
         sature = true
         evenements.push({ t, type: 'saturation', code: 'saturation-g2', message: 'Sortie G2 saturée à ±USAT' })
       }
-      xi += pas * (A * xi + B * e)
+      if (ordre === 1) r1 += pas * (e - a0 * r1)
+      else if (ordre === 2) {
+        const d2 = e - a0 * r1 - a1 * r2
+        r1 += pas * r2
+        r2 += pas * d2
+      }
       erreur = borne(e, usat)
     }
     ampli = !on ? 0 : (ampliColle ?? banc.gainAmpli * lire(L.ampliIn))

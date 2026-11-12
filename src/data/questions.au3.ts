@@ -3,7 +3,7 @@ import type { RefKey } from './reference'
 /**
  * AU3 : attendus officiels (« A la fin du TPx, vous devez savoir », copiés mot pour mot de docs/au3/enonce.md)
  * et catalogue des questions. L'id d'une question est l'ancre <a id="…"> de l'énoncé ; son intitulé est le
- * texte exact de l'énoncé. TP1 (étape 2) et TP2 (étape 3) disponibles ; TP4 « à venir ».
+ * texte exact de l'énoncé. TP1, TP2 et TP4 disponibles (TP4 : badge partout, aucune mesure ; II.2 non couverte).
  *
  * Règle du badge (PRD §3.4) : « valeur non vérifiée » si la réponse attendue dépend d'une hypothèse (`cles`)
  * ET n'est pas validée par un test contre une valeur du CR dans sa tolérance (`validee` : clés CR testées,
@@ -38,7 +38,8 @@ export const AU3_ATTENDUS: readonly Attendu[] = [
   { id: 'tp4-a4', tp: 'tp4', texte: 'Effectuer la simulation d’un convoyeur en boucle fermée avec un régulateur PI série dont on veut asservir et réguler la vitesse et étudier son démarrage, le régime permanent atteint et son comportement en cas d’arrivée d’une bouteille.' },
 ]
 
-export type StatutQuestion = 'a-venir' | 'disponible'
+/** « non-couverte » : affichée sans réponse (TP4 II.2 : couleurs des blocs Simulink, fichiers .slx non fournis) */
+export type StatutQuestion = 'a-venir' | 'disponible' | 'non-couverte'
 
 export interface QuestionAu3 {
   /** = ancre de docs/au3/enonce.md */
@@ -71,8 +72,8 @@ const ID40: RefKey[] = ['CR_TP2K40_G0B', 'CR_TP2K40_ZB', 'CR_TP2K40_WNB']
 const TP4_MODELE: RefKey[] = ['TP4_GBF_FREQ', 'TP4_GBF_VPP', 'TP4_G1', 'TP4_G2', 'R1', 'R2', 'C2', 'G0R', 'UF', 'TAU_A', 'TAU_B']
 const TP4_BOUTEILLE: RefKey[] = [...TP4_MODELE, 'BOUTEILLE', 'TP4_BOUTEILLE_T']
 
-const q = (id: string, tp: TpAu3, numero: string, intitule: string, attendus: string[], cles: RefKey[]): QuestionAu3 => ({ id, tp, numero, intitule, attendus, cles, validee: [], statut: 'a-venir' })
 const q2 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], validee: RefKey[] = [], optionnelle = false): QuestionAu3 => ({ id, tp: 'tp2', numero, intitule, attendus, cles, validee, statut: 'disponible', optionnelle })
+const q4 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], statut: StatutQuestion = 'disponible'): QuestionAu3 => ({ id, tp: 'tp4', numero, intitule, attendus, cles, validee: [], statut })
 const q1 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], validee: RefKey[] = []): QuestionAu3 => ({ id, tp: 'tp1', numero, intitule, attendus, cles, validee, statut: 'disponible' })
 
 export const AU3_QUESTIONS: readonly QuestionAu3[] = [
@@ -143,23 +144,25 @@ export const AU3_QUESTIONS: readonly QuestionAu3[] = [
   q2('tp2-comparaison-depassement', 'Comparaison', 'A-t-on le dépassement le plus grand ?', ['tp2-a5'], [...TP2_K38, ...TP2_K40], ['CR_TP2K40_D1']),
 
   /* ───────────── TP4 (valeurs non vérifiées) ───────────── */
-  q('tp4-cablage', 'tp4', 'Câblage', 'Câblages à réaliser (en boucle fermée) (platine éteinte) :', ['tp4-a1'], ['R1', 'R2', 'C2']),
-  q('tp4-reglages', 'tp4', 'Réglages', 'Réglages à effectuer (platine éteinte) :', ['tp4-a2'], TP4_MODELE),
-  q('tp4-i-q1', 'tp4', 'I Q1', 'Mesurez avec les curseurs la valeur finale de la variation de la mesure, m(∞)=ΔM (en Volts).', ['tp4-a3'], TP4_MODELE),
-  q('tp4-i-q2', 'tp4', 'I Q2', 'D’après l’observation des courbes m(t) et c(t) en régime statique, donnez le gain statique de la boucle fermée, G0b et l’erreur statique en %.', ['tp4-a3'], TP4_MODELE),
-  q('tp4-i-q3', 'tp4', 'I Q3', 'Mesurez le 1ier dépassement, D1 (en Volts)', ['tp4-a3'], TP4_MODELE),
-  q('tp4-i-q4', 'tp4', 'I Q4', 'Calculez D1/m(∞) (en %).', ['tp4-a3'], TP4_MODELE),
-  q('tp4-i-q5', 'tp4', 'I Q5', 'Si le dépassement D1/m(∞) (en %) est plus grand que celui fixé par le cahier des charges du client, diminuez G1 et effectuez à nouveau les mesures quand le cahier des charges du client est respecté', ['tp4-a2', 'tp4-a3'], TP4_MODELE),
-  q('tp4-i-q6', 'tp4', 'I Q6', 'Mesurez avec les curseurs le temps de réponse à 5% de ce système bouclé, TR5%b, en donnant tous les petits calculs nécessaires (0,95*m(∞), 1,05*m(∞), …).', ['tp4-a3'], TP4_MODELE),
-  q('tp4-i-q7', 'tp4', 'I Q7', 'Est-ce que le cahier des charges du client est bien respecté (précision, rapidité, dépassement) ? Expliquez', ['tp4-a2', 'tp4-a3'], TP4_MODELE),
-  q('tp4-ii3-c', 'tp4', 'II.3 c', 'D’après l’observation des courbes m(t) et c(t) en régime statique, donnez le gain statique de la boucle fermée, G0b et l’erreur statique en %. Avez-vous la même précision que lors des expérimentations du I ?', ['tp4-a4'], TP4_MODELE),
-  q('tp4-ii3-d', 'tp4', 'II.3 d', 'En observant le signal de commande en sortie du régulateur, U sur la figure 2, constatez vous que U (qui est la tension d’alimentation du moteur) est plus grand au départ pour un démarrage rapide et est non nul en régime permanent pour que le moteur tourne à la vitesse souhaitée.', ['tp4-a4'], TP4_MODELE),
-  q('tp4-ii3-e', 'tp4', 'II.3 e', 'Mesures et calculs pour quantifier les performances du démarrage du moteur (sans bouteille) et de la stabilisation de sa vitesse en régime permanent', ['tp4-a4'], TP4_MODELE),
-  q('tp4-ii3-f', 'tp4', 'II.3 f', 'Est-ce que le cahier des charges du client est bien respecté concernant le démarrage du convoyeur (précision, rapidité, dépassement) ? Expliquez', ['tp4-a4'], TP4_MODELE),
-  q('tp4-ii4-b', 'tp4', 'II.4 b', 'Mesures et calculs pour quantifier les performances de régulation de la vitesse du moteur après l’arrivée d’une bouteille (avec des « data cursor »).', ['tp4-a4'], TP4_BOUTEILLE),
-  q('tp4-ii4-c', 'tp4', 'II.4 c', 'Est-ce que le cahier des charges du client concernant l’impact de l’arrivée d’une bouteille sur la mesure de vitesse du convoyeur (en phase transitoire et en régime permanent) (précision, dépassement) est bien respecté ? Expliquez', ['tp4-a4'], TP4_BOUTEILLE),
-  q('tp4-ii5-d', 'tp4', 'II.5 d', 'Simuler pour observer si le comportement du moteur bouclé avec un régulateur proportionnel est aussi exemplaire au démarrage et après une perturbation (arrivée d’une bouteille).', ['tp4-a4'], TP4_BOUTEILLE),
-  q('tp4-ii5-e', 'tp4', 'II.5 e', 'Que concluez-vous ?', ['tp4-a4'], TP4_BOUTEILLE),
+  q4('tp4-cablage', 'Câblage', 'Câblages à réaliser (en boucle fermée) (platine éteinte) :', ['tp4-a1'], TP4_MODELE),
+  q4('tp4-reglages', 'Réglages', 'Réglages à effectuer (platine éteinte) :', ['tp4-a2'], TP4_MODELE),
+  q4('tp4-sous-tension', 'Mise sous tension', 'Mettre sous tension la platine Régulateur', ['tp4-a1'], TP4_MODELE),
+  q4('tp4-i-q1', 'I Q1', 'Mesurez avec les curseurs la valeur finale de la variation de la mesure, m(∞)=ΔM (en Volts).', ['tp4-a3'], TP4_MODELE),
+  q4('tp4-i-q2', 'I Q2', 'D’après l’observation des courbes m(t) et c(t) en régime statique, donnez le gain statique de la boucle fermée, G0b et l’erreur statique en %.', ['tp4-a3'], TP4_MODELE),
+  q4('tp4-i-q3', 'I Q3', 'Mesurez le 1ier dépassement, D1 (en Volts)', ['tp4-a3'], TP4_MODELE),
+  q4('tp4-i-q4', 'I Q4', 'Calculez D1/m(∞) (en %).', ['tp4-a3'], TP4_MODELE),
+  q4('tp4-i-q5', 'I Q5', 'Si le dépassement D1/m(∞) (en %) est plus grand que celui fixé par le cahier des charges du client, diminuez G1 et effectuez à nouveau les mesures quand le cahier des charges du client est respecté', ['tp4-a2', 'tp4-a3'], TP4_MODELE),
+  q4('tp4-i-q6', 'I Q6', 'Mesurez avec les curseurs le temps de réponse à 5% de ce système bouclé, TR5%b, en donnant tous les petits calculs nécessaires (0,95*m(∞), 1,05*m(∞), …).', ['tp4-a3'], TP4_MODELE),
+  q4('tp4-i-q7', 'I Q7', 'Est-ce que le cahier des charges du client est bien respecté (précision, rapidité, dépassement) ? Expliquez', ['tp4-a2', 'tp4-a3'], TP4_MODELE),
+  q4('tp4-ii2', 'II.2', 'II.2 Dans le fichier du schéma bloc Simulink :', ['tp4-a4'], TP4_MODELE, 'non-couverte'),
+  q4('tp4-ii3-c', 'II.3 c', 'D’après l’observation des courbes m(t) et c(t) en régime statique, donnez le gain statique de la boucle fermée, G0b et l’erreur statique en %. Avez-vous la même précision que lors des expérimentations du I ?', ['tp4-a4'], TP4_MODELE),
+  q4('tp4-ii3-d', 'II.3 d', 'En observant le signal de commande en sortie du régulateur, U sur la figure 2, constatez vous que U (qui est la tension d’alimentation du moteur) est plus grand au départ pour un démarrage rapide et est non nul en régime permanent pour que le moteur tourne à la vitesse souhaitée.', ['tp4-a4'], TP4_MODELE),
+  q4('tp4-ii3-e', 'II.3 e', 'Mesures et calculs pour quantifier les performances du démarrage du moteur (sans bouteille) et de la stabilisation de sa vitesse en régime permanent', ['tp4-a4'], TP4_MODELE),
+  q4('tp4-ii3-f', 'II.3 f', 'Est-ce que le cahier des charges du client est bien respecté concernant le démarrage du convoyeur (précision, rapidité, dépassement) ? Expliquez', ['tp4-a4'], TP4_MODELE),
+  q4('tp4-ii4-b', 'II.4 b', 'Mesures et calculs pour quantifier les performances de régulation de la vitesse du moteur après l’arrivée d’une bouteille (avec des « data cursor »).', ['tp4-a4'], TP4_BOUTEILLE),
+  q4('tp4-ii4-c', 'II.4 c', 'Est-ce que le cahier des charges du client concernant l’impact de l’arrivée d’une bouteille sur la mesure de vitesse du convoyeur (en phase transitoire et en régime permanent) (précision, dépassement) est bien respecté ? Expliquez', ['tp4-a4'], TP4_BOUTEILLE),
+  q4('tp4-ii5-d', 'II.5 d', 'Simuler pour observer si le comportement du moteur bouclé avec un régulateur proportionnel est aussi exemplaire au démarrage et après une perturbation (arrivée d’une bouteille).', ['tp4-a4'], TP4_BOUTEILLE),
+  q4('tp4-ii5-e', 'II.5 e', 'Que concluez-vous ?', ['tp4-a4'], TP4_BOUTEILLE),
 ]
 
 export type EtatCouverture = 'couvert' | 'a-venir' | 'non-couvert'

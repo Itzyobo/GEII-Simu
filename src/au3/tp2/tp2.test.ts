@@ -14,7 +14,7 @@ import { noteTr5 } from '../tp1/affichage'
 import { attendusTp1, BANC_SANS_BRUIT } from '../tp1/attendus'
 import { fenetreEchelon, identifier } from '../tp1/identification'
 import { attenduQ12, attendusTp2, CABLAGE_TP2, courbeBf, ecartTr5b, essaiK38, essaiK40, Q12_NON_NEGLIGEABLE, Q12_SANS_OBJET, theoriqueBf, type ReglagesEssai } from './attendus'
-import { corrigerFormule, MESSAGE_FORMULE } from './correction'
+import { CONSEIL_FORMULE, corrigerFormule } from './correction'
 
 // Tolérances du PRD (§6 étape 3) : ne jamais les élargir
 const tol = (k: RefKey) => AU3[k].tol!
@@ -24,6 +24,8 @@ const TOL_ECART_POINTS = 0.01
 const TOL_PLAFOND = 0.005
 const MAX_DIVERGENCE = 50e-3
 const ZONE_MORTE = 0.01
+const DUREE_PLATEAU = 0.5e-3
+const D1_FAIBLE = 0.05
 const proche = (x: number, ref: number, t: number) => expect(Math.abs(x / ref - 1), `${x} vs ${ref}`).toBeLessThanOrEqual(t)
 
 const A38 = attendusTp2(essaiK38(au3('CR_TP2K38_C0')))
@@ -135,11 +137,14 @@ describe('12. I.1.2 Q12 selon le zb du fit de l’étudiant', () => {
     proche(r.tau1!, 2.92e-3, TOL_TAU_Q12)
     proche(r.tau2!, 3.87e-3, TOL_TAU_Q12)
   })
-  it('zb à K = 40 : une lecture d’abaque (±10 %) hors ±5 % est refusée, « la formule est plus précise »', () => {
-    expect(corrigerFormule('0,41', A40.zbFormule!).verdict).toBe('juste')
-    const c = corrigerFormule('0,44', A40.zbFormule!)
-    expect(c.verdict).toBe('faux')
-    expect(c.message).toBe(MESSAGE_FORMULE)
+  it('zb à K = 40 : formule ou abaque (énoncé) ; une lecture d’abaque à +8 % est acceptée, avec le conseil « la formule est plus précise »', () => {
+    const exacte = corrigerFormule(String(A40.zbFormule!).replace('.', ','), A40.zbFormule!)
+    expect(exacte.verdict).toBe('juste')
+    expect(exacte.message).not.toContain(CONSEIL_FORMULE)
+    const abaque = corrigerFormule(String(A40.zbFormule! * 1.08).replace('.', ','), A40.zbFormule!)
+    expect(abaque.verdict).toBe('juste')
+    expect(abaque.message).toContain(CONSEIL_FORMULE)
+    expect(corrigerFormule(String(A40.zbFormule! * 1.12).replace('.', ','), A40.zbFormule!).verdict).toBe('faux')
   })
 })
 
@@ -161,21 +166,32 @@ describe('variantes d’erreur (câblage réel de l’étudiant)', () => {
     expect(Math.max(...Array.from(r.voie2, Math.abs))).toBe(0)
   })
 
-  it('15. saturation : K = 40, 0,4 Vpp → voie 3 plafonne à 10,6 V ±0,5 % ; 0,295 Vpp → pas de saturation', () => {
-    const fort = courbeBf(essaiK40(au3('TP2_VARIANTE_VPP_FORT')))
-    let umax = 0
-    for (let i = fort.iFront; i <= fort.iFin; i++) umax = Math.max(umax, Math.abs(fort.r.voie3[i]!))
-    proche(umax, au3('USAT'), TOL_PLAFOND)
-    expect(fort.r.evenements.some((e) => e.code === 'saturation-g2')).toBe(true)
-    expect(courbeBf(essaiK40(au3('CR_TP2K40_C0'))).r.evenements.some((e) => e.code === 'saturation-g2')).toBe(false)
+  /** Une simulation du palier haut avec la saturation réelle, une sans (USAT infini) : jamais de valeur de comparaison en dur */
+  const avecEtSans = (vpp: number) => [attendusTp2(essaiK40(vpp)), attendusTp2(essaiK40(vpp), { ...BANC_SANS_BRUIT, usat: Infinity })] as const
+
+  it('15(a). K = 40, 0,4 Vpp : voie 3 à 10,6 V ±0,5 % pendant au moins 0,5 ms ; D1/m(∞) saturé < linéaire ; Tpb/2 saturé > linéaire', () => {
+    const { r, iFront, iFin } = courbeBf(essaiK40(0.4))
+    let plateau = 0
+    let plusLong = 0
+    for (let i = iFront; i <= iFin; i++) {
+      plateau = Math.abs(Math.abs(r.voie3[i]!) / au3('USAT') - 1) <= TOL_PLAFOND ? plateau + 1 : 0
+      plusLong = Math.max(plusLong, plateau)
+    }
+    expect(plusLong * BANC_SANS_BRUIT.pas).toBeGreaterThanOrEqual(DUREE_PLATEAU)
+    const [sature, lineaire] = avecEtSans(0.4)
+    expect(sature.d1rel).toBeLessThan(lineaire.d1rel)
+    expect(sature.tpb2).toBeGreaterThan(lineaire.tpb2)
   })
 
-  // CONFLIT signalé (rapport de l'étape 3) : le modèle donne −3,5 % par rapport au même essai sans saturation
-  // (−4,9 % par rapport au cas linéaire à 0,295 Vpp). Le seuil de 10 % n'est franchi que vers 0,8 Vpp.
-  it.fails('15. (conflit) 0,4 Vpp : D1/m(∞) diffère de plus de 10 % du cas linéaire', () => {
-    const sature = attendusTp2(essaiK40(au3('TP2_VARIANTE_VPP_FORT')))
-    const lineaire = attendusTp2(essaiK40(au3('TP2_VARIANTE_VPP_FORT')), { ...BANC_SANS_BRUIT, usat: Infinity })
-    expect(Math.abs(sature.d1rel / lineaire.d1rel - 1)).toBeGreaterThan(tol('CR_TP2K40_D1'))
+  it('15(b). K = 40, 3,26 Vpp (amplitude du K = 3,8 non changée) : D1/m(∞) < 5 % ; TR5%b plus grand que le cas linéaire à 0,295 Vpp', () => {
+    const [fort] = avecEtSans(au3('CR_TP2K38_C0'))
+    const [, lineaire] = avecEtSans(au3('CR_TP2K40_C0'))
+    expect(fort.d1rel).toBeLessThan(D1_FAIBLE)
+    expect(fort.tr5).toBeGreaterThan(lineaire.tr5)
+  })
+
+  it('15(c). K = 40, 0,295 Vpp : pas de saturation', () => {
+    expect(courbeBf(essaiK40(au3('CR_TP2K40_C0'))).r.evenements.some((e) => e.code === 'saturation-g2')).toBe(false)
   })
 })
 

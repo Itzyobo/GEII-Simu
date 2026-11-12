@@ -85,6 +85,8 @@ export const MISE_EN_PAGE = {
     /** Mesure (trait plein), modèle (tirets), tangentes (pointillés) : palette validée sur le fond #1e2127 (dataviz) */
     couleurs: { mesure: '#1f9e5a', modele: '#c87a0c', tangente: '#3a84d4' },
     tirets: '6 4',
+    /** Opacité de l'aire sous e(t) (II.4 b) */
+    opaciteAire: 0.3,
     pointilles: '2 3',
     zoom: 0.15,
     hauteurGraphe: 220,

@@ -45,7 +45,7 @@ export interface PropsReponse {
  * Champ numérique : l'étudiant saisit sa valeur avec son unité, « Valider » l'enregistre (essais comptés) ;
  * hors examen, la correction s'affiche ensuite (verdict, écart, valeur attendue calculée par le modèle).
  */
-export function ChampNum({ id, label, unite, attendu, tolerance, p, apres, corrigeur }: { id: string; label: string; unite: string; attendu: number | null; tolerance: number; p: PropsReponse; apres?: (c: Correction) => ReactNode; corrigeur?: (saisie: string, attendu: number) => Correction }) {
+export function ChampNum({ id, label, unite, attendu, tolerance, p, apres, corrigeur, attenduTexte }: { id: string; label: string; unite: string; attendu: number | null; tolerance: number; p: PropsReponse; apres?: (c: Correction) => ReactNode; corrigeur?: (saisie: string, attendu: number) => Correction; attenduTexte?: string }) {
   const enregistre = p.session.reponses[id]
   const [saisie, setSaisie] = useState(enregistre?.valeur ?? '')
   const c = enregistre && attendu !== null ? (corrigeur ? corrigeur(enregistre.valeur, attendu) : corriger(enregistre.valeur, attendu, unite, tolerance)) : null
@@ -70,7 +70,7 @@ export function ChampNum({ id, label, unite, attendu, tolerance, p, apres, corri
       {c && !p.examen && (
         <p className={`mt-1 ${STYLE_VERDICT[c.verdict]}`} role="status" data-verdict={c.verdict} data-champ={id}>
           {LIBELLE[c.verdict]} — {c.message}
-          {c.ecart !== null && ` Écart ${pourcent(c.ecart)} (tolérance ±${Math.round(tolerance * MISE_EN_PAGE.pourcent)} %).`} Attendu (modèle) : {afficher(attendu, unite)}.{apres?.(c)}
+          {c.ecart !== null && ` Écart ${pourcent(c.ecart)} (tolérance ±${Math.round(tolerance * MISE_EN_PAGE.pourcent)} %).`} Attendu (modèle) : {attenduTexte ?? afficher(attendu, unite)}.{apres?.(c)}
         </p>
       )}
     </div>
