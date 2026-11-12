@@ -45,10 +45,10 @@ export interface PropsReponse {
  * Champ numérique : l'étudiant saisit sa valeur avec son unité, « Valider » l'enregistre (essais comptés) ;
  * hors examen, la correction s'affiche ensuite (verdict, écart, valeur attendue calculée par le modèle).
  */
-export function ChampNum({ id, label, unite, attendu, tolerance, p, apres }: { id: string; label: string; unite: string; attendu: number | null; tolerance: number; p: PropsReponse; apres?: (c: Correction) => ReactNode }) {
+export function ChampNum({ id, label, unite, attendu, tolerance, p, apres, corrigeur }: { id: string; label: string; unite: string; attendu: number | null; tolerance: number; p: PropsReponse; apres?: (c: Correction) => ReactNode; corrigeur?: (saisie: string, attendu: number) => Correction }) {
   const enregistre = p.session.reponses[id]
   const [saisie, setSaisie] = useState(enregistre?.valeur ?? '')
-  const c = enregistre && attendu !== null ? corriger(enregistre.valeur, attendu, unite, tolerance) : null
+  const c = enregistre && attendu !== null ? (corrigeur ? corrigeur(enregistre.valeur, attendu) : corriger(enregistre.valeur, attendu, unite, tolerance)) : null
   return (
     <div className="text-xs">
       <form

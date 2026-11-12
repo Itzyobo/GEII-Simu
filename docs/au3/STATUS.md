@@ -36,3 +36,21 @@
 **Vérifications** : `npm run build` OK ; `tsc -b` OK ; `npm test` 662/662 (AU3 : 58) ; `npm run test:perf` OK ; oxlint 0 warning dans AU3 ; `check:375` 40 routes ; `check:size` OK ; parcours Playwright complet sans message console. Captures : `docs/au3/captures/`.
 
 **Reste (étape 3)** : page TP2 (10 liaisons, K = 3,8 et K = 40, valeurs théoriques, identification, DT inversée, ampli oublié).
+
+## Étape 3 — TP2 (terminée)
+
+**Corrections de l'étape 2**
+1. Rallumage sans « Faire vérifier » : seulement si l'ampli est bloqué et que la seule différence avec la dernière vérification RÉUSSIE est « entrée ampli ↔ masse » à la place de « entrée ampli ↔ source » (`procedureExacte`, `verifieReussiSur`). Le rebranchement sous tension doit rétablir exactement le câblage vérifié (GBF au TP1, sortie G2 au TP2).
+2. Badge retiré de I.2.3 Q2 (ordre 2), gardé sur Q12 (ordre 1).
+3. Sessions : migrations explicites v1 → v2 → v3 (`MIGRATIONS`, `SESSION_VERSION` = migrations + 1).
+4. `npm run test:perf` dans les vérifications.
+
+**Page `/au3/tp2`** : réglages K = 3,8 puis K = 40 (K calculé, jamais saisi), câblage 1 à 6 et 8 à 10, consigne → voie 1 pré-câblée (aucune liaison de l'énoncé), contrôles voie 3 à 5 V/div et masses noires, procédure de déblocage réutilisée, questions I.1 à I.2.2 et conclusions, abaque et moindres carrés réutilisés (`src/au3/tp2/attendus.ts`), formules du dépassement à K = 40 (abaque refusé : « la formule est plus précise »), valeurs théoriques Q8 depuis les réponses TP1 de l'étudiant, Q12 selon le zb du fit, variantes DT inversée / ampli oublié / GBF trop fort / K = 40 sans changer les calibres (câblage réel).
+
+**Modèle / CR (sans bruit)** : K = 3,8 : G0b 0,331 / 0,34 ; t1 3,58 / 3,5 ms ; t3 10,19 / 10 ms ; zb 0,922 / 0,90 ; ωnb 272,5 / 274,3 ; U max 8,24 / 8,04 V ; TR5%b 15,3 / 17 ms (−10 %, badge). K = 40 : G0b 0,678 / 0,69 ; D1/m∞ 0,245 / 0,25 ; Tpb/2 5,62 / 5,7 ms ; zb 0,409 / 0,42 ; ωnb 613 / 607 ; U max 9,90 / 9,54 V ; TR5%b 12,3 / 13,8 ms (−11 %, badge).
+
+**Conflit signalé** : test 15, à 0,4 Vpp la saturation ne change D1/m(∞) que de 3,5 % (seuil demandé 10 %) : `it.fails` dans `tp2.test.ts`.
+
+**Vérifications** : build, `tsc -b`, `npm test` 691 + 1 échec attendu, `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 40 routes, `check:size` OK, parcours Playwright TP2 complet sans message console. Captures 4 à 6 dans `docs/au3/captures/`.
+
+**Reste (étape 4)** : page TP4 (PI série R1/R2/C2, G1, bouteille, P / PI).

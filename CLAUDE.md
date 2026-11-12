@@ -38,6 +38,8 @@ Simulateur MCC + dynamo tachymétrique (GBF TG315, DSOX2004A, platine « Régula
 - **Énoncé** : `docs/au3/enonce.md`, mot pour mot ; ancres `<a id="…">` = id des questions (`src/data/questions.au3.ts`). Attendus officiels = listes « A la fin du TPx, vous devez savoir » ; TP3 non couvert.
 - **Badge** : `badgeAffiche(cles, validee)` (`src/au3/hypothese.ts`) + `<BadgeNonVerifie/>` : hypothèse ET non validée par un test CR (`validee` des questions, vérifié dans `src/au3/tp1/tp1.test.ts`).
 - **TP1** : `src/au3/tp1/` (attendus du modèle, abaque, moindres carrés, correction) et `src/au3/pages/Tp1.tsx`. Test de perf : `npm run test:perf`.
+- **TP2** : `src/au3/tp2/` (boucle fermée, formules du dépassement, valeurs théoriques, Q12) et `src/au3/pages/Tp2.tsx` ; réutilise `src/au3/tp1/`. Consigne → voie 1 pré-câblée (`PRECABLAGE_TP2`).
+- **Vérifications obligatoires** : build, `tsc -b`, oxlint, `npm test` et `npm run test:perf`.
 - **Câblage** : bornes nommées (`src/au3/sim/cablage.ts`) ; verrouillage sous tension et « Faire vérifier » dans le réducteur pur `src/au3/banc.ts`.
-- **Session** : `src/au3/session.ts`, versionnée (`SESSION_VERSION`).
+- **Session** : `src/au3/session.ts`, migrations explicites (`MIGRATIONS`) ; `SESSION_VERSION` = nombre de migrations + 1.
 - TypeScript plus strict pour AU3 : `tsconfig.au3.json` (`noUncheckedIndexedAccess`, `noImplicitOverride`).

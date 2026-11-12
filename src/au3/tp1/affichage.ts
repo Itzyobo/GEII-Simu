@@ -47,7 +47,7 @@ export function fenetreDeCsv(csv: string | null): Fenetre | null {
 
 
 /** Note du badge de TR5% : « modèle 30,7 ms ; CR 33 ms (−7 %) : la dérive lente en fin de courbe n'est pas modélisée » */
-export function noteTr5(e: { modele: number; cr: number; ecart: number }): string {
+export function noteTr5(e: { modele: number; cr: number; ecart: number }, raison = 'la dérive lente en fin de courbe n’est pas modélisée'): string {
   const pts = Math.round(e.ecart * M.pourcent)
-  return `modèle ${formatSi(e.modele, 's', M.chiffresTr5.modele)} ; CR ${formatSi(e.cr, 's', M.chiffresTr5.cr)} (${pts < 0 ? '−' : '+'}${Math.abs(pts)} %) : la dérive lente en fin de courbe n’est pas modélisée`
+  return `modèle ${formatSi(e.modele, 's', M.chiffresTr5.modele)} ; CR ${formatSi(e.cr, 's', M.chiffresTr5.cr)} (${pts < 0 ? '−' : '+'}${Math.abs(pts)} %) : ${raison}`
 }

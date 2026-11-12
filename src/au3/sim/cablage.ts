@@ -61,7 +61,23 @@ export const MONTAGE_TP1: readonly Liaison[] = [
   { a: 'gbf.out', b: 'osc.v1', nom: '6. Reliez la sortie MAIN OUT de droite du GBF à la voie jaune de l’oscilloscope.' },
 ]
 
-export const MONTAGES = { tp1: { titre: 'TP1 — boucle ouverte', liaisons: MONTAGE_TP1 } } as const
+/**
+ * TP2, « Câblages à réaliser (en boucle fermée cette fois) », liaisons numérotées comme l'énoncé : 1 à 6 puis 8 à 10
+ * (la 7 n'existe pas dans l'énoncé). Aucune ne relie la consigne à la voie 1 : voir PRECABLAGE_TP2.
+ */
+export const MONTAGE_TP2: readonly Liaison[] = [
+  { a: 'gbf.out', b: 'plat.consigne', nom: '1. Alimentez l’entrée de consigne (verte) de la platine régulation avec la sortie MAIN OUT de droite du GBF.' },
+  { a: 'plat.sortieG2', b: 'plat.ampliIn', nom: '2. Reliez la sortie de l’amplificateur G2 (<25 mA) de la platine régulation à l’entrée de l’amplificateur de courant (verte)' },
+  { a: 'plat.ampliOut', b: 'mot.rouge', nom: '3. Reliez la sortie bleue de l’amplificateur de courant (< 1A) à l’entrée d’alimentation du moteur (rouge).' },
+  { a: 'mot.noir', b: 'masse', nom: '4. Reliez l’autre borne d’alimentation du moteur (noire) à une masse de la platine Régulateur Analogique avec un cable noir.' },
+  { a: 'mot.verte', b: 'plat.mesure', nom: '5. Reliez la sortie du capteur de vitesse (Dynamo Tachymétrique) (borne verte) à la borne verte « Mesure » de la platine « Régulateur » pour fermer la boucle.' },
+  { a: 'mot.jaune', b: 'masse', nom: '6. Reliez l’autre borne de sortie DT (jaune) à une masse de la platine Régulateur Analogique avec un cable noir.' },
+  { a: 'mot.verte', b: 'osc.v2', nom: '8. Reliez la sortie du capteur de vitesse (Dynamo Tachymétrique) (borne verte) à la voie 2 (verte) de l’oscilloscope.' },
+  { a: 'plat.sortieG2', b: 'osc.v3', nom: '9. Reliez la sortie de l’amplificateur G2 (<25 mA), c’est-à-dire la sortie du régulateur, appelée commande U, à la voie 3 (bleue) de l’oscilloscope.' },
+  { a: 'plat.erreur', b: 'osc.v4', nom: '10. Reliez la signal d’erreur (Borne « Erreur »), sur la voie 4 (rose) de l’oscilloscope.' },
+]
+
+export const MONTAGES = { tp1: { titre: 'TP1 — boucle ouverte', liaisons: MONTAGE_TP1 }, tp2: { titre: 'TP2 — boucle fermée', liaisons: MONTAGE_TP2 } } as const
 export type MontageId = keyof typeof MONTAGES
 
 const [NOIR, ROUGE, VERT, JAUNE] = MISE_EN_PAGE.cable.couleurs
@@ -143,3 +159,34 @@ export const signature = (cablage: Cablage) =>
     .map((c) => [c.a, c.b].sort().join('~'))
     .sort()
     .join('|')
+
+/**
+ * Liaison consigne → voie 1 : l'énoncé du TP2 fait observer la consigne « sur la voie 1 (jaune) » (réglage 1) mais
+ * aucune liaison numérotée ne la câble. Elle est dessinée pré-câblée (ni vérifiée ni modifiable).
+ */
+export const PRECABLAGE_TP2: Cablage = [{ id: 'pre-v1', a: 'gbf.out', b: 'osc.v1', couleur: JAUNE }]
+
+/** Préréglage « câblage TP2 » (tests) : les 9 liaisons de l'énoncé, masses en noir */
+export const PRESET_TP2: Cablage = [
+  { id: 'tp2-1', a: 'gbf.out', b: 'plat.consigne', couleur: JAUNE },
+  { id: 'tp2-2', a: 'plat.sortieG2', b: 'plat.ampliIn', couleur: ROUGE },
+  { id: 'tp2-3', a: 'plat.ampliOut', b: 'mot.rouge', couleur: ROUGE },
+  { id: 'tp2-4', a: 'mot.noir', b: 'plat.masse1', couleur: NOIR },
+  { id: 'tp2-5', a: 'mot.verte', b: 'plat.mesure', couleur: VERT },
+  { id: 'tp2-6', a: 'mot.jaune', b: 'plat.masse2', couleur: NOIR },
+  { id: 'tp2-8', a: 'mot.verte', b: 'osc.v2', couleur: VERT },
+  { id: 'tp2-9', a: 'plat.sortieG2', b: 'osc.v3', couleur: ROUGE },
+  { id: 'tp2-10', a: 'plat.erreur', b: 'osc.v4', couleur: ROUGE },
+]
+
+/** Variante « DT inversée » : les bornes verte et jaune de la DT permutées dans le câblage de l'étudiant */
+export const inverserDt = (c: Cablage): Cablage => {
+  const p = (b: Borne): Borne => (b === 'mot.verte' ? 'mot.jaune' : b === 'mot.jaune' ? 'mot.verte' : b)
+  return c.map((x) => ({ ...x, a: p(x.a), b: p(x.b) }))
+}
+
+/** Variante « ampli de courant oublié » : sortie G2 reliée directement au moteur (rouge) */
+export const oublierAmpli = (c: Cablage): Cablage => [
+  ...c.filter((x) => ![x.a, x.b].some((b) => b === 'plat.ampliIn' || b === 'plat.ampliOut')),
+  { id: 'variante-g2-moteur', a: 'plat.sortieG2', b: 'mot.rouge', couleur: ROUGE },
+]

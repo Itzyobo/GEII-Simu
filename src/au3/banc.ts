@@ -1,17 +1,17 @@
 import type { ReglagesGbf } from './instruments/gbf'
 import type { Curseurs, ReglagesOscillo } from './instruments/oscillo'
-import { MASSES, MONTAGES, reseaux, signature, verifier, type Borne, type Cable, type Cablage, type MontageId, type Verdict } from './sim/cablage'
+import { MASSES, MONTAGES, reseaux, signature, TOUTES_BORNES, verifier, type Borne, type Cable, type Cablage, type MontageId, type Verdict } from './sim/cablage'
 import type { Impedance } from './sim/regulateur'
 import type { EtatAmpli } from './sim/simulate'
-import type { EvenementManip, ProgressionTp1, SessionAu3 } from './session'
+import type { EvenementManip, ProgressionEssai, ProgressionTp1, SessionAu3 } from './session'
 
 /**
  * Établi : règles de manipulation, en réducteur pur.
  * - Sous tension, toute modification de câble ou de composant est refusée, avec un message, et journalisée
  *   (« manip sous tension »). Seule exception (énoncé TP1, remarque après « Mettre sous tension ») : quand
- *   l'ampli de courant est bloqué, déplacer l'extrémité « masse » du câble de son entrée vers GBF MAIN OUT.
+ *   l'ampli de courant est bloqué, déplacer l'extrémité « masse » du câble de son entrée vers la source vérifiée.
  * - L'interrupteur reste bloqué tant que « Faire vérifier » n'a pas été demandé sur le câblage actuel
- *   (la procédure de déblocage, qui met l'entrée de l'ampli à la masse, ne demande pas de nouvelle vérification).
+ *   (sauf procédure de déblocage exacte depuis la dernière vérification réussie : voir procedureExacte).
  * Les réglages (GBF, Affichage G1, G2, oscilloscope) restent libres, comme en salle.
  */
 export interface EtatBanc {
@@ -41,6 +41,7 @@ export type Action =
   /** Réponse saisie à une question (le nombre d'essais compte les validations) */
   | { type: 'reponse'; id: string; valeur: string }
   | { type: 'tp1'; patch: Partial<ProgressionTp1> }
+  | { type: 'tp2'; essai: 'k38' | 'k40'; patch: Partial<ProgressionEssai> }
   | { type: 'effacer-message' }
 
 export const MESSAGE_SOUS_TENSION = 'Platine sous tension : éteignez-la avant de modifier un câble ou un composant.'
@@ -55,15 +56,33 @@ const ampliAMasse = (c: Cable) => (c.a === 'plat.ampliIn' && estMasse(c.b)) || (
 
 export const ampliBloque = (etat: EtatAmpli) => etat !== 'normal'
 
-/** Exception de l'énoncé : ampli bloqué, extrémité masse du câble de l'entrée ampli déplacée vers GBF MAIN OUT */
+/** Câblage où l'extrémité `de` du câble `id` est rebranchée sur `vers` */
+const rebranche = (cablage: Cablage, id: string, de: Borne, vers: Borne): Cable[] => cablage.map((c) => (c.id !== id ? c : c.a === de ? { ...c, a: vers } : c.b === de ? { ...c, b: vers } : c))
+
+/**
+ * Exception de l'énoncé (dernière étape de la procédure) : ampli bloqué, l'extrémité masse du câble de l'entrée
+ * ampli est rebranchée sur la source vérifiée (GBF MAIN OUT au TP1, sortie G2 au TP2) : le câblage redevient
+ * exactement celui de la dernière vérification.
+ */
 export function exceptionSousTension(s: SessionAu3, a: Action): boolean {
   if (a.type !== 'rebrancher' || !ampliBloque(s.platine.ampli)) return false
   const c = s.cablage.find((x) => x.id === a.id)
-  return !!c && ampliAMasse(c) && estMasse(a.de) && a.vers === 'gbf.out'
+  return !!c && ampliAMasse(c) && estMasse(a.de) && s.verifieSur === signature(rebranche(s.cablage, a.id, a.de, a.vers))
 }
 
-/** Câblage de la procédure ramené au montage : la masse de l'entrée ampli remplacée par GBF MAIN OUT */
-const sansProcedure = (cablage: Cablage): Cablage => cablage.map((c) => (ampliAMasse(c) ? { ...c, a: 'plat.ampliIn', b: 'gbf.out' } : c))
+/**
+ * Rallumage sans « Faire vérifier » (procédure de déblocage) : ampli bloqué, et la SEULE différence avec le câblage
+ * de la dernière vérification réussie est « entrée ampli ↔ masse » à la place de « entrée ampli ↔ source ».
+ */
+export function procedureExacte(s: SessionAu3): boolean {
+  if (!ampliBloque(s.platine.ampli) || s.verifieReussiSur === null) return false
+  const attendu = s.verifieReussiSur
+  return s.cablage.some((c) => {
+    if (!ampliAMasse(c)) return false
+    const masse = estMasse(c.a) ? c.a : c.b
+    return TOUTES_BORNES.some((v) => !estMasse(v) && signature(rebranche(s.cablage, c.id, masse, v)) === attendu)
+  })
+}
 
 const decrire = (a: Action): string => {
   switch (a.type) {
@@ -99,7 +118,7 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
   if (modifieCablage(a) && s.platine.sousTension) {
     if (exceptionSousTension(s, a) && a.type === 'rebrancher') {
       const ampli: EtatAmpli = s.platine.ampli.startsWith('reamorce') ? 'normal' : s.platine.ampli
-      return avec({ cablage: s.cablage.map((c) => (c.id === a.id ? { ...c, ...(c.a === a.de ? { a: a.vers } : { b: a.vers }) } : c)), platine: { ...s.platine, ampli } })
+      return avec({ cablage: rebranche(s.cablage, a.id, a.de, a.vers), platine: { ...s.platine, ampli } })
     }
     const ev: EvenementManip = { instant: maintenant, type: 'manip-sous-tension', detail: decrire(a) }
     return avec({ evenementsSousTension: [...s.evenementsSousTension, ev] }, MESSAGE_SOUS_TENSION)
@@ -113,19 +132,22 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
       return avec({ cablage: s.cablage.filter((c) => c.id !== a.id) })
     case 'couleur-cable':
       return avec({ cablage: s.cablage.map((c) => (c.id === a.id ? { ...c, couleur: a.couleur } : c)) })
-    case 'rebrancher':
-      return avec({ cablage: s.cablage.map((c) => (c.id !== a.id ? c : c.a === a.de && c.b !== a.vers ? { ...c, a: a.vers } : c.b === a.de && c.a !== a.vers ? { ...c, b: a.vers } : c)) })
+    case 'rebrancher': {
+      const c = s.cablage.find((x) => x.id === a.id)
+      return c && c.a !== a.vers && c.b !== a.vers ? avec({ cablage: rebranche(s.cablage, a.id, a.de, a.vers) }) : e
+    }
     case 'remplacer-cablage':
       return avec({ cablage: [...a.cablage] })
     case 'composant':
       return avec({ platine: { ...s.platine, [a.support]: a.z } })
     case 'faire-verifier': {
       const verdict = verifier(s.cablage, MONTAGES[e.montage].liaisons)
-      return { ...avec({ verifieSur: signature(s.cablage), essaisVerification: s.essaisVerification + 1 }), verdict }
+      const sig = signature(s.cablage)
+      return { ...avec({ verifieSur: sig, verifieReussiSur: verdict.manquantes.length ? s.verifieReussiSur : sig, essaisVerification: s.essaisVerification + 1 }), verdict }
     }
     case 'interrupteur': {
       if (s.platine.sousTension) return avec({ platine: { ...s.platine, sousTension: false } })
-      const verifie = s.verifieSur === signature(s.cablage) || (ampliBloque(s.platine.ampli) && s.verifieSur === signature(sansProcedure(s.cablage)))
+      const verifie = s.verifieSur === signature(s.cablage) || procedureExacte(s)
       if (!verifie) return avec({}, MESSAGE_VERIFIER)
       return avec({ platine: { ...s.platine, sousTension: true, ampli: allumerAmpli(s.platine.ampli, s.cablage) } })
     }
@@ -145,6 +167,8 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
       return avec({ reponses: { ...s.reponses, [a.id]: { valeur: a.valeur, essais: (s.reponses[a.id]?.essais ?? 0) + 1 } } }, e.message)
     case 'tp1':
       return avec({ tp1: { ...s.tp1, ...a.patch } }, e.message)
+    case 'tp2':
+      return avec({ tp2: { ...s.tp2, [a.essai]: { ...s.tp2[a.essai], ...a.patch } } }, e.message)
     case 'effacer-message':
       return { ...e, message: null }
   }

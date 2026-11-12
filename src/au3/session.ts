@@ -6,15 +6,15 @@ import type { Cable } from './sim/cablage'
 import type { ReglagesPlatine } from './sim/simulate'
 
 /**
- * Session AU3 conservée dans localStorage, versionnée : un changement de schéma incrémente
- * SESSION_VERSION et les sessions d'une autre version sont ignorées (jamais mal relues).
+ * Session AU3 conservée dans localStorage, versionnée : un changement de schéma ajoute une migration explicite
+ * (MIGRATIONS), qui fait monter SESSION_VERSION ; une session ancienne est migrée, une version inconnue ignorée.
  * Le mode examen (étape 5) réutilise ce schéma : chrono, réponses, essais de vérification,
  * événements sous tension et câblage survivent à un rechargement.
  */
-export const SESSION_VERSION = 2
+
 export type ModeSession = 'libre' | 'examen'
 /** Page qui porte la session : banc libre ou TP (chacune garde son câblage et ses réponses) */
-export type EspaceSession = 'banc' | 'tp1'
+export type EspaceSession = 'banc' | 'tp1' | 'tp2'
 export const cleSession = (mode: ModeSession, espace: EspaceSession = 'banc') => (espace === 'banc' ? `au3.session.${mode}` : `au3.session.${mode}.${espace}`)
 
 export interface EvenementManip {
@@ -52,6 +52,9 @@ export interface ProgressionTp1 {
   ordre2: ResultatFit | null
 }
 
+/** Même progression pour chaque essai du TP2 (K = 3,8 et K = 40) */
+export type ProgressionEssai = ProgressionTp1
+
 export const progressionNeuve = (): ProgressionTp1 => ({ croixT3T1: null, croixWnT: null, methodeWn: 't3', csv: null, ordre1: null, ordre2: null })
 
 export interface SessionAu3 {
@@ -64,6 +67,8 @@ export interface SessionAu3 {
   essaisVerification: number
   /** Signature du câblage au dernier « Faire vérifier » (null = jamais vérifié) */
   verifieSur: string | null
+  /** Signature du câblage à la dernière vérification réussie (toutes les liaisons correctes) */
+  verifieReussiSur: string | null
   evenementsSousTension: EvenementManip[]
   /** Autres fautes journalisées (Autoscale) */
   fautes: EvenementManip[]
@@ -73,6 +78,7 @@ export interface SessionAu3 {
   oscillo: ReglagesOscillo
   curseurs: Curseurs
   tp1: ProgressionTp1
+  tp2: { k38: ProgressionEssai; k40: ProgressionEssai }
 }
 
 const D = MISE_EN_PAGE.oscillo.defaut
@@ -85,6 +91,7 @@ export function sessionNeuve(mode: ModeSession): SessionAu3 {
     reponses: {},
     essaisVerification: 0,
     verifieSur: null,
+    verifieReussiSur: null,
     evenementsSousTension: [],
     fautes: [],
     cablage: [],
@@ -99,16 +106,39 @@ export function sessionNeuve(mode: ModeSession): SessionAu3 {
     },
     curseurs: { ...D.curseurs, source: 1, suivre: false },
     tp1: progressionNeuve(),
+    tp2: { k38: progressionNeuve(), k40: progressionNeuve() },
   }
 }
 
-/** Relit une session ; null si absente, illisible ou d'une autre version */
+type SessionBrute = Record<string, unknown> & { version?: unknown; mode?: unknown; platine?: Record<string, unknown> }
+
+/** Migrations explicites, une par version : v1 → v2 (ampli de courant, progression TP1), v2 → v3 (vérification réussie, TP2) */
+const MIGRATIONS: Record<number, (s: SessionBrute) => SessionBrute> = {
+  1: (s) => ({ ...s, version: Number(s.version) + 1, platine: { ...s.platine, ampli: 'normal' }, tp1: progressionNeuve() }),
+  2: (s) => ({ ...s, version: Number(s.version) + 1, verifieReussiSur: null, tp2: { k38: progressionNeuve(), k40: progressionNeuve() } }),
+}
+
+/** Version courante du schéma = nombre de migrations + 1 (ajouter une migration fait monter la version) */
+export const SESSION_VERSION = Object.keys(MIGRATIONS).length + 1
+
+/** Amène une session d'une version antérieure à SESSION_VERSION ; null si version inconnue */
+export function migrerSession(brute: SessionBrute): SessionAu3 | null {
+  let s = brute
+  while (typeof s.version === 'number' && s.version < SESSION_VERSION) {
+    const m = MIGRATIONS[s.version]
+    if (!m) return null
+    s = m(s)
+  }
+  return s.version === SESSION_VERSION ? (s as unknown as SessionAu3) : null
+}
+
+/** Relit une session (migrée si elle est d'une version antérieure) ; null si absente, illisible ou d'une version inconnue */
 export function chargerSession(stockage: Pick<Storage, 'getItem'>, mode: ModeSession, espace: EspaceSession = 'banc'): SessionAu3 | null {
   try {
     const brut = stockage.getItem(cleSession(mode, espace))
     if (!brut) return null
-    const s = JSON.parse(brut) as Partial<SessionAu3>
-    return s.version === SESSION_VERSION && s.mode === mode ? (s as SessionAu3) : null
+    const s = migrerSession(JSON.parse(brut) as SessionBrute)
+    return s && s.mode === mode ? s : null
   } catch {
     return null
   }

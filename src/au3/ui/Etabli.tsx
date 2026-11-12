@@ -3,7 +3,7 @@ import { MISE_EN_PAGE } from '../miseEnPage'
 import type { Action, EtatBanc } from '../banc'
 import { periodeGbf } from '../instruments/gbf'
 import type { Enregistrement, PlanAcquisition } from '../instruments/oscillo'
-import { MONTAGES, PRESET_TP1, massesNonNoires, nomBorne, type Borne as IdBorne } from '../sim/cablage'
+import { MONTAGES, PRESET_TP1, massesNonNoires, nomBorne, type Borne as IdBorne, type Cablage } from '../sim/cablage'
 import { BANC_REEL, simulate, vitesseAffichee } from '../sim/simulate'
 import { cheminCable, type Rect } from './cables'
 import Gbf from './Gbf'
@@ -23,10 +23,14 @@ export interface OptionsEtabli {
   variantes?: boolean
   /** Dernier enregistrement affiché par l'oscilloscope */
   onEnregistrement?: (rec: Enregistrement | null) => void
+  /** Liaisons pré-câblées (dessinées en pointillés, ni vérifiées ni modifiables) */
+  precablage?: Cablage
 }
 
 /** Établi : GBF sur l'oscilloscope à gauche, platine au centre, moteur à droite ; câbles posés borne à borne */
-export default function Etabli({ etat, agir, preset = true, variantes = false, onEnregistrement }: { etat: EtatBanc; agir: (a: Action) => void } & OptionsEtabli) {
+const SANS_PRECABLAGE: Cablage = []
+
+export default function Etabli({ etat, agir, preset = true, variantes = false, onEnregistrement, precablage = SANS_PRECABLAGE }: { etat: EtatBanc; agir: (a: Action) => void } & OptionsEtabli) {
   const s = etat.session
   const [choisie, setChoisie] = useState<IdBorne | null>(null)
   const [couleur, setCouleur] = useState<string>(C.couleurs[1])
@@ -73,7 +77,9 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
   }
   const bornes: PropsBornes = { choisie, verrouillee: s.platine.sousTension, onBorne }
 
-  const { gbf, platine, cablage } = s
+  const { gbf, platine, cablage: cablageEtudiant } = s
+  // Le banc réel = câbles de l'étudiant + liaisons pré-câblées
+  const cablage = useMemo(() => [...cablageEtudiant, ...precablage], [cablageEtudiant, precablage])
   const simuler = useCallback(
     (graine: number, p: PlanAcquisition) => {
       const r = simulate(BANC_REEL, { gbf, platine, duree: p.duree, pasSortie: p.pasSortie }, cablage, graine)
@@ -83,9 +89,9 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
   )
   // Animation du moteur : vitesse simulée (sans bruit), pas le câblage
   const vitesse = useMemo(() => vitesseAffichee(BANC_REEL, { gbf, platine }, cablage), [gbf, platine, cablage])
-  const alerteMasse = massesNonNoires(cablage)
+  const alerteMasse = massesNonNoires(cablageEtudiant)
   const verdict = etat.verdict
-  const actif = cablage.find((c) => c.id === cableActif)
+  const actif = cablageEtudiant.find((c) => c.id === cableActif)
 
   return (
     <div className="space-y-3">
@@ -214,14 +220,25 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
           </div>
 
           <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-label="Câbles">
-            {cablage.map((c) => {
+            {precablage.map((c) => {
               const a = points[c.a]
               const b = points[c.b]
               if (!a || !b) return null
               return (
+                <path key={c.id} d={cheminCable(a, b, zones)} fill="none" stroke={c.couleur} strokeWidth={C.epaisseur} strokeDasharray={C.pointillePrecablage} strokeLinecap="round" opacity="0.7" data-precable={c.id}>
+                  <title>{`Pré-câblé : ${nomBorne(c.a)} — ${nomBorne(c.b)}`}</title>
+                </path>
+              )
+            })}
+            {cablageEtudiant.map((c) => {
+              const a = points[c.a]
+              const b = points[c.b]
+              if (!a || !b) return null
+              const d = cheminCable(a, b, zones)
+              return (
                 <g key={c.id} className="pointer-events-auto cursor-pointer" onClick={() => setCableActif(c.id)}>
-                  <path d={cheminCable(a, b, zones)} fill="none" stroke="#000" strokeOpacity="0.45" strokeWidth={C.epaisseur * 2} strokeLinecap="round" />
-                  <path d={cheminCable(a, b, zones)} fill="none" stroke={c.couleur} strokeWidth={C.epaisseur} strokeLinecap="round" className={cableActif === c.id ? 'opacity-100' : 'opacity-90'} />
+                  <path d={d} fill="none" stroke="#000" strokeOpacity="0.45" strokeWidth={C.epaisseur * 2} strokeLinecap="round" />
+                  <path d={d} fill="none" stroke={c.couleur} strokeWidth={C.epaisseur} strokeLinecap="round" className={cableActif === c.id ? 'opacity-100' : 'opacity-90'} />
                   <title>{`${nomBorne(c.a)} — ${nomBorne(c.b)}`}</title>
                 </g>
               )

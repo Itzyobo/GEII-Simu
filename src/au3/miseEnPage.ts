@@ -37,6 +37,8 @@ export const MISE_EN_PAGE = {
     /** Affaissement des courbes de Bézier (px) */
     affaissement: 60,
     epaisseur: 4,
+    /** Tirets d'une liaison pré-câblée */
+    pointillePrecablage: '2 6',
     /** Contournement d'une zone d'exclusion : marge (px), pas de recherche (px), essais, points d'échantillonnage */
     marge: 12,
     pasContour: 20,
@@ -63,7 +65,7 @@ export const MISE_EN_PAGE = {
   /** Facteur d'affichage d'une fraction en pourcentage */
   pourcent: 100,
   /** Chiffres significatifs de la note de TR5% (30,7 ms ; 33 ms) */
-  chiffresTr5: { modele: 3, cr: 2 },
+  chiffresTr5: { modele: 3, cr: 3 },
   abaque: {
     largeur: 520,
     hauteur: 300,

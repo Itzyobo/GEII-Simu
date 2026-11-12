@@ -131,3 +131,26 @@ export function penteMesure(f: Fenetre, tau: number): number {
   const den = idx.reduce((s, i) => s + (f.t[i]! - tm) ** 2, 0)
   return den ? num / den : NaN
 }
+
+/** Écart quadratique moyen modèle − mesure au démarrage (avant l'entrée dans m(∞) ± 5 %) et en régime permanent */
+export function residus(f: Fenetre, r: ResultatFit): { demarrage: number; permanent: number } {
+  const fin = modele(f, r, f.t[f.t.length - 1]!)
+  const bande = (1 - au3('NIVEAU_TR5')) * Math.abs(fin - f.m0)
+  let iEntree = 0
+  f.t.forEach((t, i) => {
+    if (Math.abs(modele(f, r, t) - fin) > bande) iEntree = i + 1
+  })
+  const rms = (a: number, b: number) => {
+    let s = 0
+    for (let i = a; i < b; i++) s += (modele(f, r, f.t[i]!) - f.m[i]!) ** 2
+    return Math.sqrt(s / Math.max(1, b - a))
+  }
+  return { demarrage: rms(0, iEntree), permanent: rms(iEntree, f.t.length) }
+}
+
+/** Part de la variance de la mesure non expliquée par le modèle (≈ 0 : superposition) */
+export function partNonExpliquee(f: Fenetre, r: ResultatFit): number {
+  const moy = f.m.reduce((a, b) => a + b, 0) / f.m.length
+  const total = f.m.reduce((s, v) => s + (v - moy) ** 2, 0)
+  return total ? r.critere / total : 1
+}

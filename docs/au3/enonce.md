@@ -604,6 +604,7 @@ commande U, à la voie 3 (bleue) de l’oscilloscope. Réglez le calibre de la v
 5V pour bien voir si le signal U est linéaire ou s’il sature (à ±10,6 V).
 10. Reliez la signal d’erreur (Borne « Erreur »), sur la voie 4 (rose) de l’oscilloscope.
 
+<a id="tp2-sous-tension"></a>
 **Mettre sous tension la platine Régulateur**
 
 Remarque : si le moteur se met à tourner tout le temps dans le même sens ou ne tourne pas du tout,
@@ -710,6 +711,7 @@ de ωnb est l’ordonnée de ce point divisée par t3 en secondes.
 La précision du résultat final dépend essentiellement de votre capacité à mesurer avec précision
 les temps t1 et t3.
 
+<a id="tp2-i11-gb2"></a>
 ⇨ Donner alors la fonction de transfert du 2ième ordre du système, Gb2(p).
 
 <a id="tp2-i11-q8"></a>
@@ -891,6 +893,7 @@ stabilisation de sa vitesse quand il est asservi en boucle fermée avec un régu
 de gain K=40 ? Pour quelle raison ? Quel phénomène physique a pu être négligé dans le
 modèle ?
 
+<a id="tp2-i22-q12"></a>
 12. S’il vous reste du temps : compléter le script « main-ident.m » pour tracer la réponse à un
 échelon du modèle d’ordre 2 que vous avez trouvé question 13. du I.2.1., sur la même figure
 que les 2 autres courbes (mesures et réponse à un échelon du modèle optimisé par matlab).

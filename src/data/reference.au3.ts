@@ -63,6 +63,8 @@ const AU3_VALEURS = {
   IDENT_TOL: { valeur: 1e-12, unite: '', source: 'hypothese', note: 'Nelder–Mead : arrêt quand l’écart relatif du critère sur le simplexe passe sous ce seuil' },
   IDENT_PAS_INITIAL: { valeur: 0.2, unite: '', source: 'hypothese', note: 'Nelder–Mead : taille du simplexe initial (paramètres en logarithme)' },
   IDENT_PASSES: { valeur: 3, unite: '', source: 'hypothese', note: 'Nelder–Mead relancé depuis le meilleur point (évite un simplexe dégénéré)' },
+  SUPERPOSITION_MAX: { valeur: 0.01, unite: '', source: 'hypothese', note: 'Modèle « superposé » à la mesure si moins de 1 % de la variance de la mesure reste inexpliquée' },
+  RAPPORT_NEGLIGEABLE: { valeur: 5, unite: '', source: 'hypothese', note: 'TP2 I.1.2 Q12 : une constante de temps est négligeable si τmax/τmin ≥ 5 (règle usuelle, non donnée par l’énoncé)' },
   TANGENTE_FENETRE: { valeur: 0.05, unite: '', source: 'hypothese', note: 'Pente de la mesure au démarrage : régression sur t ≤ 5 % de τ' },
 
   /* ───────────── Banc du CR ───────────── */
@@ -78,6 +80,8 @@ const AU3_VALEURS = {
   TP2_K38_G1: { valeur: 38, unite: '', source: 'enonce', note: 'Affichage G1' },
   TP2_K38_G2: { valeur: 10, unite: '', source: 'enonce' },
   TP2_K40_GBF_VPP: { valeur: 0.3, unite: 'V', source: 'enonce' },
+  TP2_VOIE3_VDIV: { valeur: 5, unite: 'V/div', source: 'enonce', note: 'TP2 liaison 9 : « Réglez le calibre de la voie 3 (uniquement) à 5V »' },
+  TP2_VARIANTE_VPP_FORT: { valeur: 0.4, unite: 'V', source: 'hypothese', note: 'Variante « GBF trop fort à K = 40 » : sature U (prompt de l’étape 3, test 15)' },
   TP2_K40_K: { valeur: 40, unite: '', source: 'enonce' },
   TP2_K40_G1: { valeur: 40, unite: '', source: 'enonce', note: 'Affichage G1' },
   TP2_K40_G2: { valeur: 100, unite: '', source: 'enonce' },
