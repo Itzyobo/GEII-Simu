@@ -1,16 +1,31 @@
 /**
- * Banc INFO3 : Curiosity HPC vue de dessus et carte fille GEII, en un seul SVG en ligne (apparence = H16).
- * - LED D2 à D5 : lueur = rapport cyclique (variable CSS --duty), animée en CSS ;
+ * Banc INFO3 : dessin du banc réel (curiosity-hpc.svg, tiré de curiosity_hpc_banc_info3.svg ; apparence = H16)
+ * et, par-dessus, dans le même repère, tout ce qui bouge ou se manipule :
+ * - LED D2 à D5 : lueur = rapport cyclique (variable CSS --duty) ; voyant d'alimentation de la carte fille ;
  * - S1, S2 : souris, toucher (maintien possible) ou touches 1 et 2 ;
- * - USB noir (PKOB : alimentation et programmation) et USB blanc (UART de la carte fille) : clic pour brancher ;
- * - LED RGB : couleur = mélange des trois rapports cycliques (H17) ; sans le cache, halo d'éblouissement ;
- * - MODULE 1 et 2 (mikroBUS) : glisser une carte Click, ou la sélectionner puis cliquer l'emplacement.
+ * - potentiomètre R1 (RA0) : glisser en cercle ou flèches ; joystick : glisser, flèches, clic ou Espace = bouton SW ;
+ * - LED RGB : couleur = mélange des trois rapports cycliques (H17) ; clic = poser ou retirer le cache ;
+ * - USB noir (PKOB) et USB blanc (USB UART click) : clic sur la prise pour brancher ou débrancher ;
+ * - MODULE 1 et 2 (mikroBUS) : glisser une carte Click, ou la sélectionner puis cliquer l'emplacement ;
+ * - ROTARY O click : anneau de 16 LED ; molette = glisser le bord, molette de la souris ou ← / → ; centre = bouton SW ;
+ * - 8x8 R click : 64 LED.
  * Le verrouillage sous tension est décidé par le modèle du projet (setCard), pas ici.
  */
-import { useEffect, useState, type CSSProperties, type DragEvent, type PointerEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { INFO3 } from '../../data/reference'
 import type { Bench, CardId, SlotId } from '../project/project'
 import { cssColor, rgbDuty, rgbGlare, rgbIntensity, rgbMix } from '../models/rgbLed'
+import art from './curiosity-hpc.svg?raw'
+import artMatrix from './click-8x8.svg?raw'
+import artRotary from './click-rotary.svg?raw'
+
+/** Contenu d'un fichier SVG sans sa balise <svg> (tout est dessiné dans le repère de curiosity-hpc.svg) */
+const inner = (svg: string) => svg.slice(svg.indexOf('>') + 1, svg.lastIndexOf('</svg>'))
+const ART = inner(art)
+const CARD_ART: Record<CardId, string> = { matrix8x8: inner(artMatrix), rotary: inner(artRotary) }
+const VIEWBOX = /viewBox="([^"]+)"/.exec(art)![1]
+
+export type RotaryAction = { action: 'turn'; detents: number } | { action: 'sw'; pressed: boolean }
 
 export interface BoardProps {
   duty: Record<string, number>
@@ -28,58 +43,68 @@ export interface BoardProps {
   /** Matrice 8x8 R click : lueur des 64 LED (ligne 0 en haut) */
   matrix?: number[]
   onAnalog?(m: { pot?: number; joy?: [number, number]; joySw?: boolean }): void
+  /** ROTARY O click : fraction du temps allumée des LED 1 à 16 (LED 1 en haut, sens horaire, H10) */
+  ring?: number[]
+  onRotary?(m: RotaryAction): void
 }
+
+/** Repère du dessin (curiosity-hpc.svg) */
+const POT = { cx: 713, cy: 1028, r: 24, hit: 36 }
+const LED_X: Record<string, number> = { D2: 940, D3: 895, D4: 848, D5: 800 }
+const LED_Y = 982
+const BUTTON_XY: Record<string, [number, number]> = { S1: [872, 1064], S2: [1022, 1064] }
+const BUTTON_HALF = 30
+const RGB_LED = { cx: 522, cy: 565 }
+const POWER_LED = { cx: 462, cy: 545 }
+const JOY = { cx: 900, cy: 705, cap: 62, travel: 22, housing: 100, tap: 6 }
+const USB_BLACK = { x: 1440, y: 560, w: 30, h: 40 }
+const USB_WHITE = { x: 318, y: 715, w: 62, h: 52 }
+const SLOT: Record<SlotId, { x: number; y: number }> = { mikrobus1: { x: 1128, y: 595 }, mikrobus2: { x: 1128, y: 820 } }
+const SLOT_W = 250
+const SLOT_H = 210
+const MATRIX = { x: 1168, y: 403, dx: 24.5, dy: 25.5 }
+const RING = { cx: 1275, cy: 1175, r: 92, led: 16, knob: 52, cap: 34 }
+const RING_LEDS = 16
+const FULL_TURN = 360
 
 /** Course du potentiomètre : 270°, de -135° (0) à +135° (1) */
 const POT_SWEEP = 270
 const POT_KEY_STEP = 0.05
-const JOY = { cx: 490, cy: 190, r: 22 }
+const DEG_PER_DETENT = FULL_TURN / INFO3.rotary.detentsPerTurn
+const RAD = Math.PI / 180
 
-/** Coordonnées SVG d'un événement pointeur */
+/** Coordonnées dans le repère du dessin d'un événement pointeur */
 function svgPoint(e: PointerEvent<SVGGElement>): { x: number; y: number } {
   const svg = e.currentTarget.ownerSVGElement!
-  const m = svg.getScreenCTM()!.inverse()
-  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m)
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM()!.inverse())
   return { x: p.x, y: p.y }
 }
 const clamp1 = (v: number) => Math.max(-1, Math.min(1, v))
+const activate = (e: ReactKeyboardEvent, f: () => void) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    f()
+  }
+}
 
 const KEYS: Record<string, string> = { '1': INFO3.pins.buttons[0].name, '2': INFO3.pins.buttons[1].name }
 const CARD_IDS = Object.keys(INFO3.clickBoards) as CardId[]
 const SLOT_LABEL: Record<SlotId, string> = { mikrobus1: 'MODULE 1', mikrobus2: 'MODULE 2' }
 const DRAG_TYPE = 'application/x-info3-card'
 
-/** Lueur des LED : --duty (0 à 1) fixé à chaque image, transition courte pour une animation fluide */
-const BOARD_CSS = `.info3-board [tabindex]:focus-visible{outline:2px solid #ffd600;outline-offset:2px}.info3-led-on{opacity:var(--duty);transition:opacity 40ms linear}.info3-led-glow{opacity:calc(var(--duty) * .85);transition:opacity 40ms linear}`
+/** Lueur des LED : --duty (0 à 1) fixé à chaque image ; contour des zones cliquables au survol et au clavier */
+const BOARD_CSS = `.info3-board [tabindex]{outline:none}.info3-board [tabindex]:focus-visible .info3-hl,.info3-board .info3-hit:hover .info3-hl{opacity:1}.info3-hl{opacity:0;transition:opacity 120ms}.info3-led-on{opacity:var(--duty);transition:opacity 40ms linear}.info3-led-glow{opacity:calc(var(--duty) * .85);transition:opacity 40ms linear}`
 
 const isEditable = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || !!t.closest('.cm-editor'))
 
-export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message, analog, onAnalog, matrix = [] }: BoardProps) {
+/** Contour jaune d'une zone cliquable (survol, focus clavier, emplacement visé) */
+const Hl = ({ x, y, w, h, rx = 6, on }: { x: number; y: number; w: number; h: number; rx?: number; on?: boolean }) => (
+  <rect className="info3-hl" x={x} y={y} width={w} height={h} rx={rx} fill="none" stroke="#ffd600" strokeWidth={4} style={on ? { opacity: 1 } : undefined} />
+)
+
+export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message, analog, onAnalog, matrix = [], ring = [], onRotary }: BoardProps) {
   const pot = analog?.pot ?? 0.5
   const [jx, jy] = analog?.joy ?? [0, 0]
-  const potAngle = (pot - 0.5) * POT_SWEEP
-  const potDrag = (e: PointerEvent<SVGGElement>) => {
-    if (!onAnalog || (e.type === 'pointermove' && !e.buttons)) return
-    const p = svgPoint(e)
-    const deg = (Math.atan2(p.x - 395, 112 - p.y) * 180) / Math.PI
-    onAnalog({ pot: Math.min(1, Math.max(0, deg / POT_SWEEP + 0.5)) })
-  }
-  const joyDrag = (e: PointerEvent<SVGGElement>) => {
-    if (!onAnalog || (e.type === 'pointermove' && !e.buttons)) return
-    const p = svgPoint(e)
-    onAnalog({ joy: [clamp1((p.x - JOY.cx) / JOY.r), clamp1((JOY.cy - p.y) / JOY.r)] })
-  }
-  const JOY_KEYS: Record<string, [number, number]> = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }
-  const joyKey = (e: ReactKeyboardEvent<SVGGElement>, down: boolean) => {
-    if (!onAnalog) return
-    if (JOY_KEYS[e.key]) {
-      e.preventDefault()
-      onAnalog({ joy: down ? JOY_KEYS[e.key] : [0, 0] })
-    } else if (e.key === ' ' || e.key === 'Enter') {
-      e.preventDefault()
-      onAnalog({ joySw: down })
-    }
-  }
   const rgb = rgbDuty(duty)
   const rgbOn = rgbIntensity(rgb) > 0
   const rgbColor = cssColor(rgbMix(rgb))
@@ -87,6 +112,9 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
   const [held, setHeld] = useState<Record<string, boolean>>({})
   const [selected, setSelected] = useState<CardId | null>(null)
   const [over, setOver] = useState<SlotId | null>(null)
+  const [joySw, setJoySw] = useState(false)
+  const [knob, setKnob] = useState(0)
+  const [rotSw, setRotSw] = useState(false)
   const powered = bench.usbBlack
 
   const press = (name: string) => {
@@ -118,6 +146,57 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
     }
   })
 
+  /* ── Potentiomètre ── */
+  const potDrag = (e: PointerEvent<SVGGElement>) => {
+    if (!onAnalog || (e.type === 'pointermove' && !e.buttons)) return
+    const p = svgPoint(e)
+    const deg = Math.atan2(p.x - POT.cx, POT.cy - p.y) / RAD
+    onAnalog({ pot: Math.min(1, Math.max(0, deg / POT_SWEEP + 0.5)) })
+  }
+
+  /* ── Joystick : glisser = déplacer ; appui sans déplacement = bouton SW ── */
+  const joyStart = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  const joySet = (sw: boolean) => {
+    setJoySw(sw)
+    onAnalog?.({ joySw: sw })
+  }
+  const joyDown = (e: PointerEvent<SVGGElement>) => {
+    if (!onAnalog) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    joyStart.current = { ...svgPoint(e), moved: false }
+    joySet(true)
+  }
+  const joyMove = (e: PointerEvent<SVGGElement>) => {
+    const s = joyStart.current
+    if (!s || !onAnalog) return
+    const p = svgPoint(e)
+    if (!s.moved && Math.hypot(p.x - s.x, p.y - s.y) < JOY.tap) return
+    if (!s.moved) {
+      s.moved = true
+      joySet(false)
+    }
+    onAnalog({ joy: [clamp1((p.x - s.x) / JOY.travel / 2), clamp1((s.y - p.y) / JOY.travel / 2)] })
+  }
+  const joyUp = () => {
+    const s = joyStart.current
+    joyStart.current = null
+    if (!s) return
+    if (s.moved) onAnalog?.({ joy: [0, 0] })
+    else joySet(false)
+  }
+  const JOY_KEYS: Record<string, [number, number]> = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }
+  const joyKey = (e: ReactKeyboardEvent<SVGGElement>, down: boolean) => {
+    if (!onAnalog) return
+    if (JOY_KEYS[e.key]) {
+      e.preventDefault()
+      onAnalog({ joy: down ? JOY_KEYS[e.key] : [0, 0] })
+    } else if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+      e.preventDefault()
+      joySet(down)
+    }
+  }
+
+  /* ── Cartes Click ── */
   const slotClick = (slot: SlotId) => {
     if (bench.slots[slot]) onCard(slot, null)
     else if (selected) {
@@ -138,68 +217,215 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
     }
   }
 
-  const ledStyle = (d: number): CSSProperties => ({ ['--duty' as string]: String(d) })
-  const button = (name: string, x: number, y: number) => (
-    <g
-      key={name}
-      role="button"
-      tabIndex={0}
-      aria-label={`Bouton ${name} (touche ${name === KEYS['1'] ? 1 : 2})`}
-      aria-pressed={!!held[name]}
-      className="cursor-pointer touch-none select-none outline-none"
-      onPointerDown={(e) => {
-        e.currentTarget.setPointerCapture(e.pointerId)
-        press(name)
-      }}
-      onPointerUp={() => release(name)}
-      onPointerCancel={() => release(name)}
-      onKeyDown={(e) => {
-        if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
-          e.preventDefault()
-          press(name)
-        }
-      }}
-      onKeyUp={(e) => {
-        if (e.key === ' ' || e.key === 'Enter') release(name)
-      }}
-    >
-      <rect x={x - 13} y={y - 13} width={26} height={26} rx={3} fill="#d9dde0" stroke="#7d868c" />
-      <circle cx={x} cy={y} r={held[name] ? 7.5 : 9} fill={held[name] ? '#2b2f33' : '#3d4348'} stroke="#15181a" />
-      <text x={x} y={y + 25} textAnchor="middle" className="fill-[#f2f2f2] text-[10px] font-semibold">
-        {name}
-      </text>
-    </g>
-  )
+  /* ── ROTARY O click ── */
+  const turn = (n: number) => {
+    if (!n || !onRotary) return
+    setKnob((k) => k + n)
+    onRotary({ action: 'turn', detents: n })
+  }
+  const rotSet = (pressed: boolean) => {
+    setRotSw(pressed)
+    onRotary?.({ action: 'sw', pressed })
+  }
+  const knobRef = useRef<SVGGElement | null>(null)
+  const turnRef = useRef(turn)
+  useEffect(() => {
+    turnRef.current = turn
+  })
+  const rotarySlot = (Object.keys(bench.slots) as SlotId[]).find((s) => bench.slots[s] === 'rotary')
+  // Molette de la souris : écouteur non passif pour ne pas faire défiler la page
+  useEffect(() => {
+    const el = knobRef.current
+    if (!el) return
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault()
+      turnRef.current(e.deltaY > 0 ? 1 : -1)
+    }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+  }, [rotarySlot])
+  const knobDrag = useRef<{ angle: number; acc: number } | null>(null)
+  const knobAngle = (e: PointerEvent<SVGGElement>, cy: number) => {
+    const p = svgPoint(e)
+    return Math.atan2(p.x - RING.cx, cy - p.y) / RAD
+  }
 
-  const mikrobus = (slot: SlotId, x: number, y: number) => {
-    const card = bench.slots[slot]
+  const ledStyle = (d: number): CSSProperties => ({ ['--duty' as string]: String(d) })
+
+  const button = (name: string) => {
+    const [x, y] = BUTTON_XY[name]
+    return (
+      <g
+        key={name}
+        role="button"
+        tabIndex={0}
+        aria-label={`Bouton ${name} (touche ${name === KEYS['1'] ? 1 : 2})`}
+        aria-pressed={!!held[name]}
+        className="info3-hit cursor-pointer touch-none select-none"
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          press(name)
+        }}
+        onPointerUp={() => release(name)}
+        onPointerCancel={() => release(name)}
+        onKeyDown={(e) => !e.repeat && activate(e, () => press(name))}
+        onKeyUp={(e) => (e.key === ' ' || e.key === 'Enter') && release(name)}
+      >
+        <rect x={x - BUTTON_HALF} y={y - BUTTON_HALF} width={BUTTON_HALF * 2} height={BUTTON_HALF * 2} rx={4} fill={held[name] ? '#bfc3c7' : 'transparent'} />
+        <circle cx={x} cy={y} r={held[name] ? 14 : 17} fill={held[name] ? '#7f2424' : '#B23A3A'} />
+        <Hl x={x - BUTTON_HALF} y={y - BUTTON_HALF} w={BUTTON_HALF * 2} h={BUTTON_HALF * 2} />
+      </g>
+    )
+  }
+
+  const card = (slot: SlotId, id: CardId): ReactNode => {
+    const dy = SLOT[slot].y - SLOT[INFO3.clickBoards[id].expectedSlot as SlotId].y
+    return (
+      <g transform={`translate(0 ${dy})`}>
+        <g pointerEvents="none" dangerouslySetInnerHTML={{ __html: CARD_ART[id] }} />
+        {id === 'matrix8x8' ? (
+          <g pointerEvents="none" aria-label="Matrice 8x8 R click">
+            {Array.from({ length: 64 }, (_, i) => {
+              // Lueur : rapport cyclique de la LED rapporté au plus fort possible (1/8 : 8 digits balayés), plafonné à 1
+              const g = Math.min(1, (matrix[i] ?? 0) * 8)
+              const x = MATRIX.x + (i % 8) * MATRIX.dx
+              const y = MATRIX.y + Math.floor(i / 8) * MATRIX.dy
+              return (
+                <g key={i} className="info3-mx-led" data-on={g > 0 ? '1' : '0'}>
+                  <rect x={x + 2} y={y + 2} width={15} height={19} rx={2} fill="#F1E9E2" stroke="#B8AFA6" />
+                  {g > 0 && <rect x={x - 2} y={y + 1} width={23} height={21} rx={6} fill="#ff3b30" opacity={0.35 * g} />}
+                  <rect x={x + 5} y={y + 7} width={9} height={9} fill={g > 0 ? '#ff3b30' : '#E7C9C0'} fillOpacity={g > 0 ? 0.4 + 0.6 * g : 1} />
+                </g>
+              )
+            })}
+          </g>
+        ) : (
+          rotary(dy)
+        )}
+      </g>
+    )
+  }
+
+  const rotary = (dy: number) => {
+    const cy = RING.cy
+    return (
+      <>
+        {Array.from({ length: RING_LEDS }, (_, i) => {
+          const a = (FULL_TURN / RING_LEDS) * i
+          const d = Math.min(1, Math.max(0, ring[i] ?? 0))
+          const x = RING.cx + RING.r * Math.sin(a * RAD)
+          const y = cy - RING.r * Math.cos(a * RAD)
+          return (
+            <g key={i} className="info3-ring-led" data-on={d > 0.5 ? '1' : '0'} aria-label={`LED ${i + 1} de l’anneau`} pointerEvents="none">
+              {d > 0 && <circle cx={x} cy={y} r={20} fill="#ffb020" opacity={0.45 * d} />}
+              <rect x={x - 8} y={y - 8} width={16} height={16} rx={2} transform={`rotate(${a} ${x} ${y})`} fill={d > 0 ? '#ffb020' : '#EFE8E0'} fillOpacity={d > 0 ? 0.4 + 0.6 * d : 1} stroke="#B8AFA6" strokeWidth={1} />
+            </g>
+          )
+        })}
+        <g
+          ref={knobRef}
+          role="slider"
+          tabIndex={0}
+          aria-label={`Molette ROTARY O click : ${knob} crans — glisser le bord, molette ou ← / → ; centre, Entrée ou Espace = bouton SW${rotSw ? ' (appuyé)' : ''}`}
+          aria-valuenow={knob}
+          className="info3-hit cursor-grab touch-none"
+          onPointerDown={(e) => {
+            if (!onRotary) return
+            e.currentTarget.setPointerCapture(e.pointerId)
+            const p = svgPoint(e)
+            if (Math.hypot(p.x - RING.cx, p.y - (cy + dy)) < RING.cap) rotSet(true)
+            else knobDrag.current = { angle: knobAngle(e, cy + dy), acc: 0 }
+          }}
+          onPointerMove={(e) => {
+            const k = knobDrag.current
+            if (!k) return
+            const a = knobAngle(e, cy + dy)
+            k.acc += ((a - k.angle + FULL_TURN * 1.5) % FULL_TURN) - FULL_TURN / 2
+            k.angle = a
+            const n = Math.trunc(k.acc / DEG_PER_DETENT)
+            if (n) {
+              k.acc -= n * DEG_PER_DETENT
+              turn(n)
+            }
+          }}
+          onPointerUp={() => {
+            knobDrag.current = null
+            if (rotSw) rotSet(false)
+          }}
+          onPointerCancel={() => {
+            knobDrag.current = null
+            if (rotSw) rotSet(false)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowUp') (e.preventDefault(), turn(1))
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') (e.preventDefault(), turn(-1))
+            else if (!e.repeat) activate(e, () => rotSet(true))
+          }}
+          onKeyUp={(e) => (e.key === ' ' || e.key === 'Enter') && rotSet(false)}
+        >
+          <circle cx={RING.cx} cy={cy} r={RING.knob} fill="#9DA3A8" stroke="#6E747A" strokeWidth={3} />
+          <circle cx={RING.cx} cy={cy} r={rotSw ? RING.cap - 3 : RING.cap} fill={rotSw ? '#aeb2b6' : '#C8CCD0'} />
+          <path d={`M${RING.cx - 14} ${cy} h28 M${RING.cx} ${cy - 14} v28 M${RING.cx} ${cy - RING.knob + 4} v12`} stroke="#6E747A" strokeWidth={5} transform={`rotate(${knob * DEG_PER_DETENT} ${RING.cx} ${cy})`} />
+          <circle className="info3-hl" cx={RING.cx} cy={cy} r={RING.knob + 4} fill="none" stroke="#ffd600" strokeWidth={4} />
+        </g>
+      </>
+    )
+  }
+
+  /** Câble USB branché : sous le dessin des cartes */
+  const cable = (kind: 'black' | 'white') => {
+    const c = kind === 'black' ? USB_BLACK : USB_WHITE
+    if (!(kind === 'black' ? powered : bench.usbWhite)) return null
+    return (
+      <g pointerEvents="none">
+        {kind === 'black' ? (
+            <path d={`M${c.x + c.w} ${c.y + c.h / 2} C 1530 578 1580 560 1640 520`} fill="none" stroke="#1c1f22" strokeWidth={24} strokeLinecap="round" />
+          ) : (
+            <>
+              <path d={`M${c.x} ${c.y + c.h / 2} C 280 741 230 728 150 745`} fill="none" stroke="#9aa0a6" strokeWidth={28} strokeLinecap="round" />
+              <path d={`M${c.x} ${c.y + c.h / 2} C 280 741 230 728 150 745`} fill="none" stroke="#f4f4f4" strokeWidth={22} strokeLinecap="round" />
+            </>
+          )}
+      </g>
+    )
+  }
+  /** Prise USB : zone cliquable au-dessus du dessin */
+  const usb = (kind: 'black' | 'white') => {
+    const c = kind === 'black' ? USB_BLACK : USB_WHITE
+    const plugged = kind === 'black' ? powered : bench.usbWhite
+    const toggle = () => (kind === 'black' ? onUsbBlack : onUsbWhite)(!plugged)
+    const label = kind === 'black' ? 'USB noir (PKOB)' : 'USB blanc (USB UART click)'
+    return (
+      <g role="button" tabIndex={0} aria-label={`${label} : ${plugged ? 'branché, cliquer pour débrancher' : 'débranché, cliquer pour brancher'}`} aria-pressed={plugged} className="info3-hit cursor-pointer" onClick={toggle} onKeyDown={(e) => activate(e, toggle)}>
+        <rect x={c.x - 10} y={c.y - 10} width={c.w + 20} height={c.h + 20} fill="transparent" />
+        <Hl x={c.x - 6} y={c.y - 6} w={c.w + 12} h={c.h + 12} rx={4} />
+      </g>
+    )
+  }
+
+  const mikrobus = (slot: SlotId) => {
+    const placed = bench.slots[slot]
+    const { x, y } = SLOT[slot]
     return (
       <g
         key={slot}
         role="button"
         tabIndex={0}
-        aria-label={`${SLOT_LABEL[slot]} : ${card ? `${INFO3.clickBoards[card].name} (cliquer pour retirer)` : selected ? `enficher ${INFO3.clickBoards[selected].name}` : 'vide'}`}
-        className="cursor-pointer outline-none"
+        aria-label={`${SLOT_LABEL[slot]} : ${placed ? `${INFO3.clickBoards[placed].name} (cliquer pour retirer)` : selected ? `enficher ${INFO3.clickBoards[selected].name}` : 'vide'}`}
+        className="info3-hit cursor-pointer"
         onClick={() => slotClick(slot)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            slotClick(slot)
-          }
-        }}
+        onKeyDown={(e) => activate(e, () => slotClick(slot))}
         onDragOver={dragOver(slot)}
         onDragLeave={() => setOver(null)}
         onDrop={drop(slot)}
       >
-        <rect x={x} y={y} width={92} height={84} rx={4} fill={over === slot ? 'rgba(255,214,0,.18)' : 'rgba(0,0,0,.18)'} stroke={over === slot || (selected && !card) ? '#ffd600' : '#b9c3bd'} strokeDasharray={card ? undefined : '4 3'} />
-        {/* Deux rangées de 8 contacts femelles */}
-        {[0, 1].map((side) =>
-          Array.from({ length: 8 }, (_, i) => <rect key={`${side}-${i}`} x={x + 6 + side * 72} y={y + 8 + i * 9} width={8} height={6} fill="#111" stroke="#555" strokeWidth={0.5} />),
+        <rect x={x} y={y} width={SLOT_W} height={SLOT_H} rx={18} fill={over === slot ? 'rgba(255,214,0,.18)' : 'transparent'} />
+        <Hl x={x - 4} y={y - 4} w={SLOT_W + 8} h={SLOT_H + 8} rx={20} on={over === slot || (!!selected && !placed)} />
+        {!placed && (
+          <text x={x + SLOT_W / 2} y={y + SLOT_H / 2 + 8} textAnchor="middle" fontSize={24} fontWeight={600} fill="#F4EDE4" opacity={0.8}>
+            {SLOT_LABEL[slot]}
+          </text>
         )}
-        <text x={x + 46} y={y + 98} textAnchor="middle" className="fill-[#f2f2f2] text-[9px] font-semibold tracking-wide">
-          {SLOT_LABEL[slot]}
-        </text>
-        {card && <ClickCard card={card} x={x + 4} y={y - 6} matrix={matrix} />}
       </g>
     )
   }
@@ -207,59 +433,44 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
   return (
     <div className="space-y-2">
       <style>{BOARD_CSS}</style>
-      <svg viewBox="0 0 560 360" className="info3-board block w-full max-w-full rounded-card bg-[#0f1411] ring-1 ring-line" role="group" aria-label="Banc Curiosity HPC et carte fille GEII">
+      <svg viewBox={VIEWBOX} className="info3-board block w-full max-w-full rounded-card bg-card-2 ring-1 ring-line" style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }} role="group" aria-label="Banc Curiosity HPC et carte fille GEII">
         <defs>
           <filter id="ledGlow" x="-1" y="-1" width="3" height="3">
-            <feGaussianBlur stdDeviation="4" />
+            <feGaussianBlur stdDeviation="8" />
           </filter>
         </defs>
-        {/* Carte Curiosity HPC */}
-        <rect x={40} y={14} width={380} height={300} rx={10} fill="#1d5c42" stroke="#0e2f22" strokeWidth={2} />
-        <text x={56} y={34} className="fill-[#e9f5ee] text-[11px] font-semibold">Curiosity HPC</text>
-        {/* USB noir (PKOB) */}
-        <g role="button" tabIndex={0} aria-label={`USB noir (PKOB) : ${powered ? 'branché, cliquer pour débrancher' : 'débranché, cliquer pour brancher'}`} className="cursor-pointer outline-none" onClick={() => onUsbBlack(!powered)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onUsbBlack(!powered))}>
-          <rect x={44} y={142} width={30} height={26} rx={2} fill="#c9ced1" stroke="#7d868c" />
-          <rect x={50} y={149} width={18} height={12} fill="#2d3135" />
-          {powered && (
-            <g aria-hidden="true">
-              <path d="M44 155 H4" stroke="#6b7278" strokeWidth={11} strokeLinecap="round" />
-              <path d="M44 155 H4" stroke="#1c1f22" strokeWidth={8} strokeLinecap="round" />
+        {cable('black')}
+        {cable('white')}
+        <g dangerouslySetInnerHTML={{ __html: ART }} />
+        {usb('black')}
+        {usb('white')}
+
+        {/* Voyant d'alimentation de la carte fille */}
+        <circle cx={POWER_LED.cx} cy={POWER_LED.cy} r={9} fill={powered ? '#ff5a4f' : '#5A1015'} aria-label={powered ? 'Carte alimentée' : 'Carte non alimentée'} />
+        {powered && <circle cx={POWER_LED.cx} cy={POWER_LED.cy} r={16} fill="#ff3b30" opacity={0.6} filter="url(#ledGlow)" />}
+
+        {/* LED D2 à D5 */}
+        {INFO3.pins.leds.map((l) => {
+          const d = duty[l.name] ?? 0
+          const x = LED_X[l.name]
+          return (
+            <g key={l.name} style={ledStyle(d)} className="info3-led" data-on={d > 0.5 ? '1' : '0'} aria-label={`LED ${l.name} (${l.pin})`}>
+              <circle cx={x} cy={LED_Y} r={13} fill="#6a1612" stroke="#3a0b09" strokeWidth={2} />
+              <circle cx={x} cy={LED_Y} r={24} fill="#ff3b30" filter="url(#ledGlow)" className="info3-led-glow" />
+              <circle cx={x} cy={LED_Y} r={13} fill="#ff5a4f" className="info3-led-on" />
             </g>
-          )}
-          <text x={59} y={182} textAnchor="middle" className="fill-[#f2f2f2] text-[8px]">USB PKOB</text>
-        </g>
-        {/* D1 : alimentation */}
-        <circle cx={96} cy={44} r={4.5} fill={powered ? '#4cff7a' : '#18361f'} />
-        {powered && <circle cx={96} cy={44} r={7} fill="#4cff7a" opacity={0.6} filter="url(#ledGlow)" />}
-        <text x={106} y={47} className="fill-[#e9f5ee] text-[8px]">D1 POWER</text>
-        {/* J12 */}
-        <g>
-          {[0, 1, 2].map((i) => <rect key={i} x={378 + i * 9} y={60} width={6} height={6} fill="#d4af37" />)}
-          <rect x={378} y={58} width={15} height={10} fill="#222" opacity={0.85} rx={1} />
-          <text x={378} y={80} className="fill-[#e9f5ee] text-[8px]">J12</text>
-        </g>
-        {/* Support PIC 40 broches */}
-        <rect x={170} y={60} width={72} height={190} rx={4} fill="#262a2d" stroke="#0b0d0e" />
-        {Array.from({ length: 20 }, (_, i) => (
-          <g key={i}>
-            <rect x={164} y={66 + i * 9} width={6} height={4} fill="#c0c6ca" />
-            <rect x={242} y={66 + i * 9} width={6} height={4} fill="#c0c6ca" />
-          </g>
-        ))}
-        <circle cx={206} cy={68} r={4} fill="#3a3f43" />
-        <text x={206} y={160} textAnchor="middle" transform="rotate(-90 206 160)" className="fill-[#cfd6da] text-[11px] font-semibold tracking-wider">
-          PIC16F18875
-        </text>
-        {/* POT R1 */}
+          )
+        })}
+
+        {/* Potentiomètre R1 */}
         <g
           role="slider"
           tabIndex={0}
-          aria-label="Potentiomètre R1 (RA0) : glisser en cercle ou flèches"
+          aria-label={`Potentiomètre R1 (${INFO3.pins.pot.pin}) : glisser en cercle ou flèches`}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(pot * 100)}
-          className="cursor-grab outline-none"
-          style={{ touchAction: 'none' }}
+          className="info3-hit cursor-grab touch-none"
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId)
             potDrag(e)
@@ -272,69 +483,63 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
             onAnalog({ pot: Math.min(1, Math.max(0, pot + d)) })
           }}
         >
-          <circle cx={395} cy={112} r={14} fill="#1b67c4" stroke="#0d3567" />
-          <circle cx={395} cy={112} r={5} fill="#e8eef3" />
-          <path d="M395 112 L395 101" stroke="#0d3567" strokeWidth={2} transform={`rotate(${potAngle} 395 112)`} />
-          <text x={395} y={138} textAnchor="middle" className="fill-[#e9f5ee] text-[9px]">POT R1</text>
+          <circle cx={POT.cx} cy={POT.cy} r={POT.hit} fill="transparent" />
+          <path d={`M${POT.cx} ${POT.cy + POT.r - 6} V${POT.cy - POT.r + 6}`} stroke="#333" strokeWidth={5} strokeLinecap="round" transform={`rotate(${(pot - 0.5) * POT_SWEEP} ${POT.cx} ${POT.cy})`} />
+          <circle className="info3-hl" cx={POT.cx} cy={POT.cy} r={POT.hit} fill="none" stroke="#ffd600" strokeWidth={4} />
         </g>
-        {/* LED D2 à D5 */}
-        {INFO3.pins.leds.map((l, i) => {
-          const d = duty[l.name] ?? 0
-          const x = 284 + i * 30
-          return (
-            <g key={l.name} style={ledStyle(d)} className="info3-led" data-on={d > 0.5 ? '1' : '0'} aria-label={`LED ${l.name} (${l.pin})`}>
-              <rect x={x - 6} y={150} width={12} height={8} rx={1.5} fill="#5a1410" />
-              <circle cx={x} cy={154} r={10} fill="#ff3b30" filter="url(#ledGlow)" className="info3-led-glow" />
-              <rect x={x - 6} y={150} width={12} height={8} rx={1.5} fill="#ff5a4f" className="info3-led-on" />
-              <text x={x} y={174} textAnchor="middle" className="fill-[#e9f5ee] text-[9px] font-semibold">{l.name}</text>
-            </g>
-          )
-        })}
-        {/* S1 et S2 */}
-        {button(INFO3.pins.buttons[0].name, 300, 216)}
-        {button(INFO3.pins.buttons[1].name, 360, 216)}
-        {/* mikroBUS */}
-        {mikrobus('mikrobus1', 60, 196)}
-        {/* MODULE 2 en haut à droite du support */}
-        {mikrobus('mikrobus2', 266, 24)}
 
-        {/* Carte fille GEII */}
-        <rect x={430} y={60} width={120} height={254} rx={8} fill="#2c3e64" stroke="#141d31" strokeWidth={2} />
-        <text x={442} y={80} className="fill-[#e9eefc] text-[10px] font-semibold">Carte GEII</text>
-        <g aria-label={`LED RGB (${rgbOn ? `R ${Math.round(rgb.r * 100)} %, G ${Math.round(rgb.g * 100)} %, B ${Math.round(rgb.b * 100)} %` : 'éteinte'})`} data-rgb={rgbColor}>
-          {glare > 0 && <circle cx={490} cy={118} r={46} fill={rgbColor} opacity={0.55 * glare} style={{ filter: 'blur(10px)' }} />}
-          <circle cx={490} cy={118} r={11} fill={rgbOn ? rgbColor : '#3b3f46'} stroke="#111" />
-          {bench.cover && <circle cx={490} cy={118} r={15} fill="#eceff1" opacity={rgbOn ? 0.6 : 0.85} />}
-          <text x={490} y={142} textAnchor="middle" className="fill-[#e9eefc] text-[8px]">LED RGB</text>
+        {button(INFO3.pins.buttons[0].name)}
+        {button(INFO3.pins.buttons[1].name)}
+
+        {/* LED RGB (clic = cache) */}
+        <g
+          role={onCover ? 'button' : undefined}
+          tabIndex={onCover ? 0 : undefined}
+          aria-label={`LED RGB (${rgbOn ? `R ${Math.round(rgb.r * 100)} %, G ${Math.round(rgb.g * 100)} %, B ${Math.round(rgb.b * 100)} %` : 'éteinte'})${onCover ? ` : cache ${bench.cover ? 'posé, cliquer pour le retirer' : 'retiré, cliquer pour le poser'}` : ''}`}
+          aria-pressed={onCover ? bench.cover : undefined}
+          data-rgb={rgbColor}
+          className={onCover ? 'info3-hit cursor-pointer' : undefined}
+          onClick={() => onCover?.(!bench.cover)}
+          onKeyDown={(e) => onCover && activate(e, () => onCover(!bench.cover))}
+        >
+          {glare > 0 && <circle cx={RGB_LED.cx} cy={RGB_LED.cy} r={90} fill={rgbColor} opacity={0.55 * glare} style={{ filter: 'blur(14px)' }} />}
+          {rgbOn && <circle cx={RGB_LED.cx} cy={RGB_LED.cy} r={22} fill={rgbColor} opacity={0.7} filter="url(#ledGlow)" />}
+          <circle cx={RGB_LED.cx} cy={RGB_LED.cy} r={9} fill={rgbOn ? rgbColor : '#E8E1F0'} />
+          {bench.cover && <circle cx={RGB_LED.cx} cy={RGB_LED.cy} r={24} fill="#eceff1" stroke="#9aa0a6" strokeWidth={2} opacity={rgbOn ? 0.75 : 0.95} />}
+          <Hl x={RGB_LED.cx - 28} y={RGB_LED.cy - 28} w={56} h={56} rx={8} />
         </g>
+
+        {/* Joystick */}
         <g
           role="slider"
           tabIndex={0}
-          aria-label={`Joystick (RD5, RD6) : x = ${jx.toFixed(2)}, y = ${jy.toFixed(2)} — glisser, flèches, Espace = bouton`}
+          aria-label={`Joystick (${INFO3.pins.joystick.horz}, ${INFO3.pins.joystick.vert}) : x = ${jx.toFixed(2)}, y = ${jy.toFixed(2)} — glisser, flèches ; clic, Entrée ou Espace = bouton (${INFO3.pins.joystick.sw})${joySw ? ' appuyé' : ''}`}
           aria-valuenow={Math.round(jx * 100)}
-          className="cursor-grab outline-none"
-          style={{ touchAction: 'none' }}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId)
-            joyDrag(e)
-          }}
-          onPointerMove={joyDrag}
-          onPointerUp={() => onAnalog?.({ joy: [0, 0] })}
-          onPointerCancel={() => onAnalog?.({ joy: [0, 0] })}
+          className="info3-hit cursor-grab touch-none"
+          onPointerDown={joyDown}
+          onPointerMove={joyMove}
+          onPointerUp={joyUp}
+          onPointerCancel={joyUp}
           onKeyDown={(e) => joyKey(e, true)}
           onKeyUp={(e) => joyKey(e, false)}
         >
-          <circle cx={490} cy={190} r={22} fill="#1a1d22" stroke="#555" />
-          <circle cx={490 + jx * 12} cy={190 - jy * 12} r={10} fill="#3a3f46" />
-          <text x={490} y={225} textAnchor="middle" className="fill-[#e9eefc] text-[8px]">JOYSTICK</text>
+          <circle cx={JOY.cx} cy={JOY.cy} r={JOY.housing} fill="transparent" />
+          <circle cx={JOY.cx + jx * JOY.travel} cy={JOY.cy - jy * JOY.travel} r={joySw ? JOY.cap - 4 : JOY.cap} fill={joySw ? '#141414' : '#1C1C1C'} stroke="#333" strokeWidth={2} />
+          <circle cx={JOY.cx + jx * JOY.travel - 14} cy={JOY.cy - jy * JOY.travel - 16} r={20} fill="#ffffff" opacity={0.05} />
+          <circle className="info3-hl" cx={JOY.cx} cy={JOY.cy} r={JOY.housing + 4} fill="none" stroke="#ffd600" strokeWidth={4} />
         </g>
-        <g role="button" tabIndex={0} aria-label={`USB blanc (UART) : ${bench.usbWhite ? 'branché' : 'débranché'}`} className="cursor-pointer outline-none" onClick={() => onUsbWhite(!bench.usbWhite)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onUsbWhite(!bench.usbWhite))}>
-          <rect x={474} y={268} width={32} height={22} rx={2} fill="#c9ced1" stroke="#7d868c" />
-          <rect x={481} y={274} width={18} height={10} fill="#2d3135" />
-          {bench.usbWhite && <path d="M490 290 V352" stroke="#f4f4f4" strokeWidth={9} strokeLinecap="round" />}
-          <text x={520} y={300} className="fill-[#e9eefc] text-[8px]">USB</text>
-        </g>
-        <text x={14} y={352} className="fill-[#8fa195] text-[9px]">Apparence approchée (H16)</text>
+
+        {/* mikroBUS et cartes Click */}
+        {mikrobus('mikrobus1')}
+        {mikrobus('mikrobus2')}
+        {(Object.keys(SLOT) as SlotId[]).map((s) => {
+          const id = bench.slots[s]
+          return id ? <g key={s}>{card(s, id)}</g> : null
+        })}
+
+        <text x={180} y={1320} textAnchor="start" fontSize={20} fill="var(--color-muted)">
+          Apparence approchée (H16)
+        </text>
       </svg>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -378,33 +583,5 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
         </p>
       )}
     </div>
-  )
-}
-
-/** Carte Click dessinée sur son emplacement */
-function ClickCard({ card, x, y, matrix = [] }: { card: CardId; x: number; y: number; matrix?: number[] }) {
-  const name = INFO3.clickBoards[card].name
-  return (
-    <g pointerEvents="none">
-      <rect x={x} y={y} width={84} height={92} rx={5} fill={card === 'rotary' ? '#2e6db4' : '#b51f2e'} stroke="#111" />
-      {card === 'rotary' ? (
-        <>
-          {Array.from({ length: 16 }, (_, i) => {
-            const a = (i / 16) * 2 * Math.PI
-            return <circle key={i} cx={x + 42 + 26 * Math.sin(a)} cy={y + 44 - 26 * Math.cos(a)} r={2.6} fill="#3a1010" />
-          })}
-          <circle cx={x + 42} cy={y + 44} r={14} fill="#c8ccd0" stroke="#555" />
-        </>
-      ) : (
-        Array.from({ length: 64 }, (_, i) => {
-          // Lueur : rapport cyclique de la LED rapporté au plus fort possible (1/8 : 8 digits balayés), plafonné à 1
-          const g = Math.min(1, (matrix[i] ?? 0) * 8)
-          return <circle key={i} className="info3-mx-led" data-on={g > 0 ? '1' : '0'} cx={x + 14 + (i % 8) * 8} cy={y + 16 + Math.floor(i / 8) * 8} r={2.6} fill={g > 0 ? `rgba(255, ${Math.round(60 + 140 * g)}, ${Math.round(60 * g)}, ${0.35 + 0.65 * g})` : '#3a1010'} />
-        })
-      )}
-      <text x={x + 42} y={y + 88} textAnchor="middle" className="fill-white text-[7px] font-semibold">
-        {name}
-      </text>
-    </g>
   )
 }

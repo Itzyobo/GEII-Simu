@@ -2,6 +2,12 @@
 
 Mis à jour à chaque bloc terminé. Étape 7 (mode examen, mode libre complet, finitions) terminée. Étape 6 terminée (commit da5489f), étape 5 (74db13a), étape 4 (bcbde29), étape 3 (d6e41e4), étape 2 (e91a015).
 
+## Banc dessiné d'après curiosity_hpc_banc_info3.svg (après l'étape 7)
+
+- Fait : `Board` (src/info3/board/Board.tsx) dessine le banc du fichier docs/info3/curiosity_hpc_banc_info3.svg (Curiosity HPC, carte fille GEII Lyon 1, USB UART click, 8x8 R click, ROTARY O click), nettoyé par `node scripts/info3-banc-svg.mjs` en curiosity-hpc.svg (fond, 16 Ko), click-8x8.svg et click-rotary.svg (cartes enfichables, dessinées sur l'emplacement où elles sont posées). Par-dessus, dans le même repère : LED D2 à D5, voyant d'alimentation, S1 / S2 (souris, toucher, touches 1 et 2), potentiomètre R1 (glisser, flèches), joystick (glisser, flèches ; clic sans déplacement, Entrée ou Espace = SW), LED RGB (clic = cache), prises USB noir et blanc (clic = brancher, câble dessiné), MODULE 1 / 2 (glisser ou sélectionner puis cliquer), matrice 8x8 (64 LED), ROTARY : anneau de 16 LED et molette (glisser le bord, molette de la souris, ← / →, centre = SW). Le panneau RotaryControl reste dessous (rotation continue). Étiquette du potentiomètre du dessin : RB4 → RA0 (INFO3.pins.pot, annexe 1) ; nom de la Rotary : « ROTARY O click » (INFO3.clickBoards). Apparence : H16.
+- Reste : bouton « S2 / Reset » de la carte fille dessiné, non relié (pas de reset matériel dans la VM).
+- Vérifications : build, tsc, oxlint 0 erreur, npm test 740 (dont Board.test.tsx, 3), 375 px 41 routes, check:size respecté (pages TP ≤ 147,2 Ko, bundle initial 82,38 Ko).
+
 ## Étape 7
 
 | Bloc | État | Contenu |

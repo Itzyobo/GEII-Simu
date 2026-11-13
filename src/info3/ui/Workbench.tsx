@@ -204,6 +204,8 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
                 sim.send({ type: 'analog', ...m })
               }}
               onCard={(slot, card) => apply(setCard(project, slot, card))}
+              ring={powered ? sim.view.ring : []}
+              onRotary={(m) => sim.rotary(m)}
             />
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
               <label className="flex items-center gap-1.5" title={exam ? undefined : INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
