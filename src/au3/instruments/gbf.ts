@@ -1,4 +1,5 @@
 import { au3 } from '../../data/reference'
+import { facteurDecibel } from '../unites'
 
 /** GBF TTi TG315 : forme, fréquence, amplitude crête à crête, offset, atténuation 20 dB, sortie MAIN OUT */
 export type FormeGbf = 'continu' | 'carre' | 'triangle'
@@ -17,7 +18,7 @@ export interface ReglagesGbf {
 export const GBF_DEFAUT: ReglagesGbf = { forme: 'carre', frequence: au3('TP1_GBF_FREQ'), vpp: au3('TP1_GBF_VPP'), offset: 0, attenuation: false, sortie: true }
 
 /** Facteur de tension de l'atténuateur (20 dB → 0.1) */
-export const facteurAttenuation = (g: ReglagesGbf) => (g.attenuation ? au3('GBF_ATTENUATION_FACTEUR') : 1)
+export const facteurAttenuation = (g: ReglagesGbf) => (g.attenuation ? facteurDecibel(au3('GBF_ATTENUATION_DB')) : 1)
 
 /**
  * Générateur de la tension à vide de MAIN OUT, constantes précalculées (appelé à chaque pas d'Euler).

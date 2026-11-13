@@ -12,23 +12,26 @@ import { PageTp1 } from '../pages/Tp1'
 import { PageTp2 } from '../pages/Tp2'
 import { PageTp4 } from '../pages/Tp4'
 import { chargerSession, cleSession, ESPACE_EXAMEN, progressionNeuve, sauverSession, sessionNeuve, SESSION_VERSION, type SessionAu3, type TpExamen } from '../session'
-import { PRESET_TP2, type Cablage } from '../sim/cablage'
+import { PRESET_TP1, PRESET_TP2, type Cablage } from '../sim/cablage'
 import { frontiereIntegrateur, polynomeBoucle, regulateur, routhStable, type Impedance } from '../sim/regulateur'
 import { BANC_REEL, simulate } from '../sim/simulate'
 import { lecturesAffichees } from '../tp1/affichage'
-import { corrigerTr5 } from '../tp1/correction'
-import { CABLAGE_TP2, essaiK38, essaiK40, type ReglagesEssai } from '../tp2/attendus'
+import { corrigerTr5, valeursTr5 } from '../tp1/correction'
+import { attendusTp1 } from '../tp1/attendus'
+import { GBF_DEFAUT } from '../instruments/gbf'
+import { attendusTp2, CABLAGE_TP2, essaiK38, essaiK40, type ReglagesEssai } from '../tp2/attendus'
 import { attendusTp4, essaiTp4, scenarioII, Z1_TP4, Z2_TP4 } from '../tp4/attendus'
+import { MS_PAR_SECONDE } from '../unites'
 import BilanExamen from './BilanExamen'
 import { catalogueTp1, catalogueTp2, catalogueTp4, contexteTp1, contexteTp2, contexteTp4, type Catalogue } from './catalogue'
 import { noter, tempsRestant, tirage } from './notation'
 
 const T0 = 1_700_000_000_000
-const MS = au3('MS_PAR_SECONDE')
+const MS = MS_PAR_SECONDE
 /** Applique des actions à 1 s d'intervalle depuis l'instant `t` */
 const suite = (e: EtatBanc, t: number, ...actions: Action[]) => actions.reduce((x, a, i) => reduire(x, a, t + i * MS), e)
 const vide = (): EtatBanc => ({ session: sessionNeuve('examen'), montage: 'tp1', verdict: null, message: null })
-const examen = (tp: TpExamen, incident: 'aucun' | 'ampli-bloque' = 'aucun') => suite(vide(), T0, { type: 'demarrer-examen', tp, graine: 42, incident })
+const examen = (tp: TpExamen, incident: 'aucun' | 'ampli-bloque' = 'aucun', duree = au3('DUREE_EXAMEN')) => suite(vide(), T0, { type: 'demarrer-examen', tp, graine: 42, incident, duree })
 const catalogue = (s: SessionAu3, tp: TpExamen): Catalogue => (tp === 'tp1' ? catalogueTp1(contexteTp1(s)) : tp === 'tp2' ? catalogueTp2(contexteTp2(s, null)) : catalogueTp4(contexteTp4(s, null)))
 const note = (e: EtatBanc) => noter(e.session, e.session.examen!.tp, catalogue(e.session, e.session.examen!.tp))
 const memoire = () => {
@@ -237,37 +240,88 @@ describe('9. intégrateur pur (C2 seul sur Z2) : frontière de Routh', () => {
   })
 })
 
-describe('9. TR5%b : lectures sur la trace réellement affichée', () => {
+describe('TR5%b : derniers franchissements de la bande (trace sans bruit et trace affichée), 20 graines', () => {
+  const GRAINES = Array.from({ length: 20 }, (_, g) => g + 1)
   const osc = (moy: number, v1: number, v2: number, sdiv: number): ReglagesOscillo => ({ voies: [v1, v2, 5, 0.5].map((vdiv, j) => ({ active: j < 2, vdiv, position: 0, couplage: 'DC' as const })), sdiv, declenchement: { source: 0, front: 'montant', niveau: 0, mode: 'normal' }, moyennage: moy, run: true })
-  const lectures = (e: ReglagesEssai, o: ReglagesOscillo) => {
+  /** Lecture du TR5% sur la trace affichée (moyennage de `o`), pour une graine de bruit */
+  const lecture = (e: ReglagesEssai, o: ReglagesOscillo, graine: number, cablage: Cablage = CABLAGE_TP2) => {
     const plan = planAcquisition(o, periodeGbf(e.gbf), BANC_REEL.pas)
     const recs = Array.from({ length: o.moyennage }, (_, g) => {
-      const s = simulate(BANC_REEL, { gbf: e.gbf, platine: { sousTension: true, ampli: 'normal', g1: e.g1, g2: e.g2, z1: e.z1 ?? null, z2: e.z2 ?? null }, duree: plan.duree, pasSortie: plan.pasSortie }, CABLAGE_TP2, g + 11)
+      const s = simulate(BANC_REEL, { gbf: e.gbf, platine: { sousTension: true, ampli: 'normal', g1: e.g1, g2: e.g2, z1: e.z1 ?? null, z2: e.z2 ?? null }, duree: plan.duree, pasSortie: plan.pasSortie }, cablage, graine * MS + g)
       return acquerir(o, { t: s.t, voies: [s.voie1, s.voie2, s.voie3, s.voie4] }, plan, 0)!
     })
     return lecturesAffichees(moyenner(recs))!
   }
-  /** Réponse en ms d'une durée donnée en secondes */
-  const acceptee = (secondes: number, attendu: number, l: number[]) => corrigerTr5(`${fmt(secondes * MS)} ms`, attendu, l).verdict === 'juste'
-  it('G1 = 0,60, moyennage 1 : 8,2 ms acceptée et le dernier franchissement (≈ 19 ms, calculé) accepté', () => {
+  it('G1 = 0,60, moyennage 1 : la valeur sans bruit (8,2 ms ±5 %) est toujours attendue ; deux valeurs → explication', () => {
     const a = attendusTp4(essaiTp4(60))
-    const l = lectures(essaiTp4(60), osc(1, 0.2, 0.2, 10e-3))
-    expect(Math.abs(l[1]! / l[0]! - 1)).toBeGreaterThan(au3('TOL_MESURE'))
-    expect(acceptee(8.2e-3, a.tr5, l)).toBe(true)
-    expect(acceptee(l[1]!, a.tr5, l)).toBe(true)
-    expect(corrigerTr5(`${fmt(l[1]! * MS)} ms`, a.tr5, l).message).toContain('sans jamais s’en éloigner')
-  })
-  it('moyennage 16 : si le creux ne franchit plus la bande, une seule valeur est attendue', () => {
-    const a = attendusTp4(essaiTp4(60))
-    const l = lectures(essaiTp4(60), osc(16, 0.2, 0.2, 10e-3))
-    const deux = Math.abs(l[1]! / l[0]! - 1) > au3('TOL_MESURE')
-    expect(corrigerTr5(`${fmt(a.tr5 * MS)} ms`, a.tr5, l).message.includes('creux')).toBe(deux)
-  })
-  it('TP2 à K = 40 et TP4 à G1 = 0,95 (moyennage 16) : comportement inchangé, une seule valeur', () => {
-    for (const [e, o] of [[essaiK40(au3('CR_TP2K40_C0')), osc(16, 0.05, 0.05, 5e-3)], [essaiTp4(95), osc(16, 0.2, 0.2, 10e-3)]] as const) {
-      const l = lectures(e, o)
-      expect(Math.abs(l[1]! / l[0]! - 1)).toBeLessThanOrEqual(au3('TOL_MESURE'))
+    expect(Math.abs(a.tr5 / 8.2e-3 - 1)).toBeLessThanOrEqual(au3('TOL_MESURE'))
+    let deux = 0
+    for (const g of GRAINES) {
+      const l = lecture(essaiTp4(60), osc(1, 0.2, 0.2, 10e-3), g)
+      const v = valeursTr5(a.tr5, l)
+      expect(v[0], `graine ${g}`).toBe(a.tr5)
+      expect(corrigerTr5(`${fmt(8.2)} ms`, a.tr5, l).verdict, `graine ${g}`).toBe('juste')
+      if (v.length > 1) {
+        deux++
+        expect(corrigerTr5(`${fmt(v[1]! * MS)} ms`, a.tr5, l).verdict).toBe('juste')
+        expect(corrigerTr5(`${fmt(v[1]! * MS)} ms`, a.tr5, l).message).toContain('sans jamais s’en éloigner')
+      } else expect(corrigerTr5(`${fmt(8.2)} ms`, a.tr5, l).message).not.toContain('Deux lectures')
     }
+    expect(deux).toBeGreaterThan(0)
+  })
+  it('TP2 K = 40 et TP4 G1 = 0,95 : aucune valeur attendue n’est antérieure au pic', () => {
+    for (const [e, o] of [[essaiK40(au3('CR_TP2K40_C0')), osc(1, 0.05, 0.05, 5e-3)], [essaiTp4(95), osc(1, 0.2, 0.2, 10e-3)]] as const) {
+      const att = 'z1' in e && e.z1 ? attendusTp4(e) : attendusTp2(e)
+      for (const g of GRAINES) for (const v of valeursTr5(att.tr5, lecture(e, o, g))) expect(v, `graine ${g}`).toBeGreaterThan(att.tpb2)
+    }
+  })
+  it('TP1 et TP2 K = 3,8 : valeurs du modèle inchangées (30,7 et 15,3 ms ±5 %), toujours attendues', () => {
+    const tp1 = attendusTp1({ ...GBF_DEFAUT, vpp: au3('CR_TP1_DU') })
+    const k38 = attendusTp2(essaiK38(au3('CR_TP2K38_C0')))
+    expect(Math.abs(tp1.tr5 / 30.7e-3 - 1)).toBeLessThanOrEqual(au3('TOL_MESURE'))
+    expect(Math.abs(k38.tr5 / 15.3e-3 - 1)).toBeLessThanOrEqual(au3('TOL_MESURE'))
+    for (const g of GRAINES.slice(0, 5)) {
+      expect(valeursTr5(k38.tr5, lecture(essaiK38(au3('CR_TP2K38_C0')), osc(16, 0.5, 0.2, 5e-3), g))[0]).toBe(k38.tr5)
+      expect(valeursTr5(tp1.tr5, lecture({ gbf: { ...GBF_DEFAUT, vpp: au3('CR_TP1_DU') }, g1: 38, g2: 10 }, osc(16, 2, 0.5, 10e-3), g, PRESET_TP1))[0]).toBe(tp1.tr5)
+    }
+  })
+})
+
+describe('points partiels par champ (POINTS_PAR_CHAMP)', () => {
+  it('3 champs justes sur 4 = 0,75 ; un champ incomplet = COEF_INCOMPLET × la part de ce champ', () => {
+    const e = examen('tp2')
+    const c = catalogue(e.session, 'tp2')
+    const juste = (id: string) => ({ valeur: `${fmt(c.champs[id]!.attendu!)} ${c.champs[id]!.unite}`.trim(), essais: 1 })
+    const s: SessionAu3 = {
+      ...e.session,
+      reponses: {
+        'tp2-i11-q6#t1': juste('tp2-i11-q6#t1'),
+        'tp2-i11-q6#t3': juste('tp2-i11-q6#t3'),
+        'tp2-i11-q6': juste('tp2-i11-q6'),
+        'tp2-i11-q7': { valeur: fmt(c.champs['tp2-i11-q7']!.attendu!), essais: 1 },
+      },
+    }
+    const b = noter(s, 'tp2', c)
+    const q = (id: string) => b.questions.find((x) => x.question.id === id)!
+    const part = au3('POINTS_QUESTION') * au3('POINTS_PAR_CHAMP')
+    expect(q('tp2-i11-q6').champs).toHaveLength(4)
+    expect(q('tp2-i11-q6').points).toBeCloseTo((part * 3) / 4, 12)
+    expect(q('tp2-i11-q6').points).toBeCloseTo(0.75, 12)
+    expect(q('tp2-i11-q7').champs).toHaveLength(2)
+    expect(q('tp2-i11-q7').points).toBeCloseTo((au3('COEF_INCOMPLET') * part) / 2, 12)
+  })
+})
+
+describe('durée de l’examen', () => {
+  it('45 min (DUREE_EXAMEN_MANIP) : enregistrée dans la session et conservée au rechargement', () => {
+    const e = examen('tp4', 'aucun', au3('DUREE_EXAMEN_MANIP'))
+    const st = memoire()
+    sauverSession(st, e.session, ESPACE_EXAMEN)
+    const relu = chargerSession(st, 'examen', ESPACE_EXAMEN)!
+    expect(relu.examen!.duree).toBe(au3('DUREE_EXAMEN_MANIP'))
+    expect(tempsRestant(relu.examen!, T0 + MS)).toBe(au3('DUREE_EXAMEN_MANIP') - 1)
+    expect(tempsRestant(relu.examen!, T0 + (au3('DUREE_EXAMEN_MANIP') + 1) * MS)).toBe(0)
+    expect(examen('tp4').session.examen!.duree).toBe(au3('DUREE_EXAMEN'))
   })
 })
 

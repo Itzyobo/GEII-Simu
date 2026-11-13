@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { AU3, au3, type RefKey } from '../../data/reference'
 import BilanExamen from '../examen/BilanExamen'
 import { catalogueTp1, catalogueTp2, catalogueTp4, configTp4, contexteTp1, contexteTp2, contexteTp4 } from '../examen/catalogue'
-import { noter, tempsRestant, tirage, TPS_EXAMEN } from '../examen/notation'
+import { dureeExamen, noter, tempsRestant, tirage, TPS_EXAMEN } from '../examen/notation'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import { ESPACE_EXAMEN, type SessionAu3, type TpExamen } from '../session'
 import { nombre } from '../tp1/affichage'
@@ -14,7 +14,7 @@ import { PageTp2 } from './Tp2'
 import { PageTp4 } from './Tp4'
 
 const CH = MISE_EN_PAGE.chrono
-const BAREME: RefKey[] = ['DUREE_EXAMEN', 'POINTS_QUESTION', 'POINTS_CABLAGE', 'COEF_DEUXIEME_ESSAI', 'COEF_INCOMPLET', 'PENALITE_SOUS_TENSION', 'PENALITE_AUTOSCALE', 'INCIDENT_UN_SUR']
+const BAREME: RefKey[] = ['DUREE_EXAMEN', 'DUREE_EXAMEN_MANIP', 'POINTS_QUESTION', 'POINTS_PAR_CHAMP', 'POINTS_CABLAGE', 'COEF_DEUXIEME_ESSAI', 'COEF_INCOMPLET', 'PENALITE_SOUS_TENSION', 'PENALITE_AUTOSCALE', 'INCIDENT_UN_SUR']
 const deux = (n: number) => String(Math.floor(n)).padStart(CH.chiffres, '0')
 /** 4500 s → « 75:00 » */
 const mmss = (s: number) => `${deux(s / CH.secondesParMinute)}:${deux(s % CH.secondesParMinute)}`
@@ -36,12 +36,13 @@ export default function Examen() {
   const [maintenant, setMaintenant] = useState(() => Date.now())
   const [choix, setChoix] = useState<TpExamen | 'tirage'>('tirage')
   const [graine, setGraine] = useState(nouvelleGraine)
+  const [duree, setDuree] = useState(() => au3('DUREE_EXAMEN'))
   const [confirmer, setConfirmer] = useState<'fin' | 'effacer' | null>(null)
   useEffect(() => {
     const id = setInterval(() => setMaintenant(Date.now()), CH.rafraichissementMs)
     return () => clearInterval(id)
   }, [])
-  const restant = ex ? tempsRestant(ex, maintenant) : au3('DUREE_EXAMEN')
+  const restant = ex ? tempsRestant(ex, maintenant) : duree
   // Chrono à 0 : réponses figées, bilan affiché
   useEffect(() => {
     if (ex && !ex.termine && restant <= 0) agir({ type: 'terminer-examen' })
@@ -62,8 +63,17 @@ export default function Examen() {
           </p>
           <h1 className="text-xl font-semibold">Mode examen</h1>
           <p className="rounded bg-au3-panel p-3 text-sm ring-1 ring-au3-line">
-            Partiel de TP : {nombre(au3('DUREE_EXAMEN') / CH.secondesParMinute)} min (« PARTIEL (1h15) » dans l’énoncé, qui comprend aussi un QCM, non simulé). Comme au partiel, votre compte-rendu personnel est autorisé : l’énoncé précise que vous y aurez accès. Le simulateur ne le fournit pas.
+            Partiel de TP : « PARTIEL (1h15) » dans l’énoncé, qui comprend aussi un QCM, non simulé. Comme au partiel, votre compte-rendu personnel est autorisé : l’énoncé précise que vous y aurez accès. Le simulateur ne le fournit pas.
           </p>
+          <fieldset className="rounded bg-au3-panel p-3 text-sm ring-1 ring-au3-line">
+            <legend className="px-1 font-semibold">Durée</legend>
+            {(['DUREE_EXAMEN', 'DUREE_EXAMEN_MANIP'] as const).map((k) => (
+              <label key={k} className="mr-4 inline-flex items-center gap-1">
+                <input type="radio" name="duree-examen" value={au3(k)} checked={duree === au3(k)} onChange={() => setDuree(au3(k))} />
+                {nombre(au3(k) / CH.secondesParMinute)} min {k === 'DUREE_EXAMEN' ? '(partiel complet, énoncé)' : '(expérimentations seules : le partiel partage 1 h 15 avec un QCM, hypothèse)'}
+              </label>
+            ))}
+          </fieldset>
           <fieldset className="rounded bg-au3-panel p-3 text-sm ring-1 ring-au3-line">
             <legend className="px-1 font-semibold">TP</legend>
             {(['tirage', ...TPS_EXAMEN] as const).map((x) => (
@@ -92,7 +102,7 @@ export default function Examen() {
             </ul>
             <p className="mt-1 text-xs text-au3-muted">Mêmes tolérances qu’en entraînement (±{nombre(au3('TOL_MESURE') * MISE_EN_PAGE.pourcent)} %, ±{nombre(au3('TOL_ABAQUE') * MISE_EN_PAGE.pourcent)} % pour une lecture d’abaque). Aucune correction ni indice avant la fin.</p>
           </section>
-          <button type="button" onClick={() => agir({ type: 'demarrer-examen', tp: choix === 'tirage' ? t.tp : choix, graine, incident: t.incident })} className="rounded bg-au3-accent px-4 py-2 font-semibold text-black">
+          <button type="button" onClick={() => agir({ type: 'demarrer-examen', tp: choix === 'tirage' ? t.tp : choix, graine, incident: t.incident, duree })} className="rounded bg-au3-accent px-4 py-2 font-semibold text-black">
             Démarrer l’examen
           </button>
         </main>
@@ -106,7 +116,9 @@ export default function Examen() {
       <span className="font-mono text-lg" role="timer" aria-label="Temps restant" data-chrono>
         {mmss(restant)}
       </span>
-      <span className="text-xs text-au3-muted">graine {ex.graine}</span>
+      <span className="text-xs text-au3-muted">
+        sur {nombre(dureeExamen(ex) / CH.secondesParMinute)} min · graine {ex.graine}
+      </span>
       {confirmer === 'fin' ? (
         <span className="ml-auto flex gap-2">
           <button type="button" onClick={() => (agir({ type: 'terminer-examen' }), setConfirmer(null))} className="rounded bg-au3-err px-2 py-1 text-xs font-semibold text-black">

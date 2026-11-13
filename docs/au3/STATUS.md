@@ -88,3 +88,12 @@
 **Vérifications** : build, `tsc -b`, `npm test` 735/735 (aucun `it.fails`), `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 41 routes, `check:size` OK, parcours Playwright de l'examen TP2 avec incident sans message console. Captures 11 à 13.
 
 **Hors périmètre** : TP3 ; TP4 II.2 ; QCM du partiel ; écarts TR5% connus (−7 / −10 / −11 %) ; valeurs du TP4 à confirmer par une mesure réelle.
+
+## Corrections de l'étape 5
+
+1. TR5%b : toute lecture attendue est un dernier franchissement de la bande ±5 % : (i) trace sans bruit (toujours acceptée), (ii) trace affichée (acceptée si elle diffère de (i) de plus de 5 %), avec l'explication. Lecture « entrée dans la bande » et `TR5_LISSAGE` supprimées. Tests sur 20 graines.
+2. `POINTS_PAR_CHAMP` (hypothèse) : règle des points partiels déclarée, affichée au départ de l'examen, testée.
+3. Sources : `MS_PAR_SECONDE` et le facteur d'atténuation (10^(−dB/20)) sortis vers `src/au3/unites.ts` (liste blanche) ; `NIVEAU_TAU` = 0,63 (énoncé) ; `AFFICHAGE_G1_MAX` et `G2_X1` passés en hypothèse.
+4. Durée de l'examen au choix : 75 min (`DUREE_EXAMEN`, énoncé) ou 45 min (`DUREE_EXAMEN_MANIP`, hypothèse), enregistrée dans la session v4.
+
+Vérifications : build, `tsc -b`, `npm test` 737/737 (aucun `it.fails`), `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 41 routes, `check:size` OK ; parcours Playwright (examen TP4 45 min, TP4 à G1 = 0,60) sans message console ; plus longue image pendant la correction de la Q5 : 16,8 ms. Capture 14.

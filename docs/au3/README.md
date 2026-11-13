@@ -39,6 +39,8 @@ Le TP4 n'a pas été réalisé : toutes ses valeurs sont prédites par le modèl
 Ne pas modifier à la main : `AU3_ECRIRE_README=1 npx vitest run src/au3/examen/readme.test.ts` régénère cette section, et le test échoue si elle n'est plus à jour.
 
 <!-- hypotheses:debut -->
+- `AFFICHAGE_G1_MAX` = 99 — Affichage G1 à 2 chiffres supposé (00 à 99) : l’énoncé n’en cite que des valeurs (38, 40, 70, 95)
+- `G2_X1` = 1 — Position ×1 du sélecteur G2 supposée : l’énoncé ne cite que 10 et 100
 - `OSC_DIV_X` = 10 div — Divisions horizontales du DSOX2004A (non données par l’énoncé)
 - `OSC_DIV_Y` = 8 div — Divisions verticales : plage de quantification (non données par l’énoncé)
 - `OSC_POINTS` = 2000 points — Points d’un enregistrement .csv
@@ -51,11 +53,12 @@ Ne pas modifier à la main : `AU3_ECRIRE_README=1 npx vitest run src/au3/examen/
 - `IDENT_PASSES` = 3 — Nelder–Mead relancé depuis le meilleur point (évite un simplexe dégénéré)
 - `SUPERPOSITION_MAX` = 0.01 — Modèle « superposé » à la mesure si moins de 1 % de la variance de la mesure reste inexpliquée
 - `RAPPORT_NEGLIGEABLE` = 5 — TP2 I.1.2 Q12 : une constante de temps est négligeable si τmax/τmin ≥ 5 (règle usuelle, non donnée par l’énoncé)
-- `TR5_LISSAGE` = 0.02 — Lecture « entrée dans la bande » du TR5% : moyenne glissante de ±2 % du palier pour ignorer le bruit
 - `TANGENTE_FENETRE` = 0.05 — Pente de la mesure au démarrage : régression sur t ≤ 5 % de τ
+- `DUREE_EXAMEN_MANIP` = 2700 s — 45 min : le partiel partage 1 h 15 avec un QCM
 - `POINTS_QUESTION` = 1 point — Barème : chaque question notée sur 1 point, partagé entre ses champs
 - `POINTS_CABLAGE` = 4 points — Barème : câblage d’un TP ; 1er « Faire vérifier » réussi = 100 %
 - `COEF_DEUXIEME_ESSAI` = 0.5 — Barème : câblage réussi au 2e essai = 50 %, ensuite 0
+- `POINTS_PAR_CHAMP` = 1 part — Une question vaut POINTS_QUESTION, partagé à parts égales entre ses n champs : un champ juste rapporte POINTS_QUESTION/n, incomplet COEF_INCOMPLET × POINTS_QUESTION/n, faux ou vide 0
 - `COEF_INCOMPLET` = 0.5 — Barème : réponse juste mais sans unité ou sans justification
 - `PENALITE_SOUS_TENSION` = 0.5 point — Barème : par tentative refusée de manipulation sous tension (câble ou composant)
 - `PENALITE_AUTOSCALE` = 0.25 point — Barème : par appui sur Autoscale (« NE JAMAIS APPUYER SUR AUTOSCALE »)

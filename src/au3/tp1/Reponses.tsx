@@ -80,10 +80,10 @@ export function ChampNum({ champ, label, p, apres, lire }: { champ: ChampDef | u
   )
 }
 
-/** Valeur(s) attendue(s) affichée(s) : deux lectures du TR5% quand un creux frôle la bande, sinon le texte du catalogue */
+/** Valeur(s) attendue(s) : les deux derniers franchissements du TR5% (sans bruit, trace affichée) quand ils diffèrent, sinon le texte du catalogue */
 function lecturesTexte(champ: ChampDef, lectures?: readonly number[]) {
   const v = valeursChamp(champ, lectures)
-  return v.length > 1 ? v.map((x) => afficher(x, champ.unite)).join(' ou ') + ' (lectures sur votre trace)' : champ.texte
+  return v.length > 1 ? `${afficher(v[0]!, champ.unite)} (trace sans bruit) ou ${afficher(v[1]!, champ.unite)} (votre trace affichée)` : champ.texte
 }
 
 /**

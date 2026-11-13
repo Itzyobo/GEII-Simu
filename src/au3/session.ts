@@ -69,6 +69,8 @@ export interface SessionExamen {
   incident: IncidentExamen
   /** Date.now() au démarrage */
   debut: number
+  /** Durée choisie (s) : DUREE_EXAMEN ou DUREE_EXAMEN_MANIP ; absente = DUREE_EXAMEN (examens démarrés avant ce choix) */
+  duree?: number
   termine: boolean
   /** Date.now() à la fin (chrono à 0 ou fin anticipée) */
   finA: number | null

@@ -1,5 +1,5 @@
 import { au3 } from '../../data/reference'
-import { GBF_DEFAUT } from '../instruments/gbf'
+import { facteurAttenuation, GBF_DEFAUT } from '../instruments/gbf'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import type { SessionAu3 } from '../session'
 import { gainAffichage, polynomeBoucle, regulateur, routhStable } from '../sim/regulateur'
@@ -70,7 +70,7 @@ const champTr5 = (id: string, attendu: number | null): ChampDef => ({
   unite: 's',
   attendu,
   tolerance: au3('TOL_MESURE'),
-  texte: `${afficher(attendu, 's')} (modèle ; si un creux frôle la bande sur votre trace, entrée dans la bande ou dernier franchissement)`,
+  texte: `${afficher(attendu, 's')} (dernier franchissement de la bande ±5 % sur la trace sans bruit${MARQUE_TR5})`,
   corriger: (saisie, lectures) => corrigerTr5(saisie, attendu ?? NaN, lectures),
 })
 const pourcentAbsolu = (id: string, attendu: number): ChampDef => ({
@@ -81,6 +81,8 @@ const pourcentAbsolu = (id: string, attendu: number): ChampDef => ({
   texte: `${nombre(attendu * PC)} % (tolérance ±${nombre(au3('TP4_ERREUR_MAX') * PC)} point)`,
   corriger: (saisie) => corrigerAbsolu(saisie, attendu * PC, '%', au3('TP4_ERREUR_MAX') * PC),
 })
+/** Repère des champs TR5% (affichage d'une ou deux lectures) */
+const MARQUE_TR5 = ' ; ou sur votre trace affichée'
 const ouverte = (id: string, choix: readonly string[], attendu: string | null, texte: string): OuverteDef => ({ id, choix, attendu, texte })
 const cat = (champs: ChampDef[], ouvertes: OuverteDef[]): Catalogue => ({ champs: Object.fromEntries(champs.map((c) => [c.id, c])), ouvertes: Object.fromEntries(ouvertes.map((o) => [o.id, o])) })
 
@@ -168,7 +170,7 @@ export function valeursTp1(t: SessionAu3 | null) {
 export function contexteTp2(s: SessionAu3, sessionTp1: SessionAu3 | null) {
   const K = gainAffichage(s.platine.g1, s.platine.g2)
   const carre = s.gbf.forme === 'carre' && s.gbf.sortie
-  const vpp = s.gbf.vpp * (s.gbf.attenuation ? au3('GBF_ATTENUATION_FACTEUR') : 1)
+  const vpp = s.gbf.vpp * facteurAttenuation(s.gbf)
   // Réponses attendues : réglages de l'étudiant quand le K actuel est celui de l'essai, sinon ceux de l'énoncé
   const v38 = carre && K === K38() ? vpp : au3('TP2_K38_GBF_VPP')
   const v40 = carre && K === K40() ? vpp : au3('TP2_K40_GBF_VPP')
@@ -282,7 +284,7 @@ export const CHOIX_II5E = ['Le PI est nécessaire', 'Le P suffit'] as const
 
 /** Configuration de la Q5 : composants, G2 et GBF de l'étudiant (amplitude réglée, carré) */
 export function configTp4(s: SessionAu3): ConfigBalayage {
-  const vpp = s.gbf.vpp * (s.gbf.attenuation ? au3('GBF_ATTENUATION_FACTEUR') : 1)
+  const vpp = s.gbf.vpp * facteurAttenuation(s.gbf)
   return { z1: s.platine.z1, z2: s.platine.z2, g2: s.platine.g2, gbf: { ...gbfTp4(), vpp: s.gbf.forme === 'carre' && vpp > 0 ? vpp : au3('TP4_GBF_VPP') } }
 }
 
@@ -352,4 +354,4 @@ export function catalogueTp4(c: ReturnType<typeof contexteTp4>): Catalogue {
 }
 
 /** Valeurs acceptées d'un champ, pour l'affichage (TR5% : une ou deux lectures) */
-export const valeursChamp = (c: ChampDef, lectures?: readonly number[]) => (c.unite === 's' && c.texte.includes('creux') && c.attendu !== null ? valeursTr5(c.attendu, lectures) : [c.attendu])
+export const valeursChamp = (c: ChampDef, lectures?: readonly number[]) => (c.unite === 's' && c.texte.includes(MARQUE_TR5) && c.attendu !== null ? valeursTr5(c.attendu, lectures) : [c.attendu])

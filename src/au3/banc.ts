@@ -42,7 +42,7 @@ export type Action =
   /** Réponse saisie à une question (le nombre d'essais compte les validations) */
   | { type: 'reponse'; id: string; valeur: string; lectures?: number[] }
   /** Examen : démarrage (session neuve, incident appliqué), fin (réponses figées), effacement */
-  | { type: 'demarrer-examen'; tp: TpExamen; graine: number; incident: IncidentExamen }
+  | { type: 'demarrer-examen'; tp: TpExamen; graine: number; incident: IncidentExamen; duree: number }
   | { type: 'terminer-examen' }
   | { type: 'effacer-examen' }
   | { type: 'tp1'; patch: Partial<ProgressionTp1> }
@@ -182,7 +182,7 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
     case 'demarrer-examen': {
       const neuve = sessionNeuve('examen')
       const ampli = a.incident === 'ampli-bloque' ? 'bloque-haut' : 'normal'
-      return { session: { ...neuve, chrono: { debut: maintenant, ecouleMs: 0 }, platine: { ...neuve.platine, ampli }, examen: { tp: a.tp, graine: a.graine, incident: a.incident, debut: maintenant, termine: false, finA: null } }, montage: a.tp, verdict: null, message: null }
+      return { session: { ...neuve, chrono: { debut: maintenant, ecouleMs: 0 }, platine: { ...neuve.platine, ampli }, examen: { tp: a.tp, graine: a.graine, incident: a.incident, debut: maintenant, duree: a.duree, termine: false, finA: null } }, montage: a.tp, verdict: null, message: null }
     }
     case 'terminer-examen':
       return s.examen ? avec({ examen: { ...s.examen, termine: true, finA: maintenant }, platine: { ...s.platine, sousTension: false } }) : e

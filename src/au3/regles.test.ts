@@ -17,11 +17,12 @@ const TOLERES = new Set([0, 1, 2])
 /**
  * Liste blanche explicite :
  * - prng.ts : constantes de l'algorithme mulberry32 (pas des valeurs de modèle ni de réglage) ;
+ * - unites.ts : conversions d'unités (ms/s, décibels) ;
  * - miseEnPage.ts : pixels, couleurs, pas des boutons (pas des paramètres de modèle, correction 4 de l'étape 2) ;
  * - index de tableau `x[3]` (accès par position) ;
  * - les classes Tailwind et les attributs SVG de présentation sont des chaînes : jamais des NumericLiteral.
  */
-const FICHIERS_BLANCS = new Set(['/src/au3/sim/prng.ts', '/src/au3/miseEnPage.ts'])
+const FICHIERS_BLANCS = new Set(['/src/au3/sim/prng.ts', '/src/au3/miseEnPage.ts', '/src/au3/unites.ts'])
 
 function litterauxInterdits(chemin: string, texte: string): string[] {
   const src = ts.createSourceFile(chemin, texte, ts.ScriptTarget.Latest, true, chemin.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)

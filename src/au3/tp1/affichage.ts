@@ -4,7 +4,7 @@ import type { ResultatFit, SessionAu3 } from '../session'
 import { formatSi } from '../ui/format'
 import { lireCsv, palierAffiche, type Enregistrement } from '../instruments/oscillo'
 import { corriger } from './correction'
-import { lecturesTr5 } from './attendus'
+import { dernierFranchissement } from './attendus'
 import { fenetreEchelon, type Fenetre } from './identification'
 
 const M = MISE_EN_PAGE
@@ -53,12 +53,11 @@ export function noteTr5(e: { modele: number; cr: number; ecart: number }, raison
   return `modèle ${formatSi(e.modele, 's', M.chiffresTr5.modele)} ; CR ${formatSi(e.cr, 's', M.chiffresTr5.cr)} (${pts < 0 ? '−' : '+'}${Math.abs(pts)} %) : ${raison}`
 }
 
-/** Lectures du TR5% (entrée dans la bande, dernier franchissement) sur la voie 2 de l'enregistrement affiché */
+/** TR5% lu sur la voie 2 de l'enregistrement affiché (dernier franchissement de la bande, bruit et moyennage courants) */
 export function lecturesAffichees(rec: Enregistrement | null): number[] | undefined {
   const m = rec?.voies[1]
   const pal = rec ? palierAffiche(rec) : null
   if (!rec || !m || !pal) return undefined
   const t = Float64Array.from(m, (_, k) => rec.t0 + k * rec.dt)
-  const l = lecturesTr5(t, m, pal.iFront, pal.iFin)
-  return [l.entree, l.dernier]
+  return [dernierFranchissement(t, m, pal.iFront, pal.iFin)]
 }

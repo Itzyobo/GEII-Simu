@@ -28,10 +28,10 @@ const AU3_VALEURS = {
   IMAX_AMPLI: { valeur: 1, unite: 'A', source: 'enonce', note: 'Ampli de courant < 1 A (figures TP1/TP2)' },
   IMAX_SORTIE_G2: { valeur: 0.025, unite: 'A', source: 'enonce', note: 'Sortie de l’amplificateur G2 < 25 mA (TP2 câblage 2)' },
   K_P_DIVISEUR: { valeur: 100, unite: '', source: 'enonce', note: 'K = Affichage G1 × G2 / 100 (TP2 : K = 38*10/100)' },
-  AFFICHAGE_G1_MAX: { valeur: 99, unite: '', source: 'enonce', note: 'Affichage G1 de 00 à 99' },
-  G2_X1: { valeur: 1, unite: '', source: 'enonce', note: 'Sélecteur G2 ∈ {1, 10, 100}' },
-  G2_X10: { valeur: 10, unite: '', source: 'enonce' },
-  G2_X100: { valeur: 100, unite: '', source: 'enonce' },
+  AFFICHAGE_G1_MAX: { valeur: 99, unite: '', source: 'hypothese', note: 'Affichage G1 à 2 chiffres supposé (00 à 99) : l’énoncé n’en cite que des valeurs (38, 40, 70, 95)' },
+  G2_X1: { valeur: 1, unite: '', source: 'hypothese', note: 'Position ×1 du sélecteur G2 supposée : l’énoncé ne cite que 10 et 100' },
+  G2_X10: { valeur: 10, unite: '', source: 'enonce', note: 'G2 « coté appuyé sur 10 » (TP2)' },
+  G2_X100: { valeur: 100, unite: '', source: 'enonce', note: 'G2 « coté appuyé à 100 » (TP2)' },
   R1: { valeur: 10e3, unite: 'Ω', source: 'enonce', note: 'TP4 : R1 de 10 kΩ sur Z1' },
   R2: { valeur: 27e3, unite: 'Ω', source: 'enonce', note: 'TP4 : R2 de 27 kΩ en série avec C2 sur Z2' },
   C2: { valeur: 330e-9, unite: 'F', source: 'enonce', note: 'TP4 : C2 de 330 nF' },
@@ -39,7 +39,6 @@ const AU3_VALEURS = {
   /* ───────────── Énoncé : GBF ───────────── */
   GBF_IMPEDANCE: { valeur: 50, unite: 'Ω', source: 'enonce', note: 'Sortie MAIN OUT 50 Ω (fiche GBF)' },
   GBF_ATTENUATION_DB: { valeur: 20, unite: 'dB', source: 'enonce', note: 'Bouton d’atténuation 20 dB (TP2 I.2, TP4)' },
-  GBF_ATTENUATION_FACTEUR: { valeur: 0.1, unite: '', source: 'enonce', note: 'Atténuation de 20 dB en tension : amplitude divisée par 10' },
 
   /* ───────────── Oscilloscope DSOX2004A : géométrie d'acquisition ───────────── */
   OSC_DIV_X: { valeur: 10, unite: 'div', source: 'hypothese', note: 'Divisions horizontales du DSOX2004A (non données par l’énoncé)' },
@@ -48,7 +47,7 @@ const AU3_VALEURS = {
   OSC_POINTS: { valeur: 2000, unite: 'points', source: 'hypothese', note: 'Points d’un enregistrement .csv' },
 
   /* ───────────── Énoncé : méthodes de mesure du TP1 ───────────── */
-  NIVEAU_TAU: { valeur: 0.632, unite: '', source: 'enonce', note: 'τ : « 0,63*m(∞) » (I.2.1) ; 1 − e⁻¹ = 0,632' },
+  NIVEAU_TAU: { valeur: 0.63, unite: '', source: 'enonce', note: 'τ : « 0,63*m(∞) » (I.2.1)' },
   NIVEAU_T1: { valeur: 0.264, unite: '', source: 'enonce', note: 't1 : 26.4 % de m(∞) (I.2.2 Q2)' },
   NIVEAU_T3: { valeur: 0.801, unite: '', source: 'enonce', note: 't3 : 80.1 % de m(∞) (I.2.2 Q2)' },
   NIVEAU_TR5: { valeur: 0.95, unite: '', source: 'enonce', note: 'TR5% : « 0,95*m(∞) » (I.2.1 Q4)' },
@@ -65,15 +64,15 @@ const AU3_VALEURS = {
   IDENT_PASSES: { valeur: 3, unite: '', source: 'hypothese', note: 'Nelder–Mead relancé depuis le meilleur point (évite un simplexe dégénéré)' },
   SUPERPOSITION_MAX: { valeur: 0.01, unite: '', source: 'hypothese', note: 'Modèle « superposé » à la mesure si moins de 1 % de la variance de la mesure reste inexpliquée' },
   RAPPORT_NEGLIGEABLE: { valeur: 5, unite: '', source: 'hypothese', note: 'TP2 I.1.2 Q12 : une constante de temps est négligeable si τmax/τmin ≥ 5 (règle usuelle, non donnée par l’énoncé)' },
-  TR5_LISSAGE: { valeur: 0.02, unite: '', source: 'hypothese', note: 'Lecture « entrée dans la bande » du TR5% : moyenne glissante de ±2 % du palier pour ignorer le bruit' },
   TANGENTE_FENETRE: { valeur: 0.05, unite: '', source: 'hypothese', note: 'Pente de la mesure au démarrage : régression sur t ≤ 5 % de τ' },
 
   /* ───────────── Mode examen (barème) ───────────── */
-  MS_PAR_SECONDE: { valeur: 1000, unite: 'ms/s', source: 'enonce', note: 'Conversion d’unité (horodatages Date.now en ms)' },
   DUREE_EXAMEN: { valeur: 4500, unite: 's', source: 'enonce', note: '75 min : « PARTIEL (1h15) : QCM + Expérimentations » (le simulateur ne couvre que les expérimentations)' },
+  DUREE_EXAMEN_MANIP: { valeur: 2700, unite: 's', source: 'hypothese', note: '45 min : le partiel partage 1 h 15 avec un QCM' },
   POINTS_QUESTION: { valeur: 1, unite: 'point', source: 'hypothese', note: 'Barème : chaque question notée sur 1 point, partagé entre ses champs' },
   POINTS_CABLAGE: { valeur: 4, unite: 'points', source: 'hypothese', note: 'Barème : câblage d’un TP ; 1er « Faire vérifier » réussi = 100 %' },
   COEF_DEUXIEME_ESSAI: { valeur: 0.5, unite: '', source: 'hypothese', note: 'Barème : câblage réussi au 2e essai = 50 %, ensuite 0' },
+  POINTS_PAR_CHAMP: { valeur: 1, unite: 'part', source: 'hypothese', note: 'Une question vaut POINTS_QUESTION, partagé à parts égales entre ses n champs : un champ juste rapporte POINTS_QUESTION/n, incomplet COEF_INCOMPLET × POINTS_QUESTION/n, faux ou vide 0' },
   COEF_INCOMPLET: { valeur: 0.5, unite: '', source: 'hypothese', note: 'Barème : réponse juste mais sans unité ou sans justification' },
   PENALITE_SOUS_TENSION: { valeur: 0.5, unite: 'point', source: 'hypothese', note: 'Barème : par tentative refusée de manipulation sous tension (câble ou composant)' },
   PENALITE_AUTOSCALE: { valeur: 0.25, unite: 'point', source: 'hypothese', note: 'Barème : par appui sur Autoscale (« NE JAMAIS APPUYER SUR AUTOSCALE »)' },
@@ -139,7 +138,7 @@ const AU3_VALEURS = {
   CR_TP1_DU: { valeur: 12.3, unite: 'V', source: 'CR', note: 'ΔU crête-à-crête de l’entrée' },
   CR_TP1_DM: { valeur: 1.86, unite: 'V', source: 'CR', tol: 0.03 },
   CR_TP1_G0: { valeur: 0.151, unite: '', source: 'CR', tol: 0.03 },
-  CR_TP1_TAU: { valeur: 11.8e-3, unite: 's', source: 'CR', tol: 0.05, note: 'Modèle : 12.15 ms' },
+  CR_TP1_TAU: { valeur: 11.8e-3, unite: 's', source: 'CR', tol: 0.05, note: 'τ à 0,63·m(∞) (énoncé)' },
   CR_TP1_T1: { valeur: 5.2e-3, unite: 's', source: 'CR', tol: 0.05, note: 't1 à 26.4 %' },
   CR_TP1_T3: { valeur: 18e-3, unite: 's', source: 'CR', tol: 0.05, note: 't3 à 80.1 %' },
   CR_TP1_Z: { valeur: 1.22, unite: '', source: 'CR', tol: 0.05, note: 'Abaque' },

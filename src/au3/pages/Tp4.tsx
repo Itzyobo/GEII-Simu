@@ -6,6 +6,7 @@ import { ampliBloque } from '../banc'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import { MONTAGE_TP2, nomImpedance, PRECABLAGE_TP2 } from '../sim/cablage'
 import { catalogueTp4, configTp4, contexteTp4 } from '../examen/catalogue'
+import { facteurAttenuation } from '../instruments/gbf'
 import type { Enregistrement } from '../instruments/oscillo'
 import { afficher, lecturesAffichees, nombre, pourcent } from '../tp1/affichage'
 import { ChampNum, Question, QuestionOuverte, type PropsReponse } from '../tp1/Reponses'
@@ -43,7 +44,7 @@ export function PageTp4({ etat, agir, entete }: PropsPage) {
   const [rec, setRec] = useState<Enregistrement | null>(null)
   const onEnregistrement = useCallback((r: Enregistrement | null) => setRec(r), [])
   const p: PropsReponse = { session: s, agir, examen: s.mode === 'examen' }
-  const vpp = s.gbf.vpp * (s.gbf.attenuation ? au3('GBF_ATTENUATION_FACTEUR') : 1)
+  const vpp = s.gbf.vpp * facteurAttenuation(s.gbf)
   // Q5 : balayage de l'Affichage G1 dans un Worker, mémoïsé par configuration, demandé après la réponse
   const balayage = useBalayage(configTp4(s), !!s.reponses['tp4-i-q5'])
   const ctx = contexteTp4(s, balayage)

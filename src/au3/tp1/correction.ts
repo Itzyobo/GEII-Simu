@@ -59,23 +59,18 @@ export function corrigerAbsolu(saisie: string, attendu: number, unite: string, t
 }
 
 export const EXPLICATION_TR5 =
-  'Sur votre trace, un creux (ou une bosse) frôle la bande m(∞) ± 5 % : l’entrée dans la bande et le dernier franchissement donnent deux lectures. L’énoncé définit TR5% comme l’instant où la mesure atteint 0,95·m(∞) ou 1,05·m(∞) « sans jamais s’en éloigner de plus de 5 % ensuite » ; les deux lectures sont acceptées.'
+  'Deux lectures sont possibles : sur la trace sans bruit, la mesure franchit la bande m(∞) ± 5 % pour la dernière fois au TR5% du modèle ; sur votre trace affichée, le bruit (moyennage courant) la fait encore sortir de la bande plus tard, par un creux ou une bosse qui la frôle. Chacune est un dernier franchissement, conforme à la définition de l’énoncé (« sans jamais s’en éloigner de plus de 5 % ensuite ») sur sa trace : les deux sont acceptées.'
 
-/**
- * TR5% : si les lectures possibles sur la trace affichée (entrée dans la bande, dernier franchissement) diffèrent de
- * plus de TOL_MESURE, chacune est acceptée à ±TOL_MESURE ; sinon, correction habituelle contre la valeur du modèle.
- */
-export function corrigerTr5(saisie: string, attendu: number, lectures?: readonly number[]): Correction {
-  const [entree, dernier] = lectures ?? []
-  if (entree === undefined || dernier === undefined || !(entree > 0) || Math.abs(dernier / entree - 1) <= au3('TOL_MESURE')) return corrigerMesure(saisie, attendu, 's')
-  const a = corrigerMesure(saisie, entree, 's')
-  const b = corrigerMesure(saisie, dernier, 's')
-  const c = a.verdict === 'juste' ? a : b.verdict === 'juste' ? b : Math.abs(a.ecart ?? Infinity) <= Math.abs(b.ecart ?? Infinity) ? a : b
-  return { ...c, message: `${c.message} ${EXPLICATION_TR5}` }
+/** Valeurs attendues d'un TR5% : (i) la trace sans bruit ; (ii) la trace affichée, si elle en diffère de plus de TOL_MESURE */
+export const valeursTr5 = (attendu: number, lectures?: readonly number[]): number[] => {
+  const affiche = lectures?.[0]
+  return affiche !== undefined && attendu > 0 && Math.abs(affiche / attendu - 1) > au3('TOL_MESURE') ? [attendu, affiche] : [attendu]
 }
 
-/** Valeurs acceptées pour un TR5% (pour l'affichage de la correction) */
-export const valeursTr5 = (attendu: number, lectures?: readonly number[]): number[] => {
-  const [entree, dernier] = lectures ?? []
-  return entree !== undefined && dernier !== undefined && entree > 0 && Math.abs(dernier / entree - 1) > au3('TOL_MESURE') ? [entree, dernier] : [attendu]
+/** TR5% : accepté à ±TOL_MESURE de l'une des valeurs attendues ; l'explication s'ajoute quand il y en a deux */
+export function corrigerTr5(saisie: string, attendu: number, lectures?: readonly number[]): Correction {
+  const v = valeursTr5(attendu, lectures)
+  const cs = v.map((x) => corrigerMesure(saisie, x, 's'))
+  const c = cs.find((x) => x.verdict === 'juste') ?? cs.reduce((a, b) => (Math.abs(a.ecart ?? Infinity) <= Math.abs(b.ecart ?? Infinity) ? a : b))
+  return v.length > 1 ? { ...c, message: `${c.message} ${EXPLICATION_TR5}` } : c
 }

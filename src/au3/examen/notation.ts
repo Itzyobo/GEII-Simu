@@ -2,6 +2,7 @@ import { AU3_ATTENDUS, AU3_QUESTIONS, type Attendu, type QuestionAu3 } from '../
 import { au3 } from '../../data/reference'
 import type { IncidentExamen, SessionAu3, SessionExamen, TpExamen } from '../session'
 import { mulberry32 } from '../sim/prng'
+import { MS_PAR_SECONDE } from '../unites'
 import type { Correction } from '../tp1/correction'
 import type { Catalogue, ChampDef, OuverteDef } from './catalogue'
 
@@ -14,7 +15,8 @@ export function tirage(graine: number): { tp: TpExamen; incident: IncidentExamen
 }
 
 /** Temps restant (s), calculé depuis l'horodatage absolu de début : le temps passé page fermée compte */
-export const tempsRestant = (ex: SessionExamen, maintenant: number) => Math.max(0, au3('DUREE_EXAMEN') - (Math.min(maintenant, ex.finA ?? maintenant) - ex.debut) / au3('MS_PAR_SECONDE'))
+export const dureeExamen = (ex: SessionExamen) => ex.duree ?? au3('DUREE_EXAMEN')
+export const tempsRestant = (ex: SessionExamen, maintenant: number) => Math.max(0, dureeExamen(ex) - (Math.min(maintenant, ex.finA ?? maintenant) - ex.debut) / MS_PAR_SECONDE)
 
 export interface NoteChamp {
   def: ChampDef
@@ -83,7 +85,8 @@ export function noter(s: SessionAu3, tp: TpExamen, c: Catalogue): Bilan {
       return { def, reponse: r, points: scoreOuverte(def, r) }
     })
     const scores = [...champs, ...ouvertes].map((x) => x.points)
-    return { question: q, champs, ouvertes, points: (pq * scores.reduce((a, b) => a + b, 0)) / Math.max(1, scores.length), max: pq, traitee: [...champs, ...ouvertes].some((x) => x.reponse !== null) }
+    // POINTS_PAR_CHAMP : la question est partagée à parts égales entre ses champs
+    return { question: q, champs, ouvertes, points: (pq * au3('POINTS_PAR_CHAMP') * scores.reduce((a, b) => a + b, 0)) / Math.max(1, scores.length), max: pq, traitee: [...champs, ...ouvertes].some((x) => x.reponse !== null) }
   })
   const essai = s.essaiReussi
   const coefCablage = essai === 1 ? 1 : essai === 2 ? au3('COEF_DEUXIEME_ESSAI') : 0
