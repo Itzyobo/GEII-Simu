@@ -222,7 +222,7 @@ export function PageTp1({ etat, agir, entete }: PropsPage) {
         </h3>
         <p className="text-xs text-au3-muted">Étapes 1 à 10 (copie des scripts, import du .csv dans Matlab) remplacées par : « Exporter .csv », puis « Identification moindres carrés ».</p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <button type="button" onClick={exporter} disabled={!rec} className="rounded bg-au3-accent px-2 py-1 font-semibold text-black disabled:opacity-40">
+          <button type="button" onClick={exporter} disabled={!rec} className="rounded bg-au3-accent px-2 py-1 font-semibold text-on-accent disabled:opacity-40">
             Exporter .csv (Signaux_1.csv)
           </button>
           <button type="button" onClick={() => identifierOrdre(1)} disabled={!fen} className="rounded bg-au3-panel-2 px-2 py-1 ring-1 ring-au3-line disabled:opacity-40">

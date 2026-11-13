@@ -10,7 +10,7 @@ import type { PropsBornes } from './types'
 export default function Moteur({ bornes, vitesse }: { bornes: PropsBornes; vitesse: number }) {
   const b = (id: Parameters<PropsBornes['onBorne']>[0]) => ({ id, choisie: bornes.choisie === id, verrouillee: bornes.verrouillee, onClick: bornes.onBorne })
   return (
-    <section aria-label="Boîtier MOTEUR 1" className="rounded-xl bg-[#2a2e35] p-3 shadow-xl ring-1 ring-white/10">
+    <section aria-label="Boîtier MOTEUR 1" className="au3-sombre rounded-xl bg-[#2a2e35] p-3 shadow-xl ring-1 ring-white/10">
       <p className="text-center text-xs font-bold tracking-widest text-[#e3e6ea]">MOTEUR 1</p>
       <div className="relative mx-auto mt-2 grid h-32 w-32 place-items-center rounded-2xl bg-white/5 ring-1 ring-white/20 backdrop-blur-sm">
         <div

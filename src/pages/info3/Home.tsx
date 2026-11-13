@@ -29,16 +29,14 @@ export default function Info3Home() {
     return { passed: ids.filter((id) => progress[id]?.state === 'passed').length, total: ids.length }
   }
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-12">
       <header>
-        <p className="text-xs text-muted">
-          <Link to="/" className="underline">
-            TP-Sim
-          </Link>{' '}
-          › INFO3
-        </p>
-        <h1 className="text-xl font-semibold">INFO3 — PIC16F18875 sur Curiosity HPC</h1>
-        <p className="mt-1 text-sm text-muted">MCC, code C, carte et professeur virtuel, comme en salle.</p>
+        <Link to="/" className="text-sm text-muted hover:text-accent">
+          ← Tous les simulateurs
+        </Link>
+        <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-accent">INFO3 · SIMULATEUR DE TP</p>
+        <h1 className="mt-2 text-3xl font-bold">PIC16F18875 sur Curiosity HPC</h1>
+        <p className="mt-2 max-w-2xl text-muted">MCC, code C, carte et professeur virtuel, comme en salle.</p>
       </header>
 
       <section aria-labelledby="tps">

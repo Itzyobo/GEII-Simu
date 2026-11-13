@@ -82,7 +82,7 @@ export default function BilanExamen({ bilan, examen }: { bilan: Bilan; examen: S
       <section className="rounded-lg bg-au3-panel p-4 ring-1 ring-au3-line" data-non-traitees>
         <h3 className="font-semibold">Questions non traitées et leur correction ({nonTraitees.length})</h3>
         {nonTraitees.map((q) => (
-          <div key={q.question.id} className="mt-2 rounded bg-black/30 p-2 text-xs" data-correction-examen={q.question.id}>
+          <div key={q.question.id} className="mt-2 rounded bg-au3-panel-2 p-2 text-xs" data-correction-examen={q.question.id}>
             <p>
               <span className="font-mono text-au3-accent">{q.question.numero}</span> {q.question.intitule}
             </p>

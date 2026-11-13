@@ -69,7 +69,7 @@ function Identification({ s, essai, fichier, rec, agir }: { s: SessionAu3; essai
     <section aria-label={`Identification moindres carrés, ${essai === 'k38' ? 'K = 3,8' : 'K = 40'}`} className="space-y-2 rounded-lg bg-au3-panel p-3 ring-1 ring-au3-line">
       <p className="text-xs text-au3-muted">Étapes 1 à 8 (scripts Matlab, import du .csv) remplacées par : « Exporter .csv », puis « Identification moindres carrés ordre 2 ».</p>
       <div className="flex flex-wrap gap-2 text-xs">
-        <button type="button" onClick={exporter} disabled={!rec} className="rounded bg-au3-accent px-2 py-1 font-semibold text-black disabled:opacity-40">
+        <button type="button" onClick={exporter} disabled={!rec} className="rounded bg-au3-accent px-2 py-1 font-semibold text-on-accent disabled:opacity-40">
           Exporter .csv ({fichier})
         </button>
         <button type="button" onClick={() => fen && agir({ type: 'tp2', essai, patch: { ordre2: identifier(fen, 2) } })} disabled={!fen} className="rounded bg-au3-panel-2 px-2 py-1 ring-1 ring-au3-line disabled:opacity-40">

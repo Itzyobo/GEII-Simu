@@ -84,7 +84,7 @@ export default function Examen() {
             ))}
             <label className="mt-2 flex items-center gap-2">
               Graine
-              <input type="number" value={graine} onChange={(e) => setGraine(Math.max(0, Math.round(Number(e.target.value) || 0)))} className="w-36 rounded bg-black/40 px-2 py-1 font-mono ring-1 ring-au3-line" aria-label="Graine du tirage" />
+              <input type="number" value={graine} onChange={(e) => setGraine(Math.max(0, Math.round(Number(e.target.value) || 0)))} className="w-36 rounded bg-field px-2 py-1 font-mono ring-1 ring-au3-line" aria-label="Graine du tirage" />
               <button type="button" onClick={() => setGraine(nouvelleGraine())} className="rounded bg-au3-panel-2 px-2 py-1 text-xs ring-1 ring-au3-line">
                 Nouvelle graine
               </button>
@@ -102,7 +102,7 @@ export default function Examen() {
             </ul>
             <p className="mt-1 text-xs text-au3-muted">Mêmes tolérances qu’en entraînement (±{nombre(au3('TOL_MESURE') * MISE_EN_PAGE.pourcent)} %, ±{nombre(au3('TOL_ABAQUE') * MISE_EN_PAGE.pourcent)} % pour une lecture d’abaque). Aucune correction ni indice avant la fin.</p>
           </section>
-          <button type="button" onClick={() => agir({ type: 'demarrer-examen', tp: choix === 'tirage' ? t.tp : choix, graine, incident: t.incident, duree })} className="rounded bg-au3-accent px-4 py-2 font-semibold text-black">
+          <button type="button" onClick={() => agir({ type: 'demarrer-examen', tp: choix === 'tirage' ? t.tp : choix, graine, incident: t.incident, duree })} className="rounded bg-au3-accent px-4 py-2 font-semibold text-on-accent">
             Démarrer l’examen
           </button>
         </main>
@@ -121,7 +121,7 @@ export default function Examen() {
       </span>
       {confirmer === 'fin' ? (
         <span className="ml-auto flex gap-2">
-          <button type="button" onClick={() => (agir({ type: 'terminer-examen' }), setConfirmer(null))} className="rounded bg-au3-err px-2 py-1 text-xs font-semibold text-black">
+          <button type="button" onClick={() => (agir({ type: 'terminer-examen' }), setConfirmer(null))} className="rounded bg-au3-err px-2 py-1 text-xs font-semibold text-on-accent">
             Confirmer la fin
           </button>
           <button type="button" onClick={() => setConfirmer(null)} className="rounded bg-au3-panel-2 px-2 py-1 text-xs ring-1 ring-au3-line">
@@ -154,7 +154,7 @@ export default function Examen() {
         {confirmer === 'effacer' ? (
           <p className="flex flex-wrap items-center gap-2 text-sm">
             Effacer définitivement cet examen et son bilan ?
-            <button type="button" onClick={() => (agir({ type: 'effacer-examen' }), setConfirmer(null))} className="rounded bg-au3-err px-2 py-1 text-xs font-semibold text-black">
+            <button type="button" onClick={() => (agir({ type: 'effacer-examen' }), setConfirmer(null))} className="rounded bg-au3-err px-2 py-1 text-xs font-semibold text-on-accent">
               Oui, effacer
             </button>
             <button type="button" onClick={() => setConfirmer(null)} className="rounded bg-au3-panel-2 px-2 py-1 text-xs ring-1 ring-au3-line">

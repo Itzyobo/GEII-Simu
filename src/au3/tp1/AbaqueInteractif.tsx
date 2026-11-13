@@ -63,7 +63,7 @@ export default function Abaque({ tp1, onChange, examen = false }: { tp1: Progres
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-au3-muted">Croix sur :</span>
         {(['rapport', 'wn'] as const).map((c) => (
-          <button key={c} type="button" aria-pressed={courbe === c} onClick={() => setCourbe(c)} className={`rounded px-2 py-0.5 ring-1 ring-au3-line ${courbe === c ? 'bg-au3-accent text-black' : 'bg-au3-panel-2'}`}>
+          <button key={c} type="button" aria-pressed={courbe === c} onClick={() => setCourbe(c)} className={`rounded px-2 py-0.5 ring-1 ring-au3-line ${courbe === c ? 'bg-au3-accent text-on-accent' : 'bg-au3-panel-2'}`}>
             {c === 'rapport' ? 't3/t1' : nomWn}
           </button>
         ))}
@@ -83,7 +83,7 @@ export default function Abaque({ tp1, onChange, examen = false }: { tp1: Progres
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full touch-none rounded bg-[#101215] ring-1 ring-au3-line"
+        className="w-full touch-none rounded bg-au3-panel ring-1 ring-au3-line"
         role="img"
         aria-label={`Abaque : t3/t1 et ${nomWn} en fonction de z (échelle logarithmique)`}
         onPointerDown={(e) => poser(courbe, versZ(e))}
@@ -92,36 +92,36 @@ export default function Abaque({ tp1, onChange, examen = false }: { tp1: Progres
       >
         {A.graduationsZ.map((z) => (
           <g key={z}>
-            <line x1={xDeZ(z)} x2={xDeZ(z)} y1={G.haut} y2={H - G.bas} stroke="#2a2e35" />
-            <text x={xDeZ(z)} y={H - G.bas + G.bas / 2} fill="#a3a9b3" fontSize="11" textAnchor="middle">
+            <line x1={xDeZ(z)} x2={xDeZ(z)} y1={G.haut} y2={H - G.bas} stroke="var(--color-au3-line)" />
+            <text x={xDeZ(z)} y={H - G.bas + G.bas / 2} fill="var(--color-au3-muted)" fontSize="11" textAnchor="middle">
               {nombre(z)}
             </text>
           </g>
         ))}
         {Array.from({ length: A.yMax / A.pasY + 1 }, (_, i) => i * A.pasY).map((v) => (
           <g key={v}>
-            <line x1={G.gauche} x2={W - G.droite} y1={yDeV(v)} y2={yDeV(v)} stroke="#2a2e35" />
-            <text x={G.gauche - A.croix} y={yDeV(v)} dy="4" fill="#a3a9b3" fontSize="11" textAnchor="end">
+            <line x1={G.gauche} x2={W - G.droite} y1={yDeV(v)} y2={yDeV(v)} stroke="var(--color-au3-line)" />
+            <text x={G.gauche - A.croix} y={yDeV(v)} dy="4" fill="var(--color-au3-muted)" fontSize="11" textAnchor="end">
               {v}
             </text>
           </g>
         ))}
-        <text x={W - G.droite} y={H - A.croix} fill="#a3a9b3" fontSize="11" textAnchor="end">
+        <text x={W - G.droite} y={H - A.croix} fill="var(--color-au3-muted)" fontSize="11" textAnchor="end">
           z (coefficient d’amortissement)
         </text>
         <path d={chemin(pts.rapport)} fill="none" stroke={COUL.mesure} strokeWidth="2" />
         <path d={chemin(pts.wn)} fill="none" stroke={COUL.modele} strokeWidth="2" strokeDasharray={MISE_EN_PAGE.identification.tirets} />
         {/* Étiquettes directes (l'identité ne repose pas sur la couleur seule) */}
-        <text x={W - G.droite} y={yDeV(pts.rapport[pts.rapport.length - 1]![1])} dy="-6" fill="#e6e6e6" fontSize="11" textAnchor="end">
+        <text x={W - G.droite} y={yDeV(pts.rapport[pts.rapport.length - 1]![1])} dy="-6" fill="var(--color-au3-ink)" fontSize="11" textAnchor="end">
           t3/t1
         </text>
-        <text x={xDeZ(A.etiquetteZ)} y={yDeV(fWn(A.etiquetteZ))} dx="-8" dy="-4" fill="#e6e6e6" fontSize="11" textAnchor="end">
+        <text x={xDeZ(A.etiquetteZ)} y={yDeV(fWn(A.etiquetteZ))} dx="-8" dy="-4" fill="var(--color-au3-ink)" fontSize="11" textAnchor="end">
           {nomWn}
         </text>
         {survol !== null && survol >= ZMIN && survol <= ZMAX && (
           <g pointerEvents="none">
-            <line x1={xDeZ(survol)} x2={xDeZ(survol)} y1={G.haut} y2={H - G.bas} stroke="#e6e6e6" strokeDasharray={MISE_EN_PAGE.identification.pointilles} />
-            <text x={G.gauche + A.croix} y={G.haut + A.croix * 2} fill="#e6e6e6" fontSize="11">
+            <line x1={xDeZ(survol)} x2={xDeZ(survol)} y1={G.haut} y2={H - G.bas} stroke="var(--color-au3-ink)" strokeDasharray={MISE_EN_PAGE.identification.pointilles} />
+            <text x={G.gauche + A.croix} y={G.haut + A.croix * 2} fill="var(--color-au3-ink)" fontSize="11">
               z = {nombre(survol)} · t3/t1 = {nombre(rapportT3T1(survol))} · {nomWn} = {nombre(fWn(survol))}
             </text>
           </g>

@@ -6,7 +6,7 @@ import { coverage } from '../data/questions'
 export default function Accueil() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-      <p className="text-xs font-semibold tracking-[0.2em] text-accent">TP2 · BUT GEII</p>
+      <p className="text-xs font-semibold tracking-[0.2em] text-accent">RÉSEAUX · TP2 · BUT GEII</p>
       <h1 className="mt-2 text-3xl font-bold">Liaison série asynchrone / MODBUS</h1>
       <p className="mt-2 max-w-2xl text-muted">
         Entraînement au TP et au partiel. Un attendu est couvert quand au moins une question qui s’y rapporte est implémentée.

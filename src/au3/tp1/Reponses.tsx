@@ -64,8 +64,8 @@ export function ChampNum({ champ, label, p, apres, lire }: { champ: ChampDef | u
         <label htmlFor={id + '-champ'} className="min-w-28 text-au3-muted">
           {label}
         </label>
-        <input id={id + '-champ'} value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder={unite ? `valeur et unité (${unite})` : 'valeur (sans unité)'} className="w-36 rounded bg-black/40 px-2 py-1 font-mono text-au3-ink ring-1 ring-au3-line focus:ring-au3-accent" />
-        <button type="submit" className="rounded bg-au3-accent px-2 py-1 font-semibold text-black">
+        <input id={id + '-champ'} value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder={unite ? `valeur et unité (${unite})` : 'valeur (sans unité)'} className="w-36 rounded bg-field px-2 py-1 font-mono text-au3-ink ring-1 ring-au3-line focus:ring-au3-accent" />
+        <button type="submit" className="rounded bg-au3-accent px-2 py-1 font-semibold text-on-accent">
           Valider
         </button>
         {enregistre && <span className="text-au3-muted">essai {enregistre.essais}</span>}
@@ -111,13 +111,13 @@ export function QuestionOuverte({ id, choix, attendu, correction, p }: { id: str
             </label>
           ))}
         </div>
-        <textarea aria-label="Justification" value={texte} onChange={(e) => setTexte(e.target.value)} rows={2} placeholder="Justifiez" className="w-full rounded bg-black/40 px-2 py-1 text-au3-ink ring-1 ring-au3-line focus:ring-au3-accent" />
-        <button type="submit" disabled={!choisi} className="rounded bg-au3-accent px-2 py-1 font-semibold text-black disabled:opacity-40">
+        <textarea aria-label="Justification" value={texte} onChange={(e) => setTexte(e.target.value)} rows={2} placeholder="Justifiez" className="w-full rounded bg-field px-2 py-1 text-au3-ink ring-1 ring-au3-line focus:ring-au3-accent" />
+        <button type="submit" disabled={!choisi} className="rounded bg-au3-accent px-2 py-1 font-semibold text-on-accent disabled:opacity-40">
           Valider
         </button>
       </form>
       {r && !p.examen && (
-        <div className="rounded bg-black/30 p-2 ring-1 ring-au3-line" role="status" data-correction={id}>
+        <div className="rounded bg-au3-panel-2 p-2 ring-1 ring-au3-line" role="status" data-correction={id}>
           {attendu !== null && (
             <p className={r.valeur.startsWith(attendu + '\n') ? 'text-au3-ok' : 'text-au3-err'}>
               {r.valeur.startsWith(attendu + '\n') ? '✓' : '✗'} Réponse attendue : {attendu}

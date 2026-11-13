@@ -129,7 +129,7 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
           </label>
         )}
         <span className="ml-auto text-au3-muted">Montage attendu : {MONTAGES[etat.montage].titre}</span>
-        <button type="button" onClick={() => agir({ type: 'faire-verifier' })} className="rounded bg-au3-accent px-3 py-1 font-semibold text-black">
+        <button type="button" onClick={() => agir({ type: 'faire-verifier' })} className="rounded bg-au3-accent px-3 py-1 font-semibold text-on-accent">
           Faire vérifier
         </button>
       </div>
@@ -205,7 +205,7 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl bg-[#101215] p-3 ring-1 ring-au3-line">
+      <div className="overflow-x-auto rounded-xl bg-au3-panel-2 p-3 ring-1 ring-au3-line">
         <div ref={plan} className="relative flex items-start gap-4" style={{ width: UI.largeurEtabli, minHeight: UI.hauteurEtabli }}>
           <div className="flex flex-col gap-3">
             <div className="w-80">

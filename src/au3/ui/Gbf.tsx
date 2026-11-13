@@ -26,7 +26,7 @@ function Champ({ label, valeur, unite, pas, min, max, onChange }: { label: strin
             const v = Number(e.target.value)
             if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)))
           }}
-          className="w-20 rounded bg-black/40 px-1.5 py-1 text-right font-mono text-au3-ink ring-1 ring-au3-line focus:ring-au3-accent"
+          className="w-20 rounded bg-field px-1.5 py-1 text-right font-mono text-au3-ink ring-1 ring-au3-line focus:ring-au3-accent"
         />
         <span className="w-6 text-au3-muted">{unite}</span>
       </span>
@@ -68,7 +68,7 @@ export default function Gbf({ gbf, onChange, bornes }: { gbf: ReglagesGbf; onCha
           ))}
         </div>
       </div>
-      <div className="mt-2 space-y-1 rounded bg-[#2a2d33] p-2 text-au3-ink">
+      <div className="mt-2 space-y-1 rounded bg-au3-panel-2 p-2 text-au3-ink">
         <Champ label="Fréquence" valeur={gbf.frequence} unite="Hz" pas={G.pasFreq} min={au3('GBF_FREQ_MIN')} max={au3('GBF_FREQ_MAX')} onChange={(frequence) => onChange({ frequence })} />
         <Champ label="Amplitude" valeur={gbf.vpp} unite="Vpp" pas={G.pasVpp} min={0} max={au3('GBF_VPP_MAX')} onChange={(vpp) => onChange({ vpp })} />
         <Champ label="Offset" valeur={gbf.offset} unite="V" pas={G.pasOffset} min={-au3('GBF_OFFSET_MAX')} max={au3('GBF_OFFSET_MAX')} onChange={(offset) => onChange({ offset })} />

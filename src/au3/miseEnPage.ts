@@ -84,7 +84,7 @@ export const MISE_EN_PAGE = {
   identification: {
     /** Points tracés (sous-échantillonnage du .csv) ; fraction de la fenêtre montrée par le zoom sur le démarrage */
     pointsTrace: 400,
-    /** Mesure (trait plein), modèle (tirets), tangentes (pointillés) : palette validée sur le fond #1e2127 (dataviz) */
+    /** Mesure (trait plein), modèle (tirets), tangentes (pointillés) : palette lisible sur fond clair (dataviz) */
     couleurs: { mesure: '#1f9e5a', modele: '#c87a0c', tangente: '#3a84d4' },
     tirets: '6 4',
     /** Opacité de l'aire sous e(t) (II.4 b) */

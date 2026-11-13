@@ -19,16 +19,14 @@ const TPS: { tp: TpAu3; titre: string; to: string | null; note: string }[] = [
 export default function Accueil() {
   return (
     <div className="min-h-screen bg-au3-bg text-au3-ink">
-      <main className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+      <main className="mx-auto max-w-5xl space-y-6 px-4 py-12">
         <header>
-          <p className="text-xs text-au3-muted">
-            <Link to="/" className="underline">
-              TP-Sim
-            </Link>{' '}
-            › AU3
-          </p>
-          <h1 className="text-xl font-semibold">AU3 — Moteur à courant continu et dynamo tachymétrique</h1>
-          <p className="mt-1 text-sm text-au3-muted">GBF TG315, oscilloscope DSOX2004A, platine « Régulateur analogique » : poste 4, moteur 1, salle B26.</p>
+          <Link to="/" className="text-sm text-au3-muted hover:text-au3-accent">
+            ← Tous les simulateurs
+          </Link>
+          <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-au3-accent">AU3 · SIMULATEUR DE TP</p>
+          <h1 className="mt-2 text-3xl font-bold">Moteur à courant continu et dynamo tachymétrique</h1>
+          <p className="mt-2 max-w-2xl text-au3-muted">GBF TG315, oscilloscope DSOX2004A, platine « Régulateur analogique » : poste 4, moteur 1, salle B26.</p>
         </header>
 
         <section aria-labelledby="banc" className="grid gap-3 sm:grid-cols-2">

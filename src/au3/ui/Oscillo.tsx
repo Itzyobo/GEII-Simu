@@ -124,7 +124,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
   }
 
   return (
-    <section aria-label="Oscilloscope Keysight DSOX2004A" className="rounded-lg bg-[#3b3f46] p-2 shadow-xl ring-1 ring-black/40">
+    <section aria-label="Oscilloscope Keysight DSOX2004A" className="au3-sombre rounded-lg bg-[#3b3f46] p-2 shadow-xl ring-1 ring-black/40">
       <p className="mb-1 text-[11px] font-bold tracking-wider text-[#d0d4da]">KEYSIGHT · DSOX2004A</p>
       <div className="flex gap-2">
         <div>
@@ -211,7 +211,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             </button>
           </div>
 
-          <fieldset className="rounded bg-black/30 p-1.5">
+          <fieldset className="rounded bg-au3-panel-2 p-1.5">
             <legend className="px-1 text-au3-muted">Horizontal · Acquisition</legend>
             <label className="flex items-center justify-between">
               s/div
@@ -235,7 +235,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             </label>
           </fieldset>
 
-          <fieldset className="rounded bg-black/30 p-1.5">
+          <fieldset className="rounded bg-au3-panel-2 p-1.5">
             <legend className="px-1 text-au3-muted">Voies</legend>
             {osc.voies.map((v, j) => (
               <div key={j} className="flex items-center gap-1 py-0.5">
@@ -263,7 +263,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             ))}
           </fieldset>
 
-          <fieldset className="rounded bg-black/30 p-1.5">
+          <fieldset className="rounded bg-au3-panel-2 p-1.5">
             <legend className="px-1 text-au3-muted">Déclenchement</legend>
             <div className="flex items-center gap-1">
               <select value={osc.declenchement.source} onChange={(e) => onOsc({ declenchement: { ...osc.declenchement, source: Number(e.target.value) } })} className="rounded bg-[#222] px-1" aria-label="Source du déclenchement">
@@ -286,7 +286,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             </label>
           </fieldset>
 
-          <fieldset className="rounded bg-black/30 p-1.5">
+          <fieldset className="rounded bg-au3-panel-2 p-1.5">
             <legend className="px-1 text-au3-muted">Curseurs</legend>
             <div className="flex items-center gap-1" role="group" aria-label="Curseur actif">
               {(['x1', 'x2', 'y1', 'y2'] as const).map((id) => (
@@ -332,7 +332,7 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
             </dl>
           </fieldset>
 
-          <fieldset className="rounded bg-black/30 p-1.5">
+          <fieldset className="rounded bg-au3-panel-2 p-1.5">
             <legend className="px-1 text-au3-muted">Mesures</legend>
             <select value={voieMesure} onChange={(e) => setVoieMesure(Number(e.target.value))} className="rounded bg-[#222] px-1" aria-label="Voie mesurée">
               {Array.from({ length: NB_VOIES }, (_, j) => (

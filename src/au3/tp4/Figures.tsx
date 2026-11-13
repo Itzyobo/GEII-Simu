@@ -5,7 +5,7 @@ import { formatSi } from '../ui/format'
 import type { ScenarioII } from './attendus'
 
 const I = MISE_EN_PAGE.identification
-const COUL = { ...I.couleurs, cc: '#a3a9b3' }
+const COUL = { ...I.couleurs, cc: 'var(--color-au3-muted)' }
 
 export type SerieII = 'c' | 'm' | 'u' | 'e' | 'cc' | 'mP'
 const NOMS: Record<SerieII, string> = { c: 'Consigne C', m: 'Mesure M', u: 'Commande U', e: 'Erreur e = C − M', cc: 'Couple de charge Cc (bouteille, V équivalent)', mP: 'Mesure M, régulateur P seul' }
@@ -24,14 +24,14 @@ function FigureII({ s, series, titre, aire = false, id, p }: { s: ScenarioII; se
     return pts
   }, [s, p])
   return (
-    <figure className="rounded bg-[#101215] p-2 ring-1 ring-au3-line" data-figure={id}>
+    <figure className="rounded bg-au3-panel p-2 ring-1 ring-au3-line" data-figure={id}>
       <figcaption className="mb-1 text-[11px] text-au3-muted">{titre}</figcaption>
       <ResponsiveContainer width="100%" height={I.hauteurGraphe}>
         <ComposedChart data={data} margin={I.marge}>
-          <CartesianGrid stroke="#2a2e35" />
-          <XAxis dataKey="t" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(t: number) => formatSi(t, 's', I.chiffresAxe)} stroke="#a3a9b3" fontSize={I.police} />
-          <YAxis domain={['auto', 'auto']} tickFormatter={(v: number) => formatSi(v, 'V', I.chiffresAxe)} stroke="#a3a9b3" fontSize={I.police} width={I.largeurAxe} />
-          <Tooltip contentStyle={{ background: '#1e2127', border: '1px solid #353a44', fontSize: I.police }} labelFormatter={(t) => `t = ${formatSi(Number(t), 's')}`} formatter={(v) => formatSi(Number(v), 'V')} />
+          <CartesianGrid stroke="var(--color-au3-line)" />
+          <XAxis dataKey="t" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(t: number) => formatSi(t, 's', I.chiffresAxe)} stroke="var(--color-au3-muted)" fontSize={I.police} />
+          <YAxis domain={['auto', 'auto']} tickFormatter={(v: number) => formatSi(v, 'V', I.chiffresAxe)} stroke="var(--color-au3-muted)" fontSize={I.police} width={I.largeurAxe} />
+          <Tooltip contentStyle={{ background: 'var(--color-au3-panel)', border: '1px solid var(--color-au3-line)', fontSize: I.police }} labelFormatter={(t) => `t = ${formatSi(Number(t), 's')}`} formatter={(v) => formatSi(Number(v), 'V')} />
           <Legend wrapperStyle={{ fontSize: I.police }} />
           {aire && <Area dataKey="e" name="Aire de e(t) (intégrale)" stroke={COULEURS.e} fill={COULEURS.e} fillOpacity={I.opaciteAire} isAnimationActive={false} />}
           {series.map((k) => (
