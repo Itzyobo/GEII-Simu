@@ -1,19 +1,21 @@
 @import 'tailwindcss';
 
-/* « Serre » : blanc doux, vert plante en accent, écrans d'instruments restés sombres. */
+/* Style « ELEN3 Révision DS » : neutres noir/blanc, filets fins, Geist ; thème clair et sombre.
+   Valeurs littérales (pas de var()) : les canvas les lisent avec getComputedStyle. */
 @theme static {
-  --color-bg: #f6f8f4;
+  --color-bg: #fafafa;
   --color-card: #ffffff;
-  --color-card-2: #eef3ec;
-  --color-field: #fbfcfa;
-  --color-line: #dfe6dc;
-  --color-ink: #1e2a22;
-  --color-muted: #5b675e;
-  --color-accent: #276a43;
+  --color-card-2: #f5f5f5;
+  --color-field: #ffffff;
+  --color-line: #ebebeb;
+  --color-ink: #171717;
+  --color-muted: #666666;
+  --color-accent: #171717;
   --color-on-accent: #ffffff;
-  --color-warn: #9a4708;
-  --color-ok: #116b33;
-  --color-err: #b91c1c;
+  --color-link: #0070f3;
+  --color-warn: #ab570a;
+  --color-ok: #0a7d4f;
+  --color-err: #c50000;
   --color-screen: #0b0f0c;
   --color-ch1: #e8b500;
   --color-ch2: #12b5c9;
@@ -28,29 +30,90 @@
   --color-steel: #cdd5dc;
   --color-steel-2: #a9b4be;
   --color-rotor: #97a3ad;
-  /* AU3 : même palette que le reste du site (écrans d'instruments restés sombres) */
-  --color-au3-bg: #f6f8f4;
-  --color-au3-panel: #ffffff;
-  --color-au3-panel-2: #eef3ec;
-  --color-au3-line: #dfe6dc;
-  --color-au3-ink: #1e2a22;
-  --color-au3-muted: #5b675e;
-  --color-au3-accent: #276a43;
-  --color-au3-warn: #9a4708;
-  --color-au3-ok: #116b33;
-  --color-au3-err: #b91c1c;
+  /* AU3 : même palette que le reste du site (redéfinie en sombre plus bas) */
+  --color-au3-bg: var(--color-bg);
+  --color-au3-panel: var(--color-card);
+  --color-au3-panel-2: var(--color-card-2);
+  --color-au3-line: var(--color-line);
+  --color-au3-ink: var(--color-ink);
+  --color-au3-muted: var(--color-muted);
+  --color-au3-accent: var(--color-accent);
+  --color-au3-warn: var(--color-warn);
+  --color-au3-ok: var(--color-ok);
+  --color-au3-err: var(--color-err);
   --color-au3-bois: #c9a66b;
-  --radius-card: 16px;
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius-card: 12px;
+  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: light;
+}
+/* Thème sombre : préférence système sauf choix « clair », ou choix « sombre » explicite (même bloc deux fois, comme la référence) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: #000000;
+    --color-card: #0a0a0a;
+    --color-card-2: #161616;
+    --color-field: #0a0a0a;
+    --color-line: #262626;
+    --color-ink: #ededed;
+    --color-muted: #a1a1a1;
+    --color-accent: #ededed;
+    --color-on-accent: #0a0a0a;
+    --color-link: #3291ff;
+    --color-warn: #f5a623;
+    --color-ok: #3fd18f;
+    --color-err: #ff6166;
+    --color-l2: #c9ced3;
+    --color-steel: #4a535c;
+    --color-steel-2: #6b7680;
+    --color-rotor: #59646e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --color-bg: #000000;
+  --color-card: #0a0a0a;
+  --color-card-2: #161616;
+  --color-field: #0a0a0a;
+  --color-line: #262626;
+  --color-ink: #ededed;
+  --color-muted: #a1a1a1;
+  --color-accent: #ededed;
+  --color-on-accent: #0a0a0a;
+  --color-link: #3291ff;
+  --color-warn: #f5a623;
+  --color-ok: #3fd18f;
+  --color-err: #ff6166;
+  --color-l2: #c9ced3;
+  --color-steel: #4a535c;
+  --color-steel-2: #6b7680;
+  --color-rotor: #59646e;
+  color-scheme: dark;
 }
 
 body {
   @apply bg-bg text-ink font-sans antialiased;
 }
 
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
 ::selection {
-  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  background: var(--color-ink);
+  color: var(--color-card);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
 }
 
 /* Courant qui circule dans les fils sous tension (--flow animé par WiringBoard à 30 images/s) */
@@ -81,4 +144,20 @@ body {
   --color-au3-ok: #5ad48a;
   --color-au3-err: #ff6b6b;
   color: var(--color-au3-ink);
+}
+
+/* AU3 : appareils à façade claire (GBF, platine bois), identiques quel que soit le thème */
+.au3-clair {
+  --color-au3-panel: #ffffff;
+  --color-au3-panel-2: #f5f5f5;
+  --color-au3-line: #d4d4d4;
+  --color-au3-ink: #171717;
+  --color-au3-muted: #555555;
+  --color-au3-accent: #171717;
+  --color-au3-warn: #ab570a;
+  --color-au3-ok: #0a7d4f;
+  --color-au3-err: #c50000;
+  --color-field: #ffffff;
+  --color-on-accent: #ffffff;
+  color-scheme: light;
 }

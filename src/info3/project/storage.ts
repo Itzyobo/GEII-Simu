@@ -126,13 +126,20 @@ export { loadProgress, saveProgress, type Progress, type QuestionState } from '.
 /* ───────────── Préférences d'affichage ───────────── */
 
 export interface Prefs {
-  /** Thème sombre de l'IDE (clair par défaut, comme MPLAB X) */
+  /** Thème sombre de l'IDE (par défaut celui du site : clair, comme MPLAB X, ou sombre) */
   dark: boolean
+}
+
+/** Thème du site (bouton de thème, sinon préférence système) */
+const siteSombre = () => {
+  if (typeof document === 'undefined') return false
+  const t = document.documentElement.dataset.theme
+  return t ? t === 'dark' : typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches
 }
 
 export function loadPrefs(s?: KeyValueStore | null): Prefs {
   const x = readJson(KEYS.prefs, s === undefined ? store() : s) as Record<string, unknown> | undefined
-  return { dark: !!x && typeof x === 'object' && x.dark === true }
+  return { dark: x && typeof x === 'object' && typeof x.dark === 'boolean' ? x.dark : siteSombre() }
 }
 
 export function savePrefs(p: Prefs, s?: KeyValueStore | null) {

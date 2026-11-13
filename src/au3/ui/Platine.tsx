@@ -52,7 +52,7 @@ function SupportZ({ support, z, autre, verrouille, onComposant }: { support: Sup
 export default function Platine({ platine, onReglage, onInterrupteur, onComposant, bornes }: { platine: ReglagesPlatine; onReglage: (p: { g1?: number; g2?: number }) => void; onInterrupteur: () => void; onComposant: (s: Support, z: Impedance | null) => void; bornes: PropsBornes }) {
   const k = gainAffichage(platine.g1, platine.g2)
   return (
-    <section aria-label="Platine Régulateur analogique" className="rounded-xl bg-au3-bois p-2 shadow-xl">
+    <section aria-label="Platine Régulateur analogique" className="au3-clair rounded-xl bg-au3-bois p-2 shadow-xl">
       <div className="rounded-lg bg-[#e9e4d8] p-3 text-[#1d1d1d]">
         <div className="flex items-start justify-between gap-2">
           <div>

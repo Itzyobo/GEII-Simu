@@ -37,7 +37,7 @@ function Champ({ label, valeur, unite, pas, min, max, onChange }: { label: strin
 /** GBF TTi TG315 : afficheur de fréquence, boutons de forme enfonçables, amplitude, offset, atténuation 20 dB, MAIN OUT 50 Ω */
 export default function Gbf({ gbf, onChange, bornes }: { gbf: ReglagesGbf; onChange: (p: Partial<ReglagesGbf>) => void; bornes: PropsBornes }) {
   return (
-    <section aria-label="GBF TTi TG315" className="rounded-lg bg-[#d9d6cf] p-2 text-[#1d1d1d] shadow-lg">
+    <section aria-label="GBF TTi TG315" className="au3-clair rounded-lg bg-[#d9d6cf] p-2 text-[#1d1d1d] shadow-lg">
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-bold tracking-wider">TTi TG315 · FUNCTION GENERATOR</p>
         <label className="flex items-center gap-1 text-[11px]">

@@ -8,14 +8,16 @@ export const fr = (x: number, d = 0) => x.toFixed(d).replace('.', ',').replace('
 
 const NOMS = ['ink', 'muted', 'line', 'card', 'card-2', 'accent', 'ok', 'err', 'warn', 'north', 'south', 'copper', 'l1', 'l2', 'l3', 'steel', 'steel-2', 'rotor', 'ch1', 'ch2'] as const
 export type Couleurs = Record<(typeof NOMS)[number], string>
-let cache: Couleurs | null = null
-/** Couleurs du thème (variables --color-* de index.css), lues une fois. */
+const SOMBRE = typeof matchMedia !== 'undefined' ? matchMedia('(prefers-color-scheme: dark)') : null
+let cache: { cle: string; c: Couleurs } | null = null
+/** Couleurs du thème (variables --color-* de index.css), relues seulement quand le thème clair / sombre change. */
 export function couleurs(): Couleurs {
-  if (!cache) {
+  const cle = `${document.documentElement.dataset.theme ?? ''}${SOMBRE?.matches}`
+  if (cache?.cle !== cle) {
     const cs = getComputedStyle(document.documentElement)
-    cache = Object.fromEntries(NOMS.map((n) => [n, cs.getPropertyValue(`--color-${n}`).trim()])) as Couleurs
+    cache = { cle, c: Object.fromEntries(NOMS.map((n) => [n, cs.getPropertyValue(`--color-${n}`).trim()])) as Couleurs }
   }
-  return cache
+  return cache.c
 }
 
 export type Dessin = (ctx: CanvasRenderingContext2D, w: number, h: number, dt: number, c: Couleurs) => void
