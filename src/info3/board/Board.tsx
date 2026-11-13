@@ -62,6 +62,8 @@ const USB_WHITE = { x: 318, y: 715, w: 62, h: 52 }
 const SLOT: Record<SlotId, { x: number; y: number }> = { mikrobus1: { x: 1128, y: 595 }, mikrobus2: { x: 1128, y: 820 } }
 const SLOT_W = 250
 const SLOT_H = 210
+/** Étiquettes MODULE 1 / 2, à droite du bord de la carte (x = 1470) */
+const SLOT_LABEL_X = 1500
 const MATRIX = { x: 1168, y: 403, dx: 24.5, dy: 25.5 }
 const RING = { cx: 1275, cy: 1175, r: 92, led: 16, knob: 52, cap: 34 }
 const RING_LEDS = 16
@@ -421,11 +423,10 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
       >
         <rect x={x} y={y} width={SLOT_W} height={SLOT_H} rx={18} fill={over === slot ? 'rgba(255,214,0,.18)' : 'transparent'} />
         <Hl x={x - 4} y={y - 4} w={SLOT_W + 8} h={SLOT_H + 8} rx={20} on={over === slot || (!!selected && !placed)} />
-        {!placed && (
-          <text x={x + SLOT_W / 2} y={y + SLOT_H / 2 + 8} textAnchor="middle" fontSize={24} fontWeight={600} fill="#F4EDE4" opacity={0.8}>
-            {SLOT_LABEL[slot]}
-          </text>
-        )}
+        {/* Nom de l'emplacement : hors de la carte, visible même carte enfichée */}
+        <text x={SLOT_LABEL_X} y={y + SLOT_H / 2} textAnchor="middle" fontSize={26} fontWeight={700} letterSpacing={2} fill="var(--color-ink)" transform={`rotate(90 ${SLOT_LABEL_X} ${y + SLOT_H / 2})`}>
+          {SLOT_LABEL[slot]}
+        </text>
       </g>
     )
   }
