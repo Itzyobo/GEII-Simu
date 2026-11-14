@@ -5,7 +5,7 @@
  */
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { INFO3 } from '../../data/reference'
-import Board from '../board/Board'
+import Board, { type RotaryAction } from '../board/Board'
 import RotaryControl from '../board/RotaryControl'
 import InterruptInspector from './InterruptInspector'
 import LogicAnalyzer from './LogicAnalyzer'
@@ -66,6 +66,14 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
   const [analog, setAnalog] = useState<{ pot: number; joy: [number, number] }>({ pot: INFO3.analog.potStart, joy: [0, 0] })
   /** Programme en mémoire flash : redémarre à chaque mise sous tension */
   const flash = useRef<Record<string, string> | null>(null)
+  /** ROTARY O click : une seule position et un seul SW pour la molette de la carte et le panneau */
+  const [knob, setKnob] = useState(0)
+  const [rotSw, setRotSw] = useState(false)
+  const rot = (m: RotaryAction) => {
+    if (m.action === 'turn') setKnob((k) => k + m.detents)
+    else setRotSw(m.pressed)
+    sim.rotary(m)
+  }
 
   const apply = (r: Result) => {
     onProject(r.project)
@@ -152,7 +160,7 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
         ))}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-2">
           {/* Choix de la vue principale (écran large) */}
           <div className="hidden gap-1 lg:flex" role="tablist" aria-label="Vue principale">
@@ -205,7 +213,9 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
               }}
               onCard={(slot, card) => apply(setCard(project, slot, card))}
               ring={powered ? sim.view.ring : []}
-              onRotary={(m) => sim.rotary(m)}
+              onRotary={rot}
+              knob={knob}
+              rotSw={rotSw}
             />
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
               <label className="flex items-center gap-1.5" title={exam ? undefined : INFO3.hypotheses.find((h) => h.id === 'H3')?.texte}>
@@ -233,7 +243,7 @@ export default function Workbench({ project, onProject, sideLabel, side, benchEx
             </div>
             {rotarySlot && (
               <div className="mt-2">
-                <RotaryControl slotLabel={SLOT_NAMES[rotarySlot]} onTurn={(n) => sim.rotary({ action: 'turn', detents: n })} onSpin={(r) => sim.rotary({ action: 'spin', rate: r })} onSw={(p) => sim.rotary({ action: 'sw', pressed: p })} ring={powered ? sim.view.ring : []} />
+                <RotaryControl slotLabel={SLOT_NAMES[rotarySlot]} onTurn={(n) => rot({ action: 'turn', detents: n })} onSpin={(r) => sim.rotary({ action: 'spin', rate: r })} onSw={(p) => rot({ action: 'sw', pressed: p })} position={knob} sw={rotSw} onSpinStep={(d) => setKnob((k) => k + d)} ring={powered ? sim.view.ring : []} />
               </div>
             )}
             {benchExtra}

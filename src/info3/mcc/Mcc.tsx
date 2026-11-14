@@ -112,7 +112,7 @@ export default function Mcc({ config, onChange, onGenerate, message }: MccProps)
   const field = 'rounded border border-[#b8b8b8] bg-white px-1.5 py-0.5 text-xs disabled:bg-[#eee] disabled:text-[#888]'
 
   return (
-    <section className="space-y-2 rounded-card bg-[#f2f2f2] p-2 text-[#1e1e1e] ring-1 ring-[#c8c8c8]" aria-label="MCC">
+    <section className="space-y-2 rounded-card bg-[#f2f2f2] p-2 text-[#1e1e1e] ring-1 ring-[#c8c8c8] xl:min-h-[calc(100dvh-10rem)]" aria-label="MCC">
       <div className="grid gap-2 md:grid-cols-[13rem_minmax(0,1fr)]">
         {/* Ressources */}
         <div className="space-y-2">

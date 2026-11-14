@@ -18,10 +18,14 @@ export interface RotaryControlProps {
   onSw(pressed: boolean): void
   /** Anneau : fraction du temps allumée, LED 1 à 16 */
   ring?: number[]
+  /** Position (crans) et bouton SW, partagés avec la molette dessinée sur la carte */
+  position: number
+  sw: boolean
+  /** Rotation continue : avance l'affichage d'un cran (le Worker tourne de son côté) */
+  onSpinStep(dir: number): void
 }
 
-export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw, ring }: RotaryControlProps) {
-  const [position, setPosition] = useState(0)
+export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw, ring, position, sw, onSpinStep }: RotaryControlProps) {
   const [rate, setRate] = useState<number>(R.spinRate.min)
   const [spinning, setSpinning] = useState(0)
   const knob = useRef<SVGSVGElement | null>(null)
@@ -30,7 +34,6 @@ export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw, ring }:
 
   const turn = (n: number) => {
     if (!n) return
-    setPosition((p) => p + n)
     onTurn(n)
   }
   useEffect(() => {
@@ -50,9 +53,13 @@ export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw, ring }:
   }, [])
 
   // Rotation continue : la position affichée suit le Worker au même rythme
+  const stepRef = useRef(onSpinStep)
+  useEffect(() => {
+    stepRef.current = onSpinStep
+  })
   useEffect(() => {
     if (!spinning) return
-    const id = window.setInterval(() => setPosition((p) => p + Math.sign(spinning)), INFO3.units.msPerS / Math.abs(spinning))
+    const id = window.setInterval(() => stepRef.current(Math.sign(spinning)), INFO3.units.msPerS / Math.abs(spinning))
     return () => window.clearInterval(id)
   }, [spinning])
 
@@ -146,7 +153,7 @@ export default function RotaryControl({ slotLabel, onTurn, onSpin, onSw, ring }:
             <button type="button" className={btn} onClick={() => turn(1)} aria-label="Un cran horaire">
               +1 ⟳
             </button>
-            <button type="button" className={btn} onPointerDown={() => onSw(true)} onPointerUp={() => onSw(false)} onPointerLeave={() => onSw(false)}>
+            <button type="button" className={`${btn} ${sw ? 'bg-card-2 ring-accent' : ''}`} aria-pressed={sw} onPointerDown={() => onSw(true)} onPointerUp={() => onSw(false)} onPointerLeave={() => onSw(false)}>
               SW
             </button>
           </div>

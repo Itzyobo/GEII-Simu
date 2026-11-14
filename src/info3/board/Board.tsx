@@ -46,6 +46,9 @@ export interface BoardProps {
   /** ROTARY O click : fraction du temps allumée des LED 1 à 16 (LED 1 en haut, sens horaire, H10) */
   ring?: number[]
   onRotary?(m: RotaryAction): void
+  /** Position (crans) et bouton SW, partagés avec le panneau ROTARY O click */
+  knob?: number
+  rotSw?: boolean
 }
 
 /** Repère du dessin (curiosity-hpc.svg) */
@@ -59,13 +62,13 @@ const POWER_LED = { cx: 462, cy: 545 }
 const JOY = { cx: 900, cy: 705, cap: 62, travel: 22, housing: 100, tap: 6 }
 const USB_BLACK = { x: 1440, y: 560, w: 30, h: 40 }
 const USB_WHITE = { x: 318, y: 715, w: 62, h: 52 }
-const SLOT: Record<SlotId, { x: number; y: number }> = { mikrobus1: { x: 1128, y: 595 }, mikrobus2: { x: 1128, y: 820 } }
+const SLOT: Record<SlotId, { x: number; y: number }> = { mikrobus1: { x: 1141, y: 589 }, mikrobus2: { x: 1141, y: 814 } }
 const SLOT_W = 250
 const SLOT_H = 210
 /** Étiquettes MODULE 1 / 2, à droite du bord de la carte (x = 1470) */
 const SLOT_LABEL_X = 1500
-const MATRIX = { x: 1168, y: 403, dx: 24.5, dy: 25.5 }
-const RING = { cx: 1275, cy: 1175, r: 92, led: 16, knob: 52, cap: 34 }
+const MATRIX = { x: 1169, y: 416, dx: 24.5, dy: 25.5 }
+const RING = { cx: 1266, cy: 1166, r: 92, led: 16, knob: 52, cap: 34 }
 const RING_LEDS = 16
 const FULL_TURN = 360
 
@@ -104,7 +107,7 @@ const Hl = ({ x, y, w, h, rx = 6, on }: { x: number; y: number; w: number; h: nu
   <rect className="info3-hl" x={x} y={y} width={w} height={h} rx={rx} fill="none" stroke="#ffd600" strokeWidth={4} style={on ? { opacity: 1 } : undefined} />
 )
 
-export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message, analog, onAnalog, matrix = [], ring = [], onRotary }: BoardProps) {
+export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, onCover, onCard, message, analog, onAnalog, matrix = [], ring = [], onRotary, knob = 0, rotSw = false }: BoardProps) {
   const pot = analog?.pot ?? 0.5
   const [jx, jy] = analog?.joy ?? [0, 0]
   const rgb = rgbDuty(duty)
@@ -115,8 +118,6 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
   const [selected, setSelected] = useState<CardId | null>(null)
   const [over, setOver] = useState<SlotId | null>(null)
   const [joySw, setJoySw] = useState(false)
-  const [knob, setKnob] = useState(0)
-  const [rotSw, setRotSw] = useState(false)
   const powered = bench.usbBlack
 
   const press = (name: string) => {
@@ -222,11 +223,9 @@ export default function Board({ duty, bench, onButton, onUsbBlack, onUsbWhite, o
   /* ── ROTARY O click ── */
   const turn = (n: number) => {
     if (!n || !onRotary) return
-    setKnob((k) => k + n)
     onRotary({ action: 'turn', detents: n })
   }
   const rotSet = (pressed: boolean) => {
-    setRotSw(pressed)
     onRotary?.({ action: 'sw', pressed })
   }
   const knobRef = useRef<SVGGElement | null>(null)

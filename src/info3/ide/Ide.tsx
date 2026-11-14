@@ -252,7 +252,7 @@ export default function Ide({ files, generated, onFilesChange, sim, onProgram, o
               </div>
             ))}
           </div>
-          <div className="h-80 min-h-0 md:h-[26rem]">
+          <div className="h-80 min-h-0 md:h-[26rem] xl:h-[calc(100dvh-14rem)] xl:min-h-[34rem]">
             {active && active in all ? (
               <Suspense fallback={<p className="p-3 text-xs opacity-70">Chargement de l’éditeur…</p>}>
                 <CodeEditor

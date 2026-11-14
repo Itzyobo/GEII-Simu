@@ -51,7 +51,7 @@ export default function TpPage({ tp, title, first, analyzerChannels, scopeProbes
   const numero = selected.replace(`tp${tp}-`, '').replace('-', '.')
 
   return (
-    <main className="mx-auto max-w-[96rem] space-y-3 p-3 sm:p-4">
+    <main className="w-full space-y-3 p-3 sm:p-4">
       <header className="flex flex-wrap items-baseline gap-x-3">
         <p className="text-xs text-muted">
           <Link to="/info3" className="underline">
