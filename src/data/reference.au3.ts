@@ -126,13 +126,38 @@ const AU3_VALEURS = {
   SECTEUR_HZ: { valeur: 50, unite: 'Hz', source: 'hypothese', note: 'Voie flottante : bruit 50 Hz de valeur moyenne nulle' },
   FLOTTANT_AMPLITUDE: { valeur: 0.2, unite: 'V', source: 'hypothese', note: 'Amplitude crête du 50 Hz capté par une entrée en l’air' },
   GBF_VPP_MAX: { valeur: 20, unite: 'V', source: 'hypothese', note: 'Amplitude maximale du TG315 (non donnée par l’énoncé)' },
-  GBF_OFFSET_MAX: { valeur: 10, unite: 'V', source: 'hypothese', note: 'Offset maximal du TG315 (non donné par l’énoncé)' },
+  GBF_OFFSET_MAX: { valeur: 12, unite: 'V', source: 'hypothese', note: 'Offset maximal du TG315 et excursion maximale de MAIN OUT (non donnés par l’énoncé) : étendus à ±12 V pour approcher les limites de l’angle mort en tension continue (TP3 II.1 Q6)' },
   GBF_FREQ_MIN: { valeur: 0.1, unite: 'Hz', source: 'hypothese' },
   GBF_FREQ_MAX: { valeur: 100, unite: 'Hz', source: 'hypothese', note: 'Bornée pour le simulateur : « quelques Hertz maximum » en B26' },
   GBF_DISSYMETRIE: { valeur: 0.2, unite: '', source: 'hypothese', note: 'TP1 p. 6 : carré « pas symétrique » quand la platine est éteinte ; palier bas réduit de 20 % (valeur inventée)' },
   AMPLI_BLOQUE: { valeur: 1, unite: '', source: 'hypothese', note: 'TP1 p. 6, remarque : ampli de courant bloqué, sortie collée à +USAT ou 0 V quelle que soit l’entrée ; seule la procédure de l’énoncé le débloque' },
   VITESSE_ARRET: { valeur: 0.01, unite: '', source: 'hypothese', note: 'Animation : moteur dessiné à l’arrêt sous 1 % de la pleine échelle G0r·USAT' },
   PERIODES_CHAUFFE: { valeur: 1, unite: 'période', source: 'hypothese', note: 'Périodes du GBF simulées avant la recherche du déclenchement (régime périodique établi)' },
+
+  /* ───────────── TP3 : énoncé (réglages, cahier des charges) ───────────── */
+  TP3_VALIM_POT: { valeur: 12, unite: 'V', source: 'enonce', note: 'Potentiomètre alimenté par les sorties −12 V et +12 V de la platine (TP3 I, câblage 4)' },
+  TP3_VOIE2_VDIV: { valeur: 5, unite: 'V/div', source: 'enonce', note: 'TP3 I, réglage 1 : calibre de la voie 2 à 5 V' },
+  TP3_SDIV: { valeur: 0.1, unite: 's/div', source: 'enonce', note: 'TP3 I, réglage 2 et Q4 : calibre des temps à 100 ms' },
+  TP3_G1: { valeur: 70, unite: '', source: 'enonce', note: 'TP3 II.1 : « Affichage G1 » à 70' },
+  TP3_G2: { valeur: 10, unite: '', source: 'enonce', note: 'TP3 II.1 : G2 à 10' },
+  TP3_G1_K9: { valeur: 90, unite: '', source: 'enonce', note: 'TP3 II.2 Mesures Q3 : « vous pouvez régler K à 9 au lieu de 7 » (Affichage G1 = 90 avec G2 = 10)' },
+  TP3_GBF_FREQ: { valeur: 0.2, unite: 'Hz', source: 'enonce', note: 'TP3 II.2 : carré de fréquence la plus près possible de 0.2 Hz' },
+  TP3_GBF_VPP: { valeur: 4, unite: 'V', source: 'enonce', note: 'TP3 II.2 : variation d’amplitude la plus près possible de 4 V (entre −2 V et +2 V)' },
+  TP3_VOIE3_VDIV: { valeur: 5, unite: 'V/div', source: 'enonce', note: 'TP3 II.2 : calibre de la voie 3 (seulement) à 5 V' },
+  TP3_TR5_MAX: { valeur: 0.2, unite: 's', source: 'enonce', note: 'Cahier des charges de l’essuie-glace : TR5%b inférieur à 200 ms' },
+
+  /* ───────────── TP3 : hypothèses (aucune mesure réelle) ───────────── */
+  TP3_T_TOUR: { valeur: 0.5, unite: 's', source: 'hypothese', note: 'Durée d’un tour à +12 V en boucle ouverte, déduit de l’énoncé : 100 ms/div, environ 2 périodes à l’écran' },
+  TP3_SOUDURE_M12: { valeur: 6, unite: '°', source: 'hypothese', note: 'Largeur de la soudure d’alimentation −12 V (angle mort, partie 1)' },
+  TP3_ISOLANT: { valeur: 8, unite: '°', source: 'hypothese', note: 'Largeur de l’isolant à 0 V (angle mort, partie 2)' },
+  TP3_SOUDURE_P12: { valeur: 6, unite: '°', source: 'hypothese', note: 'Largeur de la soudure d’alimentation +12 V (angle mort, partie 3)' },
+  TP3_ANGLE_MORT: { valeur: 6 + 8 + 6, unite: '°', source: 'hypothese', note: 'Angle mort = soudure −12 V + isolant + soudure +12 V (calculé ; cohérence testée dans src/au3/tp3/tp3.test.ts)' },
+  TP3_GCAPT: { valeur: (2 * 12) / (360 - (6 + 8 + 6)), unite: 'V/°', source: 'hypothese', note: 'Gain du capteur 2·VALIM/(360° − angle mort), calculé, jamais saisi' },
+  TP3_UF: { valeur: 0.05, unite: 'V', source: 'hypothese', note: 'Frottement sec équivalent (zone morte), calé pour reproduire la conclusion de l’énoncé (K = 7 sans erreur statique, K petit gêné par les frottements)' },
+  TP3_KV: { valeur: 360 / (0.5 * (12 - 0.05)), unite: '°/s/V', source: 'hypothese', note: 'Gain en vitesse 360°/(T_TOUR·(12 V − UF)), calculé ; dynamique : TAU_A et TAU_B du TP1 (même famille de moteur, réducteur non modélisé)' },
+  TP3_R_EGALES: { valeur: 10e3, unite: 'Ω', source: 'hypothese', note: 'Résistances égales des supports Z1 et Z2 (l’énoncé dit seulement « valeurs égales ») : composant R3 de 10 kΩ, à côté de R1 = 10 kΩ' },
+  TP3_PAS_MESURE: { valeur: 1e-4, unite: 's', source: 'hypothese', note: 'Pas d’échantillonnage des courbes de référence du TP3 (réponses attendues), multiple du pas d’Euler' },
+  TP3_DT_IMAGE_MAX: { valeur: 0.05, unite: 's', source: 'hypothese', note: 'Mode temps réel : durée simulée au plus par image (onglet en arrière-plan : la simulation ne rattrape pas le temps perdu)' },
 
   /* ───────────── CR : valeurs apparentes mesurées (PRD §3.1, cibles de test) ───────────── */
   CR_TP1_DU: { valeur: 12.3, unite: 'V', source: 'CR', note: 'ΔU crête-à-crête de l’entrée' },
@@ -194,6 +219,7 @@ export interface RefListe {
 export const AU3_LISTES = {
   CALIBRES_V: { valeurs: [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10], unite: 'V/div', source: 'hypothese', note: 'Suite 1-2-5 du DSOX2004A (non donnée par la fiche p. 4)' },
   CALIBRES_S: { valeurs: [100e-6, 200e-6, 500e-6, 1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3, 200e-3, 500e-3, 1], unite: 's/div', source: 'hypothese', note: 'Suite 1-2-5 du DSOX2004A (non donnée par la fiche p. 4)' },
+  TP3_K_COMPARES: { valeurs: [1, 2, 4, 7], unite: '', source: 'enonce', note: 'TP3 II.2 Mesures Q7 : K = 1, K = 2, K = 4 ou K = 7' },
   MOYENNAGES: { valeurs: [1, 4, 8, 16], unite: 'acquisitions', source: 'hypothese', note: '4 et 8 : fiche oscilloscope p. 4 ; 1 (Normal) et 16 (PRD §2) : non donnés par l’énoncé' },
 } as const satisfies Record<string, RefListe>
 

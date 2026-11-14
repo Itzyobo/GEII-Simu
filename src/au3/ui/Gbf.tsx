@@ -72,6 +72,10 @@ export default function Gbf({ gbf, onChange, bornes }: { gbf: ReglagesGbf; onCha
         <Champ label="Fréquence" valeur={gbf.frequence} unite="Hz" pas={G.pasFreq} min={au3('GBF_FREQ_MIN')} max={au3('GBF_FREQ_MAX')} onChange={(frequence) => onChange({ frequence })} />
         <Champ label="Amplitude" valeur={gbf.vpp} unite="Vpp" pas={G.pasVpp} min={0} max={au3('GBF_VPP_MAX')} onChange={(vpp) => onChange({ vpp })} />
         <Champ label="Offset" valeur={gbf.offset} unite="V" pas={G.pasOffset} min={-au3('GBF_OFFSET_MAX')} max={au3('GBF_OFFSET_MAX')} onChange={(offset) => onChange({ offset })} />
+        <label className="flex items-center justify-between gap-2 text-xs">
+          <span className="text-au3-muted">Molette d’offset</span>
+          <input type="range" aria-label="Molette d’offset" data-molette-offset min={-au3('GBF_OFFSET_MAX')} max={au3('GBF_OFFSET_MAX')} step={G.pasOffset} value={gbf.offset} onChange={(e) => onChange({ offset: Number(e.target.value) })} className="w-36 accent-au3-accent" />
+        </label>
       </div>
       <div className="mt-2 flex items-end justify-between">
         <label className="flex items-center gap-1 text-[11px]">

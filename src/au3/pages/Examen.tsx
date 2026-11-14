@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { AU3, au3, type RefKey } from '../../data/reference'
 import BilanExamen from '../examen/BilanExamen'
-import { catalogueTp1, catalogueTp2, catalogueTp4, configTp4, contexteTp1, contexteTp2, contexteTp4 } from '../examen/catalogue'
+import { catalogueTp1, catalogueTp2, catalogueTp3, catalogueTp4, configTp4, contexteTp1, contexteTp2, contexteTp3, contexteTp4 } from '../examen/catalogue'
 import { dureeExamen, noter, tempsRestant, tirage, TPS_EXAMEN } from '../examen/notation'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import { ESPACE_EXAMEN, type SessionAu3, type TpExamen } from '../session'
@@ -11,6 +11,7 @@ import { useBalayage } from '../tp4/useBalayage'
 import { useBanc } from '../ui/useBanc'
 import { PageTp1 } from './Tp1'
 import { PageTp2 } from './Tp2'
+import { PageTp3 } from './Tp3'
 import { PageTp4 } from './Tp4'
 
 const CH = MISE_EN_PAGE.chrono
@@ -22,7 +23,7 @@ const nouvelleGraine = () => crypto.getRandomValues(new Uint32Array(1))[0]!
 
 /** Catalogue des réponses attendues du TP de l'examen (TP4 : balayage de la Q5 fourni par le Worker) */
 function catalogueExamen(s: SessionAu3, tp: TpExamen, balayage: Parameters<typeof contexteTp4>[1]) {
-  return tp === 'tp1' ? catalogueTp1(contexteTp1(s)) : tp === 'tp2' ? catalogueTp2(contexteTp2(s, null)) : catalogueTp4(contexteTp4(s, balayage))
+  return tp === 'tp1' ? catalogueTp1(contexteTp1(s)) : tp === 'tp2' ? catalogueTp2(contexteTp2(s, null)) : tp === 'tp3' ? catalogueTp3(contexteTp3()) : catalogueTp4(contexteTp4(s, balayage))
 }
 
 /**
@@ -137,7 +138,7 @@ export default function Examen() {
   )
 
   if (!ex.termine) {
-    const Page = ex.tp === 'tp1' ? PageTp1 : ex.tp === 'tp2' ? PageTp2 : PageTp4
+    const Page = { tp1: PageTp1, tp2: PageTp2, tp3: PageTp3, tp4: PageTp4 }[ex.tp]
     return <Page etat={etat} agir={agir} entete={entete} />
   }
 

@@ -54,7 +54,7 @@ export interface MesuresBf {
   penteRelative: number
 }
 
-export function mesurerBf(r: ResultatSim, iFront: number, iFin: number): MesuresBf {
+export function mesurerBf(r: Pick<ResultatSim, 't' | 'voie1' | 'voie2' | 'voie3'>, iFront: number, iFin: number): MesuresBf {
   const e = mesurerEchelon(r.t, r.voie1, r.voie2, iFront, iFin)
   const m0 = r.voie2[iFront]!
   const fin = m0 + e.dm

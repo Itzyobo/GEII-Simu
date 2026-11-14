@@ -127,7 +127,11 @@ export function chercherDeclenchement(s: Signaux, d: Declenchement, debut: numbe
 export function acquerir(osc: ReglagesOscillo, s: Signaux, plan: PlanAcquisition, decalage: number): Enregistrement | null {
   const trouve = chercherDeclenchement(s, osc.declenchement, plan.debutRecherche)
   if (trouve === null && osc.declenchement.mode === 'normal') return null
-  const tTrig = trouve ?? plan.debutRecherche + decalage * plan.periode
+  return acquerirA(osc, s, trouve ?? plan.debutRecherche + decalage * plan.periode, trouve !== null)
+}
+
+/** Fenêtre de 10 divisions autour de l'instant de déclenchement tTrig (1 division avant) : couplage, quantification */
+export function acquerirA(osc: ReglagesOscillo, s: Signaux, tTrig: number, declenche: boolean): Enregistrement {
   const avant = REF_GAUCHE * osc.sdiv
   const dt = (DIV_X * osc.sdiv) / POINTS
   const dtSim = s.t[1]! - s.t[0]!
@@ -139,8 +143,25 @@ export function acquerir(osc: ReglagesOscillo, s: Signaux, plan: PlanAcquisition
     for (let k = 0; k < POINTS; k++) r[k] = quantifier(interp(s, x, tTrig - avant + k * dt), v.vdiv, v.position)
     return r
   })
-  return { t0: -avant, dt, voies, calibres: osc.voies.map((v) => ({ vdiv: v.vdiv, position: v.position })), sdiv: osc.sdiv, declenche: trouve !== null }
+  return { t0: -avant, dt, voies, calibres: osc.voies.map((v) => ({ vdiv: v.vdiv, position: v.position })), sdiv: osc.sdiv, declenche }
 }
+
+/**
+ * Mode temps réel (TP3) : le banc tourne en continu et l'oscilloscope lit une fenêtre glissante. Mode Normal : nouvel
+ * affichage à chaque déclenchement complet (9 divisions après le front) ; Auto : la trace défile (dernière fenêtre) ;
+ * Force Trigger : affichage immédiat de la dernière fenêtre. Renvoie l'instant de déclenchement retenu, ou null.
+ */
+export function declenchementTempsReel(osc: ReglagesOscillo, s: Signaux, tFin: number, depuis: number, force: boolean): { tTrig: number; declenche: boolean } | null {
+  const apres = (DIV_X - REF_GAUCHE) * osc.sdiv
+  if (force || osc.declenchement.mode === 'auto') return { tTrig: tFin - apres, declenche: false }
+  const tr = chercherDeclenchement(s, osc.declenchement, Math.max(depuis, (s.t[0] ?? 0) + REF_GAUCHE * osc.sdiv))
+  return tr !== null && tr + apres <= tFin ? { tTrig: tr, declenche: true } : null
+}
+
+/** Pas d'échantillonnage d'une fenêtre (10 divisions sur OSC_POINTS points), multiple du pas d'Euler */
+export const pasFenetre = (sdiv: number, pasEuler: number) => Math.max(pasEuler, Math.floor((DIV_X * sdiv) / POINTS / pasEuler) * pasEuler)
+/** Durée conservée par le tampon du mode temps réel : deux fenêtres (le déclenchement attend 9 divisions) */
+export const dureeTampon = (sdiv: number) => 2 * DIV_X * sdiv
 
 /** Moyennage point à point de plusieurs acquisitions (mêmes réglages) */
 export function moyenner(recs: Enregistrement[]): Enregistrement | null {

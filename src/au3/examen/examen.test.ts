@@ -4,12 +4,13 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import { AU3_QUESTIONS } from '../../data/questions.au3'
 import { AU3_EPSILON, au3 } from '../../data/reference'
-import { reduire, type Action, type EtatBanc } from '../banc'
+import { reduire, sessionTp3, type Action, type EtatBanc } from '../banc'
 import { badgeAffiche, dependDHypothese } from '../hypothese'
 import { periodeGbf } from '../instruments/gbf'
 import { acquerir, moyenner, planAcquisition, type ReglagesOscillo } from '../instruments/oscillo'
 import { PageTp1 } from '../pages/Tp1'
 import { PageTp2 } from '../pages/Tp2'
+import { PageTp3 } from '../pages/Tp3'
 import { PageTp4 } from '../pages/Tp4'
 import { chargerSession, cleSession, ESPACE_EXAMEN, progressionNeuve, sauverSession, sessionNeuve, SESSION_VERSION, type SessionAu3, type TpExamen } from '../session'
 import { PRESET_TP1, PRESET_TP2, type Cablage } from '../sim/cablage'
@@ -23,7 +24,7 @@ import { attendusTp2, CABLAGE_TP2, essaiK38, essaiK40, type ReglagesEssai } from
 import { attendusTp4, essaiTp4, scenarioII, Z1_TP4, Z2_TP4 } from '../tp4/attendus'
 import { MS_PAR_SECONDE } from '../unites'
 import BilanExamen from './BilanExamen'
-import { catalogueTp1, catalogueTp2, catalogueTp4, contexteTp1, contexteTp2, contexteTp4, type Catalogue } from './catalogue'
+import { catalogueTp1, catalogueTp2, catalogueTp3, catalogueTp4, contexteTp1, contexteTp2, contexteTp3, contexteTp4, type Catalogue } from './catalogue'
 import { noter, tempsRestant, tirage } from './notation'
 
 const T0 = 1_700_000_000_000
@@ -32,7 +33,7 @@ const MS = MS_PAR_SECONDE
 const suite = (e: EtatBanc, t: number, ...actions: Action[]) => actions.reduce((x, a, i) => reduire(x, a, t + i * MS), e)
 const vide = (): EtatBanc => ({ session: sessionNeuve('examen'), montage: 'tp1', verdict: null, message: null })
 const examen = (tp: TpExamen, incident: 'aucun' | 'ampli-bloque' = 'aucun', duree = au3('DUREE_EXAMEN')) => suite(vide(), T0, { type: 'demarrer-examen', tp, graine: 42, incident, duree })
-const catalogue = (s: SessionAu3, tp: TpExamen): Catalogue => (tp === 'tp1' ? catalogueTp1(contexteTp1(s)) : tp === 'tp2' ? catalogueTp2(contexteTp2(s, null)) : catalogueTp4(contexteTp4(s, null)))
+const catalogue = (s: SessionAu3, tp: TpExamen): Catalogue => (tp === 'tp1' ? catalogueTp1(contexteTp1(s)) : tp === 'tp2' ? catalogueTp2(contexteTp2(s, null)) : tp === 'tp3' ? catalogueTp3(contexteTp3()) : catalogueTp4(contexteTp4(s, null)))
 const note = (e: EtatBanc) => noter(e.session, e.session.examen!.tp, catalogue(e.session, e.session.examen!.tp))
 const memoire = () => {
   const m = new Map<string, string>()
@@ -49,11 +50,12 @@ function repondreTout(s: SessionAu3, c: Catalogue, sauf: string[] = []): Session
   for (const o of Object.values(c.ouvertes)) if (o.attendu !== null && !sauf.includes(o.id)) reponses[o.id] = { valeur: `${o.attendu}\njustification`, essais: 1 }
   return { ...s, reponses }
 }
-const PAGES = { tp1: PageTp1, tp2: PageTp2, tp4: PageTp4 } as const
+const PAGES = { tp1: PageTp1, tp2: PageTp2, tp3: PageTp3, tp4: PageTp4 } as const
 /** Session d'entraînement aux réglages de l'énoncé du TP (GBF, G1, G2, composants) */
 function reglee(tp: TpExamen): SessionAu3 {
   const s = sessionNeuve('libre')
   if (tp === 'tp1') return s
+  if (tp === 'tp3') return sessionTp3('libre')
   if (tp === 'tp2') {
     const e = essaiK38()
     return { ...s, gbf: e.gbf, platine: { ...s.platine, g1: e.g1, g2: e.g2 } }
@@ -113,7 +115,7 @@ describe('3. pénalités', () => {
 
 describe('4. aucun indice avant la fin (DOM rendu)', () => {
   const INDICES = ['Attendu (modèle)', 'Réponse attendue', 'Conseil', 'data-verdict=', 'data-correction=', 'Écart de méthode', 'Vérification :', 'data-coherence', 'modèle 30,7', 'Pour comparaison, Matlab']
-  for (const tp of ['tp1', 'tp2', 'tp4'] as const) {
+  for (const tp of ['tp1', 'tp2', 'tp3', 'tp4'] as const) {
     it(`${tp} : toutes les questions répondues, aucune valeur attendue, correction ni conseil ; le badge reste visible`, () => {
       const e = examen(tp)
       const s = repondreTout(e.session, catalogue(e.session, tp))
@@ -160,7 +162,7 @@ describe('6. bilan par attendu', () => {
     const cablageAttendus = AU3_QUESTIONS.find((q) => q.id === 'tp2-cablage')!.attendus.length * b.cablage.points
     expect(b.parAttendu.reduce((a, x) => a + x.points, 0)).toBeCloseTo(lieesAttendus + cablageAttendus, 9)
     expect(b.questions.some((q) => q.question.attendus.length > 1)).toBe(true)
-    expect(b.parAttendu.filter((x) => !x.couvert).map((x) => x.attendu.tp)).toEqual(['tp3', 'tp3', 'tp3', 'tp3'])
+    expect(b.parAttendu.filter((x) => !x.couvert)).toEqual([])
   })
 })
 
@@ -173,7 +175,7 @@ describe('7. migration v3 → v4', () => {
     st.setItem(cleSession('libre', 'tp2'), JSON.stringify(v3))
     const s = chargerSession(st, 'libre', 'tp2')!
     expect(s.version).toBe(SESSION_VERSION)
-    expect(SESSION_VERSION).toBe(4)
+    expect(SESSION_VERSION).toBe(5)
     expect(s.reponses).toEqual(v3.reponses)
     expect(s.cablage).toEqual(v3.cablage)
     expect(s.tp2).toEqual(v3.tp2)
@@ -185,7 +187,7 @@ describe('8. graine', () => {
   it('même graine → même TP et même incident ; les trois TP et les deux issues sont tirés', () => {
     for (const g of [0, 1, 42, 123456789]) expect(tirage(g)).toEqual(tirage(g))
     const tirages = Array.from({ length: 300 }, (_, g) => tirage(g))
-    expect(new Set(tirages.map((t) => t.tp))).toEqual(new Set(['tp1', 'tp2', 'tp4']))
+    expect(new Set(tirages.map((t) => t.tp))).toEqual(new Set(['tp1', 'tp2', 'tp3', 'tp4']))
     const incidents = tirages.filter((t) => t.incident === 'ampli-bloque').length / tirages.length
     expect(incidents).toBeGreaterThan(0.2)
     expect(incidents).toBeLessThan(0.45)
@@ -332,20 +334,20 @@ const PAGES_SOURCES = import.meta.glob<string>(['/src/au3/pages/Tp*.tsx'], { que
 const HORS_MODELE = ['tp1-numeros', 'tp1-i21-q2', 'tp2-i11-q3', 'tp2-i21-q2']
 
 describe('10. audit final', () => {
-  const catalogues = { tp1: catalogue(sessionNeuve('libre'), 'tp1'), tp2: catalogue(sessionNeuve('libre'), 'tp2'), tp4: catalogue(sessionNeuve('libre'), 'tp4') }
+  const catalogues = { tp1: catalogue(sessionNeuve('libre'), 'tp1'), tp2: catalogue(sessionNeuve('libre'), 'tp2'), tp3: catalogue(sessionNeuve('libre'), 'tp3'), tp4: catalogue(sessionNeuve('libre'), 'tp4') }
   const idsCatalogue = (tp: TpExamen) => new Set([...Object.keys(catalogues[tp].champs), ...Object.keys(catalogues[tp].ouvertes)].map((id) => id.split('#')[0]!))
   it('(2) toute question dont la réponse dépend d’une hypothèse non validée par le CR a son badge', () => {
-    for (const tp of ['tp1', 'tp2', 'tp4'] as const)
+    for (const tp of ['tp1', 'tp2', 'tp3', 'tp4'] as const)
       for (const id of idsCatalogue(tp)) {
         const q = AU3_QUESTIONS.find((x) => x.id === id)!
         expect(dependDHypothese(q.cles) || HORS_MODELE.includes(id), `${id} : réponse calculée par le modèle sans clé d’hypothèse`).toBe(true)
         expect(badgeAffiche(q.cles, q.validee), id).toBe(dependDHypothese(q.cles) && q.validee.length === 0)
       }
-    for (const q of AU3_QUESTIONS.filter((x) => x.tp === 'tp4')) expect(badgeAffiche(q.cles, q.validee), q.id).toBe(true)
+    for (const q of AU3_QUESTIONS.filter((x) => x.tp === 'tp3' || x.tp === 'tp4')) expect(badgeAffiche(q.cles, q.validee), q.id).toBe(true)
   })
   it('(3) aucune réponse attendue en dur : chaque question notable est au catalogue, et les pages ne lisent que lui', () => {
-    const sansReponse = new Set(['tp1-reglages', 'tp1-cablage', 'tp1-sous-tension', 'tp2-reglages', 'tp2-cablage', 'tp2-sous-tension', 'tp2-i11-q5', 'tp2-i2-reglages', 'tp4-cablage', 'tp4-reglages', 'tp4-sous-tension'])
-    for (const q of AU3_QUESTIONS.filter((x) => x.tp !== 'tp3' && x.statut === 'disponible' && !x.optionnelle && !sansReponse.has(x.id)))
+    const sansReponse = new Set(['tp1-reglages', 'tp1-cablage', 'tp1-sous-tension', 'tp2-reglages', 'tp2-cablage', 'tp2-sous-tension', 'tp2-i11-q5', 'tp2-i2-reglages', 'tp4-cablage', 'tp4-reglages', 'tp4-sous-tension', 'tp3-i-reglages', 'tp3-i-cablage', 'tp3-i-sous-tension', 'tp3-i-valider', 'tp3-ii1-reglages', 'tp3-ii1-cablage', 'tp3-ii1-valider', 'tp3-ii2-reglages', 'tp3-ii2-cablage', 'tp3-ii2-valider'])
+    for (const q of AU3_QUESTIONS.filter((x) => x.statut === 'disponible' && !x.optionnelle && !sansReponse.has(x.id)))
       expect(idsCatalogue(q.tp as TpExamen).has(q.id), `${q.id} absente du catalogue`).toBe(true)
     for (const [f, src] of Object.entries(PAGES_SOURCES)) {
       expect(src, f).not.toMatch(/<ChampNum[^>]*\sattendu=/)

@@ -11,7 +11,7 @@ const ETAT: Record<EtatCouverture, { label: string; cls: string }> = {
 const TPS: { tp: TpAu3; titre: string; to: string | null; note: string }[] = [
   { tp: 'tp1', titre: 'MCC + dynamo tachymétrique en boucle ouverte', to: '/au3/tp1', note: 'Identification ordre 1 et ordre 2' },
   { tp: 'tp2', titre: 'Boucle fermée, régulateur proportionnel', to: '/au3/tp2', note: 'K = 3,8 puis K = 40' },
-  { tp: 'tp3', titre: 'Asservissement de position (antenne, essuie-glace)', to: null, note: 'Coupé : autre capteur, aucune mesure' },
+  { tp: 'tp3', titre: 'Asservissement de position (antenne, essuie-glace)', to: '/au3/tp3', note: 'Potentiomètre à angle mort, valeurs non vérifiées' },
   { tp: 'tp4', titre: 'Boucle fermée, régulateur PI série', to: '/au3/tp4', note: 'Valeurs non vérifiées' },
 ]
 
@@ -35,7 +35,7 @@ export default function Accueil() {
           </h2>
           <Link to="/au3/examen" className="rounded-lg bg-au3-panel p-4 ring-1 ring-au3-accent/60 hover:ring-au3-accent" data-lien-examen>
             <p className="font-semibold text-au3-accent">Mode examen</p>
-            <p className="text-xs text-au3-muted">TP1, TP2 ou TP4 (ou tirage au sort), chrono, aucun indice, barème du câblage et pénalités, bilan par attendu</p>
+            <p className="text-xs text-au3-muted">TP1, TP2, TP3 ou TP4 (ou tirage au sort), chrono, aucun indice, barème du câblage et pénalités, bilan par attendu</p>
           </Link>
           <Link to="/au3/libre" className="rounded-lg bg-au3-panel p-4 ring-1 ring-au3-accent/60 hover:ring-au3-accent">
             <p className="font-semibold text-au3-accent">Banc libre</p>
@@ -48,7 +48,7 @@ export default function Accueil() {
                 <p className="font-semibold">{t.titre}</p>
                 <p className="text-xs text-au3-muted">
                   {t.note} · disponible
-                  {t.tp === 'tp4' && <BadgeNonVerifie cles={['TAU_A']} />}
+                  {(t.tp === 'tp3' || t.tp === 'tp4') && <BadgeNonVerifie cles={['TAU_A']} />}
                 </p>
               </Link>
             ) : (
@@ -89,7 +89,7 @@ export default function Accueil() {
                                   </Link>
                                 ) : q.statut === 'non-couverte' ? (
                                   <span className="text-au3-err" data-non-couverte={q.id}>
-                                    {q.numero} (non couverte)
+                                    {q.numero} ({q.optionnelle ? 'optionnelle, ' : ''}non couverte)
                                   </span>
                                 ) : (
                                   q.numero

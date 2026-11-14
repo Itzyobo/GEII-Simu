@@ -75,15 +75,15 @@ describe('13. attendus officiels et intitulés', () => {
     for (const a of AU3_ATTENDUS) expect(ENONCE, a.texte).toContain(normaliser(a.texte))
   })
 
-  it('TP3 « non couvert », TP1, TP2 et TP4 couverts', () => {
-    for (const a of AU3_ATTENDUS) expect(couverture(a).etat, a.id).toBe(a.tp === 'tp3' ? 'non-couvert' : 'couvert')
+  it('les 17 attendus sont couverts (TP3 compris : seul le cas triangulaire, optionnel, reste non couvert)', () => {
+    for (const a of AU3_ATTENDUS) expect(couverture(a).etat, a.id).toBe('couvert')
   })
 
   it('chaque question a une ancre dans l’énoncé et reprend son intitulé exact', () => {
     for (const q of AU3_QUESTIONS) {
       expect(enonce, q.id).toContain(`<a id="${q.id}"></a>`)
       expect(ENONCE, q.id).toContain(normaliser(q.intitule))
-      expect(q.statut).toBe(q.id === 'tp4-ii2' ? 'non-couverte' : 'disponible')
+      expect(q.statut).toBe(q.id === 'tp4-ii2' || q.id === 'tp3-triangle' ? 'non-couverte' : 'disponible')
       for (const id of q.attendus) expect(AU3_ATTENDUS.map((a) => a.id)).toContain(id)
     }
     expect(new Set(AU3_QUESTIONS.map((q) => q.id)).size).toBe(AU3_QUESTIONS.length)

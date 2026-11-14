@@ -14,7 +14,7 @@ import type { ReglagesPlatine } from './sim/simulate'
 
 export type ModeSession = 'libre' | 'examen'
 /** Page qui porte la session : banc libre ou TP (chacune garde son câblage et ses réponses) */
-export type EspaceSession = 'banc' | 'tp1' | 'tp2' | 'tp4'
+export type EspaceSession = 'banc' | 'tp1' | 'tp2' | 'tp3' | 'tp4'
 /** Clé de la session d'examen (une seule à la fois) */
 export const ESPACE_EXAMEN: EspaceSession = 'banc'
 export const cleSession = (mode: ModeSession, espace: EspaceSession = 'banc') => (espace === 'banc' ? `au3.session.${mode}` : `au3.session.${mode}.${espace}`)
@@ -59,7 +59,14 @@ export type ProgressionEssai = ProgressionTp1
 
 export const progressionNeuve = (): ProgressionTp1 => ({ croixT3T1: null, croixWnT: null, methodeWn: 't3', csv: null, ordre1: null, ordre2: null })
 
-export type TpExamen = 'tp1' | 'tp2' | 'tp4'
+export type TpExamen = 'tp1' | 'tp2' | 'tp3' | 'tp4'
+
+/** TP3 : étapes « Faire valider … par l'enseignant » (angle mort, conclusions du II.1, courbes du II.2) */
+export type EtapeTp3 = 'angle-mort' | 'conclusions' | 'courbes'
+/** Progression du TP3 : horodatage de chaque validation demandée */
+export interface ProgressionTp3 {
+  validations: Partial<Record<EtapeTp3, number>>
+}
 export type IncidentExamen = 'aucun' | 'ampli-bloque'
 
 /** Examen : TP, graine du tirage, incident, horodatage absolu de début (le temps page fermée compte), fin */
@@ -101,6 +108,7 @@ export interface SessionAu3 {
   curseurs: Curseurs
   tp1: ProgressionTp1
   tp2: { k38: ProgressionEssai; k40: ProgressionEssai }
+  tp3: ProgressionTp3
   /** Examen en cours ou terminé (mode « examen ») ; null en entraînement */
   examen: SessionExamen | null
 }
@@ -131,6 +139,7 @@ export function sessionNeuve(mode: ModeSession): SessionAu3 {
     curseurs: { ...D.curseurs, source: 1, suivre: false },
     tp1: progressionNeuve(),
     tp2: { k38: progressionNeuve(), k40: progressionNeuve() },
+    tp3: { validations: {} },
     essaiReussi: null,
     examen: null,
   }
@@ -139,11 +148,12 @@ export function sessionNeuve(mode: ModeSession): SessionAu3 {
 type SessionBrute = Record<string, unknown> & { version?: unknown; mode?: unknown; platine?: Record<string, unknown> }
 
 /** Migrations explicites, une par version : v1 → v2 (ampli de courant, progression TP1), v2 → v3 (vérification réussie, TP2),
- * v3 → v4 (barème du câblage, examen) */
+ * v3 → v4 (barème du câblage, examen), v4 → v5 (TP3 : validations ; tout le reste est conservé tel quel) */
 const MIGRATIONS: readonly ((s: SessionBrute) => SessionBrute)[] = [
   (s) => ({ ...s, version: Number(s.version) + 1, platine: { ...s.platine, ampli: 'normal' }, tp1: progressionNeuve() }),
   (s) => ({ ...s, version: Number(s.version) + 1, verifieReussiSur: null, tp2: { k38: progressionNeuve(), k40: progressionNeuve() } }),
   (s) => ({ ...s, version: Number(s.version) + 1, essaiReussi: null, examen: null }),
+  (s) => ({ ...s, version: Number(s.version) + 1, tp3: { validations: {} } }),
 ]
 
 /** Version courante du schéma = nombre de migrations + 1 (ajouter une migration fait monter la version) */

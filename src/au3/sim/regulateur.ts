@@ -7,7 +7,8 @@ import { au3, AU3_EPSILON } from '../../data/reference'
  * Cas de l'énoncé (TP4) : R1 sur Z1, R2 + C2 en série sur Z2 → R(p) = K(1 + Ti·p)/(Ti·p), K = (R2/R1)·G1·G2, Ti = R2·C2.
  * Les deux supports vides = les résistances égales de la platine : R(p) = G1·G2 (régulateur P du TP2).
  */
-export type ComposantId = 'R1' | 'R2' | 'C2'
+/** R3 : seconde résistance de 10 kΩ (TP3, « 2 résistances … de valeurs égales », hypothèse TP3_R_EGALES) */
+export type ComposantId = 'R1' | 'R2' | 'C2' | 'R3'
 export interface Impedance {
   composants: readonly ComposantId[]
   montage: 'serie' | 'parallele'
@@ -37,7 +38,13 @@ const degre = (a: Poly) => {
 }
 
 /** Impédance d'un composant seul : R → R ; C → 1/(Cp) */
-const zComposant = (c: ComposantId): Transfert => (c === 'C2' ? { num: [1], den: [0, au3('C2')] } : { num: [au3(c)], den: [1] })
+const zComposant = (c: ComposantId): Transfert => (c === 'C2' ? { num: [1], den: [0, au3('C2')] } : { num: [au3(c === 'R3' ? 'TP3_R_EGALES' : c)], den: [1] })
+
+/** Gain Z2/Z1 si les deux supports portent des impédances purement résistives (TP3), null sinon ; supports vides = 1 */
+export function rapportResistif(z1: Impedance | null, z2: Impedance | null): number | null {
+  const h = regulateur(z1, z2, au3('K_P_DIVISEUR'), 1)
+  return h && degre(h.num) === 0 && degre(h.den) === 0 ? h.num[0]! / h.den[0]! : null
+}
 
 /** Impédance d'un support ; null si vide */
 export function impedance(z: Impedance | null): Transfert | null {

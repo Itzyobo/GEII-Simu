@@ -960,6 +960,7 @@ stabiliser sans erreur statique.
 mesure (en Volt) de la position angulaire doit se stabiliser à la valeur de la consigne donnée en
 Volts, sans erreur statique en régime permanent, et le temps de réponse à 5%, TR5%b, doit être
 inférieur à 200 ms.
+<a id="tp3-triangle"></a>
 - Si vous avez le temps : Dans le cas où la consigne est périodique de forme triangulaire, la mesure
 (en Volt) de la position angulaire doit suivre la valeur de la consigne, avec une erreur de trainage
 (en régime permanent) de maximum 0,15V pour f=0,7 Hz.
@@ -1002,6 +1003,7 @@ L’angle mort est composé de 3 parties :
 2. La largeur de l’isolant à 0V
 3. La largeur de la soudure pour alimenter avec +12 V
 
+<a id="tp3-i-reglages"></a>
 **Réglages à effectuer sur l’oscilloscope (platine éteinte) :**
 
 1. Réglez le calibre de la voie 2 (verte) à 5V
@@ -1010,6 +1012,7 @@ L’angle mort est composé de 3 parties :
 
 2. Régler le calibre horizontal (temps) à 100ms
 
+<a id="tp3-i-cablage"></a>
 **Câblages à réaliser (platine éteinte) :**
 
 1. Reliez la sortie +12V de la platine « Régulateur Analogique » (en bas à gauche) à l’entrée de
@@ -1029,6 +1032,7 @@ voie 2 (verte) de l’oscilloscope.
 
 Il n’est pas nécessaire de moyenner les signaux dans ce paragraphe I.
 
+<a id="tp3-i-sous-tension"></a>
 Vérifiez que les segments de droites ont une pente positive. Cela signifie que le gain du moteur
 est positif. Si ce n’est pas le cas, inversez les connexions du potentiomètre rotatif à -12 V et +12 V.
 
@@ -1041,20 +1045,25 @@ Prendre en photo le cablage complet pour l’inclure dans votre compte-rendu.
 
 **Observations, mesures et calculs pour trouver les caractéristiques du capteur :**
 
+<a id="tp3-i-q1"></a>
 1. Est-ce que le signal de mesure de la position angulaire est bien proportionnel à la position angulaire
 (linéaire) la majorité du temps (segment de droite incliné) ?
 
+<a id="tp3-i-q2"></a>
 2. Constate-t-on une certaine périodicité de ce signal ? Si oui, comment l’expliquez vous ?
 
+<a id="tp3-i-q3"></a>
 3. Décrivez la courbe et expliquez ce que représentent physiquement les 3 parties qui composent cet
 angle mort qui correspond à toute la partie de la courbe qui n’est pas linéaire (pas une droite).
 Relisez les explications page précédente si nécessaire.
 
+<a id="tp3-i-q4"></a>
 4. Sur l’oscilloscope, changez le calibre des temps à 100ms et déplacez la courbe pour visualiser une
 période. Déterminez la période temporelle de ce signal de mesure de position angulaire en utilisant
 les Data Cursors de l’oscilloscope. Copiez cette courbe dans votre compte-rendu de TP, à l’aide
 d’une clé USB. A quelle période angulaire est ce que cela correspond (en degrés) ?
 
+<a id="tp3-i-q5"></a>
 5. Ensuite, mesurez l'angle mort du potentiomètre, en degrés (ne zoomez pas trop pour bien voir
 les cassures du signal) après avoir effectué la mesure adéquate.
 
@@ -1064,8 +1073,10 @@ dessous.
 
 <!-- p. 24 -->
 
+<a id="tp3-i-valider"></a>
 **Faire valider la mesure de l’angle mort par l’enseignant avant de continuer.**
 
+<a id="tp3-i-q6"></a>
 6. Est-ce que ce système en boucle ouverte est de même nature, avec le même type de comportement,
 que les systèmes des TP1 et TP2 (stabilisation de la mesure après un certain temps) ?
 
@@ -1082,6 +1093,7 @@ Figure 3 : Schéma fonctionnel de l’asservissement de position angulaire
 Pour effectuer le câblage correspondant à ce schéma fonctionnel, nous allons modifier et compléter le
 câblage déjà fait à la question précédente, de manière suivante :
 
+<a id="tp3-ii1-reglages"></a>
 **Réglages à changer (platine éteinte) :**
 
 1. Relachez tous les boutons de choix de forme du signal du GBF pour obtenir une tension de consigne
@@ -1091,6 +1103,7 @@ d’offset du GBF.
 K = 7.
 3. Réglez les voies 1 (jaune) et 2 (verte) de l’oscilloscope sur le calibre 5V en ajustant les 0.
 
+<a id="tp3-ii1-cablage"></a>
 **Câblages à changer/réaliser (en boucle fermée cette fois) (platine éteinte) :**
 
 1. Enlevez le cable entre l’entrée de l’ampli de courant et la borne +12V de la platine régulateur
@@ -1118,25 +1131,34 @@ obtenues et seulement si les mesures sont trop bruitées.
 
 **Observation du fonctionnement (sans mesures) – 10 mn maximum :**
 
+<a id="tp3-ii1-q1"></a>
 1. Que se passe-t-il à la mise sous tension de la platine « Régulateur » ?
+<a id="tp3-ii1-q2"></a>
 2. Que se passe-t-il ensuite si l’on ne change pas la tension de consigne (orientation désirée de
 l’antenne) avec le bouton d’offset du GBF ? Expliquez pourquoi.
+<a id="tp3-ii1-q3"></a>
 3. Que se passe-t-il si l’on change la tension de consigne (orientation désirée de l’antenne) avec le
 bouton d’offset du GBF (regarder d’abord le disque et pas les courbes sur l’oscilloscope) ? Si
 nécessaire, appuyer sur « Force Trigger » pour mettre à jour la courbe.
+<a id="tp3-ii1-q4"></a>
 4. Comment est le régime transitoire (réaction rapide, « molle», …) ?
+<a id="tp3-ii1-q5"></a>
 5. Comment est le régime permanent (position angulaire mesurée et consigne superposées, …) ?
+<a id="tp3-ii1-q6"></a>
 6. Est-ce qu’il se passe la même chose pour toutes les valeurs de la consigne (Proche de -12V ou +12V,
 loin de ces 2 limites) ? Expliquez pourquoi.
 
+<a id="tp3-ii1-q7"></a>
 7. Baissez la valeur du gain K jusqu’à K=1 et observez la réaction du disque quand vous changez la
 tension de consigne (en régime transitoire et permanent).
 
+<a id="tp3-ii1-q8"></a>
 8. Si un système de téléopération (opération chirurgicale à distance) était commandé de cette manière,
 vaut-il mieux régler K=1 ou K=7 pour que la trajectoire réelle de l’outil soit la plus prêt possible de
 celle de la consigne avec un chirurgien formé à ne pas faire d’actions trop brutales sur le
 potentiomètre de consigne ?
 
+<a id="tp3-ii1-valider"></a>
 **Faire valider vos conclusions par l’enseignant.**
 
 Dans la suite, on s’intéresse au même système bouclé de régulation de position mais on change
@@ -1146,6 +1168,7 @@ répétitif, comme celui du balai d’essui-glace central arrière d’une voitu
 
 ### II.2. Commande automatique de la position d’un essui-glace central arrière de voiture dont le moteur est en boucle fermée avec un régulateur proportionnel : signal de consigne périodique carré
 
+<a id="tp3-ii2-reglages"></a>
 **Réglages à changer (platine éteinte) :**
 
 1. Remettre la valeur du gain K à 7
@@ -1153,6 +1176,7 @@ répétitif, comme celui du balai d’essui-glace central arrière d’une voitu
 3. Sur le GBF, choisissez un signal de consigne périodique carré de fréquence la plus près possible de
 0.2 Hz et avec une variation d’amplitude la plus près possible de 4V (entre -2V et +2V).
 
+<a id="tp3-ii2-cablage"></a>
 **Câblages à changer/compléter (en boucle fermée) (platine éteinte) :**
 
 Le schéma fonctionnel est le même qu’à la question précédente II.1.. On veut juste vérifier en plus si
@@ -1169,6 +1193,7 @@ Mettez sous tension la platine « régulateur analogique » et ajustez les régl
 observer un échelon positif qui occupe la majeure partie de l’écran. Mettez l’oscilloscope en mode
 « STOP » puis éteindre la platine « régulateur analogique» pour ne pas solliciter inutilement le moteur.
 
+<a id="tp3-ii2-valider"></a>
 **Faire valider les courbes par l’enseignant avant de répondre aux questions suivantes**
 
 **Observations du comportement à l’aide des courbes sur l’oscilloscope (sans mesures) :**
@@ -1177,22 +1202,27 @@ Remarque : s’il s’agissait d’un essui-glace réel, la fréquence serait pl
 mouvement, c’est-à-dire toujours en régime transitoire. Ici, on s’intéresse aussi au régime permanent donc
 il s’arrête un court temps à chaque position extrème.
 
+<a id="tp3-ii2-o-q1"></a>
 1. Est-ce que ce système en boucle fermée est maintenant de même nature, avec le même type de
 comportement (avec stabilisation de la position après un certain temps lors de la réponse à un
 échelon), que les systèmes des TP1 et TP2 (avec stabilisation de la vitesse après un certain temps
 lors de la réponse à un échelon) ?
 
+<a id="tp3-ii2-o-q2"></a>
 2. Zoomez sur le démarrage du déplacement du balai d’essui-glace (réponse à un échelon avec une
 consigne de position carrée positive) et observez la tangente à l’origine. Que peut-on en conclure
 sur l’ordre de ce système en boucle fermée ?
 
+<a id="tp3-ii2-o-q3"></a>
 3. Est-ce que le déplacement du balai d’essui-glace respecte le cahier des charges du client (en terme
 de précision) ?
 
+<a id="tp3-ii2-o-q4"></a>
 4. Vous pouvez relier le signal d’erreur, E, sur la voie 4 (rose) de l’oscilloscope et réglez son calibre
 au même calibre que C et M pour mieux comprendre. Positionnez le correctement par rapport à C
 et M. L’erreur statique correspondant à la variation de position est elle nulle ?
 
+<a id="tp3-ii2-o-q5"></a>
 5. Est-ce que le signal de commande en sortie du régulateur, U (le bleu) est linéaire (pas de saturation
 à ±10,6 V (12V moins « somme des tensions de seuil de 2 diodes ») ? U est la tension d’alimentation
 du moteur de l’essui-glace. Vous pouvez comparer sa forme avec celle du signal d’erreur, E (rose),
@@ -1205,17 +1235,24 @@ sont bien placés, sauvegardez l’écran de l’oscilloscope au format .png sur
 => choix format => Appuyer sur « Enregistrer ») puis copiez la figure dans votre fichier de compte-
 rendu puis donner le résultat en dessous.
 
+<a id="tp3-ii2-m-q1"></a>
 1. Mesurez avec les curseurs la valeur finale de la variation de la mesure, m(∞).
+<a id="tp3-ii2-m-q2"></a>
 2. D’après l’observation des courbes m(t) et c(t) en régime statique, donnez le gain statique de la
 boucle fermée, G0b (sans mesures).
+<a id="tp3-ii2-m-q3"></a>
 3. Mesurez le 1ier dépassement, D1 (S’il n’y a pas de dépassement, vous pouvez régler K à 9 au lieu
 de 7 (le dire dans votre compte-rendu))
+<a id="tp3-ii2-m-q4"></a>
 4. Calculez D1/m(∞) en %
+<a id="tp3-ii2-m-q5"></a>
 5. Mesurez avec les curseurs le temps de réponse à 5% de ce système bouclé, TR5%b.
 
+<a id="tp3-ii2-m-q6"></a>
 6. Si le fil de sortie du potentiomêtre de mesure s’use et casse, que se passe-t-il ? Testez le en
 débranchant le fil. Expliquez le comportement observé.
 
+<a id="tp3-ii2-m-q7"></a>
 7. Pour comparer les comportements avec différents réglages, réglez le gain du régulateur
 proportionnel à K=4, K=2 et K=1 puis comparer le fonctionnement du balai d’essai-glace central
 commandé en boucle fermée avec ces 3 réglages (en observant et sans nouvelles mesures). Vaut-

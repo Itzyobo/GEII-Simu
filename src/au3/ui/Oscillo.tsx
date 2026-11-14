@@ -3,6 +3,8 @@ import { au3, AU3_LISTES } from '../../data/reference'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import {
   acquerir,
+  acquerirA,
+  declenchementTempsReel,
   exporterCsv,
   HAUTEUR_PX,
   LARGEUR_PX,
@@ -23,6 +25,7 @@ import {
 } from '../instruments/oscillo'
 import { mulberry32 } from '../sim/prng'
 import type { Borne as IdBorne } from '../sim/cablage'
+import type { TempsReel } from '../tp3/tempsReel'
 import { Borne } from './Borne'
 import { formatSi } from './format'
 import type { PropsBornes } from './types'
@@ -45,6 +48,8 @@ export interface PropsOscillo {
   bornes: PropsBornes
   /** Appelé à chaque nouvel enregistrement affiché (export .csv du TP) */
   onEnregistrement?: (rec: Enregistrement | null) => void
+  /** TP3 : banc en temps réel (fenêtre glissante) au lieu d'acquisitions simulées depuis t = 0 */
+  tempsReel?: TempsReel
 }
 
 
@@ -52,17 +57,20 @@ const fmtV = (v: number) => formatSi(v, 'V')
 const fmtS = (v: number) => formatSi(v, 's')
 
 /** Oscilloscope Keysight DSOX2004A : écran 10 × 8 divisions, 4 voies, déclenchement, moyennage, curseurs, mesures, Run/Stop, .csv */
-export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale, simuler, periode, pasEuler, bornes, onEnregistrement }: PropsOscillo) {
+export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale, simuler, periode, pasEuler, bornes, onEnregistrement, tempsReel }: PropsOscillo) {
   const [rec, setRec] = useState<Enregistrement | null>(null)
   const [actif, setActif] = useState<CurseurId>('x1')
   const [voieMesure, setVoieMesure] = useState(1)
   const tampon = useRef<Enregistrement[]>([])
   const graine = useRef<number>(MISE_EN_PAGE.ui.graineInitiale)
+  /** Force Trigger demandé : consommé à la prochaine acquisition */
+  const forcer = useRef(false)
+  const [force, setForce] = useState(0)
 
   // Acquisition en Run : une nouvelle acquisition par rafraîchissement ; moyennage glissant sur les N dernières
   useEffect(() => {
     tampon.current = []
-    if (!osc.run) return
+    if (!osc.run || tempsReel) return
     const une = () => {
       const debut = performance.now()
       const g = graine.current++
@@ -76,7 +84,33 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
     une()
     const id = setInterval(une, O.rafraichissementMs)
     return () => clearInterval(id)
-  }, [osc, simuler, periode, pasEuler])
+  }, [osc, simuler, periode, pasEuler, tempsReel])
+
+  // Temps réel (TP3) : à chaque image, nouvel affichage si déclenchement complet (Normal), défilement (Auto) ou Force Trigger
+  useEffect(() => {
+    tampon.current = []
+    if (!tempsReel) return
+    tempsReel.configurer(osc.sdiv)
+    let depuis = -Infinity
+    return tempsReel.abonner((s, tFin) => {
+      if (!osc.run) return
+      const d = declenchementTempsReel(osc, s, tFin, depuis, forcer.current)
+      forcer.current = false
+      if (!d) return
+      if (d.declenche) depuis = d.tTrig + (s.t[1]! - s.t[0]!)
+      tampon.current = [...tampon.current, acquerirA(osc, s, d.tTrig, d.declenche)].slice(-osc.moyennage)
+      setRec(moyenner(tampon.current))
+    })
+  }, [osc, tempsReel])
+
+  // Force Trigger hors temps réel : une acquisition immédiate, déclenchée ou non
+  useEffect(() => {
+    if (!force || tempsReel || !osc.run) return
+    const g = graine.current++
+    const plan = planAcquisition(osc, periode, pasEuler)
+    const r = acquerir({ ...osc, declenchement: { ...osc.declenchement, mode: 'auto' } }, simuler(g, plan), plan, mulberry32(g)())
+    if (r) setRec(r)
+  }, [force]) // eslint-disable-line react-hooks/exhaustive-deps -- une acquisition par appui
 
   useEffect(() => onEnregistrement?.(rec), [rec, onEnregistrement])
 
@@ -199,9 +233,12 @@ export default function Oscillo({ osc, curseurs, onOsc, onCurseurs, onAutoscale,
 
         {/* Colonne de droite : Acquisition, Voies, Déclenchement, Curseurs, Mesures */}
         <div data-exclusion="commandes-oscilloscope" className="relative z-10 w-56 space-y-1.5 rounded bg-[#3b3f46] text-[11px] text-[#e3e6ea]">
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             <button type="button" onClick={() => onOsc({ run: !osc.run })} className={`flex-1 rounded px-2 py-1 font-semibold ${osc.run ? 'bg-[#2e7d32]' : 'bg-[#c62828]'}`}>
               {osc.run ? 'Run → Stop' : 'Stop → Run'}
+            </button>
+            <button type="button" onClick={() => ((forcer.current = true), setForce((n) => n + 1))} className="rounded bg-[#555] px-2 py-1" title="Force Trigger : affiche la trace sans attendre le déclenchement" data-force-trigger>
+              Force Trigger
             </button>
             <button type="button" onClick={onAutoscale} className="rounded bg-[#555] px-2 py-1" title="NE JAMAIS APPUYER SUR AUTOSCALE">
               Autoscale

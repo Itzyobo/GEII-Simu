@@ -40,6 +40,7 @@ const AU3_PAGES = {
   examen: lazy(() => import('./au3/pages/Examen')),
   tp2: lazy(() => import('./au3/pages/Tp2')),
   tp1: lazy(() => import('./au3/pages/Tp1')),
+  tp3: lazy(() => import('./au3/pages/Tp3')),
 }
 const Sommaire = lazy(() => import('./cours/CoursPages').then((m) => ({ default: m.Sommaire })))
 const ChapitrePage = lazy(() => import('./cours/CoursPages').then((m) => ({ default: m.ChapitrePage })))
@@ -90,6 +91,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/au3/libre" element={<AU3_PAGES.libre />} />
           <Route path="/au3/tp1" element={<AU3_PAGES.tp1 />} />
           <Route path="/au3/tp2" element={<AU3_PAGES.tp2 />} />
+          <Route path="/au3/tp3" element={<AU3_PAGES.tp3 />} />
           <Route path="/au3/tp4" element={<AU3_PAGES.tp4 />} />
           <Route path="/au3/examen" element={<AU3_PAGES.examen />} />
           <Route path="*" element={<Dashboard />} />

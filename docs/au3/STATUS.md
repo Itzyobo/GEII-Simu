@@ -97,3 +97,51 @@
 4. Durée de l'examen au choix : 75 min (`DUREE_EXAMEN`, énoncé) ou 45 min (`DUREE_EXAMEN_MANIP`, hypothèse), enregistrée dans la session v4.
 
 Vérifications : build, `tsc -b`, `npm test` 737/737 (aucun `it.fails`), `npm run test:perf` 6/6, oxlint 0 warning AU3, `check:375` 41 routes, `check:size` OK ; parcours Playwright (examen TP4 45 min, TP4 à G1 = 0,60) sans message console ; plus longue image pendant la correction de la Q5 : 16,8 ms. Capture 14.
+
+## Extension TP3 — asservissement de position (terminée)
+
+Demandée par l'utilisateur après le PRD, qui excluait le TP3 (PRD non modifié). Aucune mesure réelle : toutes les valeurs propres au TP3 sont des hypothèses `TP3_*` et toutes les questions du TP3 portent le badge.
+
+**Fait**
+- Hypothèses (`reference.au3.ts`) : `TP3_T_TOUR` = 0,5 s, soudures 6° + isolant 8° + 6° (`TP3_ANGLE_MORT` = 20°), `TP3_VALIM_POT` = 12 V (énoncé), `TP3_GCAPT` et `TP3_KV` calculés (cohérence testée), `TP3_UF` = 0,05 V, `TP3_R_EGALES` = 10 kΩ (composant R3), τa / τb du TP1. `GBF_OFFSET_MAX` passé à ±12 V (offset et excursion de MAIN OUT), note mise à jour. Réglages de l'énoncé : `TP3_G1` = 70, `TP3_G2` = 10, `TP3_G1_K9`, `TP3_GBF_FREQ`, `TP3_GBF_VPP`, calibres, `TP3_TR5_MAX` ; `AU3_LISTES.TP3_K_COMPARES` = {1, 2, 4, 7}.
+- Modèle `src/au3/sim/position.ts` : zone morte, moteur en position (θ non borné), potentiomètre à angle mort (pente selon l'alimentation), régulateur à impédances, `PAS_EULER`. État prolongé par tranches : `step(etat, entrees, dt)` et `preparer(...).avancer(...)`.
+- Temps réel `src/au3/tp3/tempsReel.ts` : tout le banc du TP3 tourne en continu, tampon glissant lu par l'oscilloscope (Normal : affichage à chaque déclenchement ; Auto : défilement) ; bouton « Force Trigger » ajouté à l'oscilloscope (tous les TP). Disque et vue de face du potentiomètre (angle mort coloré) à l'angle θ simulé (`MoteurPosition.tsx`). Molette d'offset sur le GBF.
+- Câblage : bornes `pot.rouge`, `pot.bleue`, `pot.verte` ; montages `tp3` (I, 5 liaisons, la 4 en deux câbles), `tp3-ii1`, `tp3-ii2` ; « Faire vérifier » refuse le +12 V laissé sur l'entrée de l'ampli et contrôle les résistances égales (piège R1 / R2 → K = 18,9).
+- Page `/au3/tp3` : bandeau « Aucune mesure réelle : valeurs calées sur les indications de l'énoncé », parties I / II.1 / II.2 (montage attendu), questions dans l'ordre de l'énoncé (ancres ajoutées à `enonce.md`, texte inchangé), blocs « Faire valider » (correction en entraînement, étape horodatée en examen), note de correction du piège « proportionnelle à la vitesse », cas triangulaire « optionnel, non couvert ». Réponses attendues calculées dans un Worker (`useContexte.ts`), catalogue unique `catalogueTp3`.
+- Accueil : TP3 lié, attendus TP3 couverts. Examen : TP3 au choix et au tirage, même barème. Session v5 (migration v4 → v5 : `tp3.validations`).
+
+**Rapport des tests 1 à 8 (modèle sans bruit, pas de 5 µs)**
+
+| # | Grandeur | Attendu (prompt) | Obtenu | Écart |
+| --- | --- | --- | --- | --- |
+| 1 | Période de la rampe à +12 V | 0,500 s ±1 % | 0,5000 s | 0 % |
+| 1 | Pente / pente alimentation inversée | positive / négative | +1 / −1 | — |
+| 2 | Angle mort lu sur la trace | 20° ±5 % | 19,8° | −1,0 % |
+| 2 | Paliers dans l'ordre du temps | −12, 0, +12 V présents | +12 → 0 → −12 V | (ordre de rotation) |
+| 3 | K = 7 : erreur statique | < 0,5 % | −0,13 % (léger dépassement figé) | — |
+| 3 | K = 7 : D1 | < 1 % | 0 % | — |
+| 3 | K = 7 : TR5%b | 110 ms ±5 % | 110,5 ms | +0,5 % |
+| 3 | K = 7 : U = 10,6 V pendant | 67 ms ±10 % | 67,3 ms | +0,4 % |
+| 4 | K = 9 : D1 | 0,5 à 1,5 % | 0,98 % | — |
+| 5 | K = 4 : erreur statique | 0,5 à 0,8 % | 0,625 % | — |
+| 5 | K = 4 : TR5%b | 159 ms ±5 % | 158,9 ms | −0,1 % |
+| 6 | K = 2 : TR5%b | 327 ms ±5 % | 326,8 ms | −0,1 % |
+| 6 | K = 1 : TR5%b | 680 ms ±5 % | 680,0 ms | 0 % |
+| 6 | K = 1 : erreur statique | 2,5 % ±10 % | 2,50 % | +0,1 % |
+| 7 | Q7 : K qui respectent le cahier des charges | {7} | {7} | — |
+| 8 | Fil débranché : \|U\| / rotation en 1 s | 10,6 V / ≥ 360° | 10,6 V / 628° | — |
+
+Convergence : un pas de 2,5 µs change m(∞), TR5%b, la saturation de U et la période de moins de 0,5 %. Temps réel : 1 s en tranches de 16 ms = un seul bloc (même nombre de pas, θ identique).
+
+**Écarts signalés (non masqués)**
+1. Test 9, potentiomètre inversé en boucle fermée : réaction positive et U saturé, comme attendu, mais pas de rotation continue. Avec les paliers de l'angle mort, la soudure côté rouge (+12 V) inverse le signe de l'erreur et renvoie le disque vers l'isolant (0 V), qui le renvoie vers la soudure : U commute entre ±10,6 V et le disque reste au bord isolant / soudure. Le test vérifie ce comportement ; la tolérance n'a pas été modifiée.
+2. II.1 Q6 (consigne près de ±12 V) : le modèle stabilise le disque dans la soudure, sans tour complet (pas de dépassement à K = 7). La réponse attendue « Non » repose sur la position finale dans l'angle mort (mesure indépendante de l'angle), pas sur un emballement.
+3. Énoncé et prompt : aucune divergence de consigne. « Ne modifie pas enonce.md » : le texte n'est pas touché, mais 37 ancres `<a id="tp3-…">` y ont été ajoutées (règle du projet : ancre = id de question, test `regles.test.ts`). La note de correction du piège est affichée sur la page, à côté de la phrase citée.
+4. Ordre des paliers : la figure 2 est illisible dans la copie de l'énoncé ; le test vérifie l'ordre dans le temps pour une rotation positive (+12 V, 0 V, −12 V), soit l'ordre spatial de l'énoncé (soudure −12 V, isolant, soudure +12 V) parcouru en sens inverse.
+5. Le mode temps réel couvre tout le TP3 (I, II.1, II.2), pas seulement II.1 : en II.2, la trace se met à jour à chaque front de la consigne (toutes les 5 s à 0,2 Hz).
+
+**Corrigé pendant le parcours navigateur** : `requestAnimationFrame` appelé hors de `window` (Illegal invocation) ; Worker du TP3 arrêté par le double montage de StrictMode pendant le chargement de son script (requête jamais terminée, `networkidle` bloqué) : un seul Worker par page ; table AU3 entraînée dans le bundle initial par des constantes locales dans `reference.au3.ts` (formules écrites en clair, cohérence testée) ; débordement de 1 px à 375 px (sélecteur de variante).
+
+**Vérifications** : `npm run build` OK ; `tsc -b` OK ; oxlint 0 warning dans AU3 ; `npm test` 758/758 (aucun `it.fails`) ; `npm run test:perf` 7/7 (une image temps réel de 16 ms simulées bien sous 16 ms) ; `check:375` 42 routes OK ; `check:size` OK (bundle initial 82,40 Ko). Parcours Playwright (Chromium headless) : partie I (câblage 6/6, pente positive, curseurs sur l'angle mort ΔX = 28 ms, Q4 et Q5 justes, validation), II.1 (piège R2 signalé, K = 18,9 ; 11/11 ; molette 2 → 6 → −6 → 5 V, le disque suit : 5 V ↔ θ = 240,9° sur la piste), II.2 (12/12, échelon K = 7 avec U saturé, K = 4, 2, 1, Q7, fil débranché : rotation continue), examen TP3 démarré, rechargé (chrono, câbles, réponse et validation conservés), terminé avec bilan. Aucune erreur ni warning console. Plus longue image pendant le mode temps réel : 33,4 ms (intervalle entre deux images, molette tournée) ; simulation + oscilloscope par image : 3,3 ms au plus. Captures 15 à 18 dans `docs/au3/captures/`.
+
+**Reste / à confirmer quand le TP3 sera fait** : durée d'un tour à +12 V (`TP3_T_TOUR`), largeurs des soudures et de l'isolant, frottement `TP3_UF`, valeur des résistances des supports, sens des paliers sur la figure 2, comportement réel avec le potentiomètre inversé et près de ±12 V, TR5%b et dépassements pour K = 1, 2, 4, 7, 9. Non couvert : consigne triangulaire (erreur de traînage, optionnelle).

@@ -8,3 +8,6 @@ export const MS_PAR_SECONDE = 1000
 
 /** Facteur d'amplitude d'une atténuation de `db` décibels en tension : 10^(−dB/20) (20 dB → 0,1) */
 export const facteurDecibel = (db: number) => 10 ** (-db / 20)
+
+/** Degrés par tour */
+export const DEGRES_PAR_TOUR = 360

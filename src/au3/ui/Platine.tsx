@@ -12,7 +12,7 @@ function Douille({ id, couleur, etiquette, bornes }: { id: IdBorne; couleur: Cou
   return <Borne id={id} couleur={couleur} etiquette={etiquette} choisie={bornes.choisie === id} verrouillee={bornes.verrouillee} onClick={bornes.onBorne} />
 }
 
-const COMPOSANTS: ComposantId[] = ['R1', 'R2', 'C2']
+const COMPOSANTS: ComposantId[] = ['R1', 'R2', 'C2', 'R3']
 type Support = 'z1' | 'z2'
 
 /**

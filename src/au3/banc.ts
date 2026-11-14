@@ -4,7 +4,7 @@ import { MASSES, MONTAGES, nomImpedance, reseaux, signature as signatureCablage,
 import type { ReglagesPlatine } from './sim/simulate'
 import type { Impedance } from './sim/regulateur'
 import type { EtatAmpli } from './sim/simulate'
-import { sessionNeuve, type EvenementManip, type IncidentExamen, type ProgressionEssai, type ProgressionTp1, type SessionAu3, type TpExamen } from './session'
+import { sessionNeuve, type EtapeTp3, type EvenementManip, type IncidentExamen, type ModeSession, type ProgressionEssai, type ProgressionTp1, type SessionAu3, type TpExamen } from './session'
 
 /**
  * Établi : règles de manipulation, en réducteur pur.
@@ -47,7 +47,20 @@ export type Action =
   | { type: 'effacer-examen' }
   | { type: 'tp1'; patch: Partial<ProgressionTp1> }
   | { type: 'tp2'; essai: 'k38' | 'k40'; patch: Partial<ProgressionEssai> }
+  /** TP3 : montage attendu de la partie en cours (I, II.1, II.2) */
+  | { type: 'montage'; montage: MontageId }
+  /** TP3 : « Faire valider … par l'enseignant » (étape enregistrée, horodatée) */
+  | { type: 'valider-tp3'; etape: EtapeTp3 }
   | { type: 'effacer-message' }
+
+/** TP3 : résistances égales sur les supports (R1 et R3, 10 kΩ chacune, hypothèse TP3_R_EGALES) */
+export const SUPPORTS_TP3: Pick<ReglagesPlatine, 'z1' | 'z2'> = { z1: { composants: ['R1'], montage: 'serie' }, z2: { composants: ['R3'], montage: 'serie' } }
+
+/** Session neuve du TP3 (page et examen) : deux résistances égales (R1, R3) sur les supports Z1 et Z2 */
+export const sessionTp3 = (mode: ModeSession): SessionAu3 => {
+  const s = sessionNeuve(mode)
+  return { ...s, platine: { ...s.platine, ...SUPPORTS_TP3 } }
+}
 
 export const MESSAGE_SOUS_TENSION = 'Platine sous tension : éteignez-la avant de modifier un câble ou un composant.'
 export const MESSAGE_VERIFIER = 'Faites vérifier le câblage avant la mise sous tension.'
@@ -153,7 +166,7 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
       return avec({ platine: { ...s.platine, [a.support]: a.z } })
     case 'faire-verifier': {
       const m: Montage = MONTAGES[e.montage]
-      const verdict = verifier(s.cablage, m.liaisons, s.platine, m.impedances)
+      const verdict = verifier(s.cablage, m.liaisons, s.platine, m.impedances, m)
       const sig = signatureBanc(s.cablage, s.platine)
       // Un essai = « Faire vérifier » sur un câblage modifié depuis la vérification précédente
       const essais = sig === s.verifieSur ? s.essaisVerification : s.essaisVerification + 1
@@ -182,7 +195,8 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
     case 'demarrer-examen': {
       const neuve = sessionNeuve('examen')
       const ampli = a.incident === 'ampli-bloque' ? 'bloque-haut' : 'normal'
-      return { session: { ...neuve, chrono: { debut: maintenant, ecouleMs: 0 }, platine: { ...neuve.platine, ampli }, examen: { tp: a.tp, graine: a.graine, incident: a.incident, debut: maintenant, duree: a.duree, termine: false, finA: null } }, montage: a.tp, verdict: null, message: null }
+      const supports = a.tp === 'tp3' ? SUPPORTS_TP3 : {}
+      return { session: { ...neuve, chrono: { debut: maintenant, ecouleMs: 0 }, platine: { ...neuve.platine, ...supports, ampli }, examen: { tp: a.tp, graine: a.graine, incident: a.incident, debut: maintenant, duree: a.duree, termine: false, finA: null } }, montage: a.tp, verdict: null, message: null }
     }
     case 'terminer-examen':
       return s.examen ? avec({ examen: { ...s.examen, termine: true, finA: maintenant }, platine: { ...s.platine, sousTension: false } }) : e
@@ -192,6 +206,10 @@ export function reduire(e: EtatBanc, a: Action, maintenant: number): EtatBanc {
       return avec({ tp1: { ...s.tp1, ...a.patch } }, e.message)
     case 'tp2':
       return avec({ tp2: { ...s.tp2, [a.essai]: { ...s.tp2[a.essai], ...a.patch } } }, e.message)
+    case 'montage':
+      return { ...e, montage: a.montage, verdict: null }
+    case 'valider-tp3':
+      return avec({ tp3: { validations: { ...s.tp3.validations, [a.etape]: maintenant } } }, e.message)
     case 'effacer-message':
       return { ...e, message: null }
   }

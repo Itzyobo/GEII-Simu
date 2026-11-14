@@ -7,7 +7,7 @@ import type { Correction } from '../tp1/correction'
 import type { Catalogue, ChampDef, OuverteDef } from './catalogue'
 
 /** TP du tirage au sort et incident, déterministes pour une graine */
-export const TPS_EXAMEN: readonly TpExamen[] = ['tp1', 'tp2', 'tp4']
+export const TPS_EXAMEN: readonly TpExamen[] = ['tp1', 'tp2', 'tp3', 'tp4']
 export function tirage(graine: number): { tp: TpExamen; incident: IncidentExamen } {
   const alea = mulberry32(graine)
   const tp = TPS_EXAMEN[Math.min(TPS_EXAMEN.length - 1, Math.floor(alea() * TPS_EXAMEN.length))]!

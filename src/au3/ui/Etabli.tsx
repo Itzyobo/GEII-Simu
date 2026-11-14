@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import type { Action, EtatBanc } from '../banc'
 import { periodeGbf } from '../instruments/gbf'
@@ -11,6 +11,7 @@ import Moteur from './Moteur'
 import Oscillo from './Oscillo'
 import Platine from './Platine'
 import type { PropsBornes } from './types'
+import type { TempsReel } from '../tp3/tempsReel'
 
 const C = MISE_EN_PAGE.cable
 const UI = MISE_EN_PAGE.ui
@@ -27,12 +28,16 @@ export interface OptionsEtabli {
   precablage?: Cablage
   /** Examen : « Faire vérifier » répond seulement « accepté » ou « refusé » avec le numéro d'essai ; aucune alerte de câblage */
   examen?: boolean
+  /** TP3 : boîtier moteur + potentiomètre à la place du MOTEUR 1 (dessiné par la page avec les bornes) */
+  moteur?: (bornes: PropsBornes) => ReactNode
+  /** TP3 : banc en temps réel lu par l'oscilloscope (fenêtre glissante) */
+  tempsReel?: TempsReel
 }
 
 /** Établi : GBF sur l'oscilloscope à gauche, platine au centre, moteur à droite ; câbles posés borne à borne */
 const SANS_PRECABLAGE: Cablage = []
 
-export default function Etabli({ etat, agir, preset = true, variantes = false, onEnregistrement, precablage = SANS_PRECABLAGE, examen = false }: { etat: EtatBanc; agir: (a: Action) => void } & OptionsEtabli) {
+export default function Etabli({ etat, agir, preset = true, variantes = false, onEnregistrement, precablage = SANS_PRECABLAGE, examen = false, moteur, tempsReel }: { etat: EtatBanc; agir: (a: Action) => void } & OptionsEtabli) {
   const s = etat.session
   const [choisie, setChoisie] = useState<IdBorne | null>(null)
   const [couleur, setCouleur] = useState<string>(C.couleurs[1])
@@ -90,7 +95,7 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
     [gbf, platine, cablage],
   )
   // Animation du moteur : vitesse simulée (sans bruit), pas le câblage
-  const vitesse = useMemo(() => vitesseAffichee(BANC_REEL, { gbf, platine }, cablage), [gbf, platine, cablage])
+  const vitesse = useMemo(() => (moteur ? 0 : vitesseAffichee(BANC_REEL, { gbf, platine }, cablage)), [gbf, platine, cablage, moteur])
   const alerteMasse = massesNonNoires(cablageEtudiant)
   const verdict = etat.verdict
   const actif = cablageEtudiant.find((c) => c.id === cableActif)
@@ -222,13 +227,14 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
               pasEuler={BANC_REEL.pas}
               bornes={bornes}
               onEnregistrement={onEnregistrement}
+              tempsReel={tempsReel}
             />
           </div>
           <div className="w-80 pt-10">
             <Platine platine={platine} onReglage={(patch) => agir({ type: 'platine', patch })} onInterrupteur={() => agir({ type: 'interrupteur' })} onComposant={(support, z) => agir({ type: 'composant', support, z })} bornes={bornes} />
           </div>
           <div className="w-48 pt-24">
-            <Moteur bornes={bornes} vitesse={vitesse} />
+            {moteur ? moteur(bornes) : <Moteur bornes={bornes} vitesse={vitesse} />}
           </div>
 
           <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-label="Câbles">

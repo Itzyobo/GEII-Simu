@@ -1,5 +1,6 @@
 import { MISE_EN_PAGE } from '../miseEnPage'
-import type { Impedance } from './regulateur'
+import { AU3_EPSILON } from '../../data/reference'
+import { rapportResistif, type Impedance } from './regulateur'
 
 /**
  * Câblage = graphe de bornes nommées. Seules les liaisons que l'étudiant fait au labo sont des câbles ;
@@ -29,6 +30,10 @@ export const BORNES = {
   'mot.noir': { appareil: 'MOTEUR 1', nom: 'Alim moteur (noire)' },
   'mot.verte': { appareil: 'MOTEUR 1', nom: 'Sortie DT (verte)' },
   'mot.jaune': { appareil: 'MOTEUR 1', nom: 'Sortie DT (jaune)' },
+  /* TP3 : potentiomètre rotatif de position (même boîtier, alimentation du moteur rouge/noire partagée) */
+  'pot.rouge': { appareil: 'MOTEUR (TP3)', nom: 'Potentiomètre, alimentation (rouge)' },
+  'pot.bleue': { appareil: 'MOTEUR (TP3)', nom: 'Potentiomètre, alimentation (bleue)' },
+  'pot.verte': { appareil: 'MOTEUR (TP3)', nom: 'Potentiomètre, sortie (verte)' },
 } as const satisfies Record<string, { appareil: string; nom: string }>
 
 export type Borne = keyof typeof BORNES
@@ -92,13 +97,50 @@ export interface Montage {
   titre: string
   liaisons: readonly Liaison[]
   impedances?: ImpedancesAttendues
+  /** Liaisons à enlever (« Enlevez le cable … ») : refusé si leurs deux bornes restent dans le même réseau */
+  interdites?: readonly Liaison[]
+  /** TP3 : « Vérifiez que les 2 résistances placées sur les supports … ont bien des valeurs égales » */
+  resistancesEgales?: boolean
 }
+
+/* ───────────── TP3 : asservissement de position ───────────── */
+
+/** TP3 I, « Câblages à réaliser (platine éteinte) » : liaisons 1 à 5 (la 4 alimente le potentiomètre par ses deux bornes) */
+export const MONTAGE_TP3_I: readonly Liaison[] = [
+  { a: 'plat.p12', b: 'plat.ampliIn', nom: '1. Reliez la sortie +12V de la platine « Régulateur Analogique » (en bas à gauche) à l’entrée de l’amplificateur de courant.' },
+  { a: 'plat.ampliOut', b: 'mot.rouge', nom: '2. Reliez la sortie bleue de l’amplificateur de courant (< 1A) à l’entrée d’alimentation rouge du moteur (ou bleue sur le moteur « blanc »).' },
+  { a: 'mot.noir', b: 'masse', nom: '3. Reliez la borne noire d’alimentation du moteur à une masse de la platine « Régulateur Analogique » avec un cable noir.' },
+  { a: 'plat.m12', b: 'pot.rouge', nom: '4. Alimentez le potentiomètre rotatif en reliant la sortie -12V en bas à gauche de la platine « Régulateur Analogique » à la borne rouge (ou jaune sur le moteur « blanc ») du capteur' },
+  { a: 'plat.p12', b: 'pot.bleue', nom: '4. (suite) et en reliant la sortie +12V en bas à gauche de la platine « Régulateur Analogique » à la borne bleue (ou rouge sur le moteur « blanc ») du capteur.' },
+  { a: 'pot.verte', b: 'osc.v2', nom: '5. Reliez la sortie du potentiomètre rotatif (borne verte) qui est la mesure de la position angulaire à la voie 2 (verte) de l’oscilloscope.' },
+]
+
+/** Liaisons du I conservées en II : moteur (2, 3), alimentation du potentiomètre (4), potentiomètre → voie 2 (5) */
+const CONSERVEES_TP3 = MONTAGE_TP3_I.slice(1)
+
+/** TP3 II.1, « Câblages à changer/réaliser (en boucle fermée cette fois) » : modifications 1 à 6, appliquées au câblage du I */
+export const LIAISON_TP3_ENLEVEE: Liaison = { a: 'plat.p12', b: 'plat.ampliIn', nom: '1. Enlevez le cable entre l’entrée de l’ampli de courant et la borne +12V de la platine régulateur' }
+export const MONTAGE_TP3_II1: readonly Liaison[] = [
+  { a: 'plat.sortieG2', b: 'plat.ampliIn', nom: '2. Reliez à la place la sortie de l’amplificateur G2 (<25 mA) à l’entrée de l’amplificateur de courant.' },
+  { a: 'gbf.out', b: 'plat.consigne', nom: '3. Reliez la sortie MAIN OUT de droite (50Ω) du GBF à l’entrée « Consigne » de la platine « Régulateur ».' },
+  { a: 'pot.verte', b: 'plat.mesure', nom: '4. Reliez la sortie du potentiomètre de mesure (borne verte) à l’entrée « Mesure » de la platine « Régulateur analogique ». Laisser la visualisation de la sortie verte du potentiomètre sur la voie 2 (verte) de l’oscilloscope.' },
+  { a: 'gbf.out', b: 'osc.v1', nom: '6. Reliez la sortie MAIN OUT du GBF à la voie 1 (jaune) de l’oscilloscope.' },
+  ...CONSERVEES_TP3,
+]
+/** TP3 II.2 : même schéma, plus la commande U sur la voie 3 (l'erreur E sur la voie 4 est facultative : Observations Q4) */
+export const MONTAGE_TP3_II2: readonly Liaison[] = [
+  { a: 'plat.sortieG2', b: 'osc.v3', nom: '1. Pour cela, reliez la sortie de l’amplificateur G2 (<25 mA), c’est-à-dire la sortie du régulateur, appelée commande U, à la voie 3 (bleue) de l’oscilloscope.' },
+  ...MONTAGE_TP3_II1,
+]
 
 export const MONTAGES = {
   tp1: { titre: 'TP1 — boucle ouverte', liaisons: MONTAGE_TP1 },
   tp2: { titre: 'TP2 — boucle fermée', liaisons: MONTAGE_TP2 },
   /** « Effectuer les mêmes cablages que pour le TP2 (page 13) sauf pour le régulateur » */
   tp4: { titre: 'TP4 — boucle fermée, PI série', liaisons: MONTAGE_TP2, impedances: { z1: Z1_TP4, z2: Z2_TP4 } },
+  tp3: { titre: 'TP3 I — boucle ouverte, potentiomètre', liaisons: MONTAGE_TP3_I },
+  'tp3-ii1': { titre: 'TP3 II.1 — boucle fermée, consigne manuelle', liaisons: MONTAGE_TP3_II1, interdites: [LIAISON_TP3_ENLEVEE], resistancesEgales: true },
+  'tp3-ii2': { titre: 'TP3 II.2 — boucle fermée, consigne carrée', liaisons: MONTAGE_TP3_II2, interdites: [LIAISON_TP3_ENLEVEE], resistancesEgales: true },
 } as const satisfies Record<string, Montage>
 export type MontageId = keyof typeof MONTAGES
 
@@ -156,7 +198,7 @@ export function reseaux(cablage: Cablage): Reseaux {
 
 /** Contrôle d'un support de composants par « Faire vérifier » */
 export interface ControleImpedance {
-  support: 'z1' | 'z2'
+  support: 'z1' | 'z2' | 'egales'
   ok: boolean
   /** « Z2 : R2 + C2 en série (attendu R2 + C2 en série) » */
   message: string
@@ -182,10 +224,11 @@ const memeImpedance = (a: Impedance | null, b: Impedance) => !!a && [...a.compos
  * « Faire vérifier » : une liaison est correcte si ses deux bornes sont dans le même réseau ; un support est correct
  * s'il porte exactement les composants attendus, montés comme attendu (un support vide = régulateur non câblé).
  */
-export function verifier(cablage: Cablage, attendu: readonly Liaison[], supports?: { z1: Impedance | null; z2: Impedance | null }, attendues?: ImpedancesAttendues): Verdict {
+export function verifier(cablage: Cablage, attendu: readonly Liaison[], supports?: { z1: Impedance | null; z2: Impedance | null }, attendues?: ImpedancesAttendues, regles: Pick<Montage, 'interdites' | 'resistancesEgales'> = {}): Verdict {
   const r = reseaux(cablage)
   const net = (b: Borne | 'masse') => (b === 'masse' ? r.masse : r.de(b))
-  const correctes = attendu.filter((l) => net(l.a) === net(l.b))
+  const encore = (regles.interdites ?? []).filter((l) => net(l.a) === net(l.b))
+  const correctes = [...attendu.filter((l) => net(l.a) === net(l.b)), ...(regles.interdites ?? []).filter((l) => !encore.includes(l))]
   const impedances: ControleImpedance[] = attendues
     ? (['z1', 'z2'] as const).map((k) => {
         const z = supports?.[k] ?? null
@@ -194,8 +237,20 @@ export function verifier(cablage: Cablage, attendu: readonly Liaison[], supports
         return { support: k, ok, message: !z || !z.composants.length ? `${nom} vide : régulateur non câblé (attendu ${nomImpedance(attendues[k])})` : `${nom} : ${nomImpedance(z)}${ok ? '' : ` (attendu ${nomImpedance(attendues[k])})`}` }
       })
     : []
-  const manquantes = attendu.filter((l) => !correctes.includes(l))
-  return { total: attendu.length + impedances.length, correctes, manquantes, massesNonNoires: massesNonNoires(cablage), impedances, reussi: !manquantes.length && impedances.every((z) => z.ok) }
+  if (regles.resistancesEgales) impedances.push(controleEgales(supports?.z1 ?? null, supports?.z2 ?? null))
+  const manquantes = [...attendu.filter((l) => !correctes.includes(l)), ...encore]
+  return { total: attendu.length + (regles.interdites?.length ?? 0) + impedances.length, correctes, manquantes, massesNonNoires: massesNonNoires(cablage), impedances, reussi: !manquantes.length && impedances.every((z) => z.ok) }
+}
+
+/**
+ * TP3, câblage II.1 n° 5 : les supports doivent porter deux résistances de même valeur (ou rester vides : résistances
+ * égales de la platine), sinon K = (Z2/Z1)·G1·G2 n'est pas le K affiché (piège : R1 / R2 laissées du TP4).
+ */
+export function controleEgales(z1: Impedance | null, z2: Impedance | null): ControleImpedance {
+  const k = rapportResistif(z1, z2)
+  const ok = k !== null && Math.abs(k - 1) < AU3_EPSILON
+  const desc = `Z1 = ${nomImpedance(z1)}, Z2 = ${nomImpedance(z2)}`
+  return { support: 'egales', ok, message: ok ? `${desc} : résistances égales, K = G1 × G2 / 100` : k === null ? `${desc} : pas deux résistances (valeurs égales attendues)` : `${desc} : résistances inégales, Z2/Z1 = ${String(Number(k.toPrecision(MISE_EN_PAGE.oscillo.chiffres))).replace('.', ',')} (K multiplié d’autant)` }
 }
 
 export function massesNonNoires(cablage: Cablage): Cable[] {

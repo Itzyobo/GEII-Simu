@@ -1,4 +1,4 @@
-import { au3 } from '../../data/reference'
+import { au3, AU3_EPSILON, AU3_LISTES } from '../../data/reference'
 import { facteurAttenuation, GBF_DEFAUT } from '../instruments/gbf'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import type { SessionAu3 } from '../session'
@@ -12,6 +12,9 @@ import { attenduQ12, attendusTp2, essaiK38, essaiK40, theoriqueBf, type Attendus
 import { corrigerFormule } from '../tp2/correction'
 import { AFFICHAGE_TP4, attendusTp4, balayageG1, essaiTp4, gbfTp4, respecte, scenarioII, type ConfigBalayage } from '../tp4/attendus'
 import { corrigerG1 } from '../tp4/correction'
+import { BANC_POSITION, lineaire } from '../sim/position'
+import { CABLAGE_TP3_II, comparaisonK, debrancherMesure, essaiTp3, rampeBoucleOuverte, reponseContinue } from '../tp3/attendus'
+import { DEGRES_PAR_TOUR } from '../unites'
 
 /**
  * Réponses attendues de chaque question, une seule source pour la page d'entraînement ET la correction de l'examen :
@@ -349,6 +352,116 @@ export function catalogueTp4(c: ReturnType<typeof contexteTp4>): Catalogue {
       ouverte('tp4-ii4-c', OUI_NON, c.bouteilleOk ? 'Oui' : 'Non', `Variation < ${nombre(au3('TP4_II_VARIATION_MAX') * PC)} % et erreur finale nulle.`),
       ouverte('tp4-ii5-d', OUI_NON, Math.abs(ii5.erreurDemarrage) < au3('TP4_ERREUR_MAX') && Math.abs(ii5.erreurFinale ?? 1) < au3('TP4_ERREUR_MAX') ? 'Oui' : 'Non', 'Non : erreur statique non nulle au démarrage et après la bouteille.'),
       ouverte('tp4-ii5-e', CHOIX_II5E, (ii5.erreurFinale ?? 0) > au3('TP4_ERREUR_MAX') ? CHOIX_II5E[0] : CHOIX_II5E[1], 'Seule l’action intégrale annule l’erreur statique.'),
+    ],
+  )
+}
+
+/* ───────────── TP3 (aucune mesure : modèle de position) ───────────── */
+
+export const CHOIX_TP3 = {
+  q3: ['Trois paliers : +12 V (soudure), 0 V (isolant), −12 V (soudure)', 'Trois segments de droite de pentes différentes'],
+  mise: ['Le disque tourne jusqu’à la position de consigne puis s’arrête', 'Le disque tourne sans arrêt', 'Le disque ne bouge pas'],
+  repos: ['Le disque reste immobile', 'Le disque oscille autour de la consigne', 'Le disque dérive lentement'],
+  change: ['Le disque tourne pour rejoindre la nouvelle orientation puis s’arrête', 'Le disque ne réagit pas', 'Le disque tourne sans arrêt'],
+  transitoire: ['Rapide, sans dépassement notable', 'Mou (lent)', 'Oscillant'],
+  permanent: ['Mesure et consigne superposées', 'Écart visible entre mesure et consigne'],
+  limites: ['Oui, partout', 'Non : près de ±12 V, la position visée est dans l’angle mort'],
+  k1: ['Plus lent, et la mesure s’arrête avant la consigne (frottements)', 'Identique à K = 7', 'Plus rapide qu’à K = 7'],
+  teleop: ['K = 7', 'K = 1'],
+  tangente: ['Tangente horizontale : ordre 2 au moins', 'Tangente oblique : ordre 1'],
+  saturation: ['Non : U sature à ±10,6 V au début de chaque échelon', 'Oui : U reste linéaire'],
+  fil: ['Le disque tourne sans arrêt (U saturé)', 'Le disque s’arrête', 'Le disque oscille autour de la consigne'],
+  lesK: AU3_LISTES.TP3_K_COMPARES.valeurs.map((K) => `K = ${K}`),
+} as const
+
+/** Erreur relative en pourcentage, sans signe forcé : « 2,5 % » */
+const pourcentSimple = (x: number) => `${nombre(x * PC)} %`
+const angleTour = (th: number) => th - DEGRES_PAR_TOUR * Math.floor(th / DEGRES_PAR_TOUR)
+
+/** Réponses attendues du TP3 : indépendantes des réglages de l'étudiant (sauf le K de la Q3), simulées une seule fois */
+export function contexteTp3() {
+  const demi = 1 / (2 * au3('TP3_GBF_FREQ'))
+  const c = au3('TP3_GBF_VPP') / 2
+  const rampe = memo('tp3:rampe', () => rampeBoucleOuverte())
+  const comparaison = memo('tp3:k', () => comparaisonK())
+  const essai = (K: number) => comparaison.essais.find((x) => x.K === K)!.a
+  const k7 = essai(gainAffichage(au3('TP3_G1'), au3('TP3_G2')))
+  const k1 = essai(Math.min(...AU3_LISTES.TP3_K_COMPARES.valeurs))
+  const k9 = memo('tp3:k9', () => essaiTp3(au3('TP3_G1_K9')))
+  // II.1 : consigne de 0 à c depuis l'arrêt, puis consigne inchangée ; consigne à la limite de l'offset ; fil débranché
+  const mise = memo('tp3:mise', () => reponseContinue(c, demi))
+  const repos = memo('tp3:repos', () => reponseContinue(c, demi, CABLAGE_TP3_II, au3('TP3_G1'), mise.final))
+  const limite = memo('tp3:limite', () => reponseContinue(au3('GBF_OFFSET_MAX'), demi))
+  const fil = memo('tp3:fil', () => reponseContinue(c, demi, debrancherMesure(CABLAGE_TP3_II)))
+  return {
+    rampe,
+    k7,
+    k9,
+    k1,
+    comparaison,
+    c,
+    demi,
+    mise: { arrete: Math.abs(mise.final.omega) < AU3_EPSILON, deplacement: mise.final.theta - mise.theta[0]!, erreur: c - mise.voie2[mise.voie2.length - 1]! },
+    repos: { deplacement: repos.final.theta - mise.final.theta },
+    limite: { theta: angleTour(limite.final.theta), dansAngleMort: angleTour(limite.final.theta) >= lineaire(BANC_POSITION), mesure: limite.voie2[limite.voie2.length - 1]! },
+    fil: { u: fil.commande[fil.commande.length - 1]!, tours: (fil.final.theta - fil.theta[0]!) / DEGRES_PAR_TOUR },
+  }
+}
+
+export function catalogueTp3(c: ReturnType<typeof contexteTp3>): Catalogue {
+  const { rampe, k7, k9, k1 } = c
+  const K9 = gainAffichage(au3('TP3_G1_K9'), au3('TP3_G2'))
+  const tolD1 = au3('TP4_ERREUR_MAX') * au3('TP3_GBF_VPP')
+  // Q3 et Q4 : le K de la platine au moment de la réponse (« vous pouvez régler K à 9 au lieu de 7 »)
+  const avecK9 = (lectures?: readonly number[]) => lectures?.[0] !== undefined && Math.abs(lectures[0] - K9) < AU3_EPSILON
+  const retenus = c.comparaison.retenus
+  return cat(
+    [
+      champ('tp3-i-q4', 's', rampe.periode, TOL_M(), 'ΔX entre deux fronts identiques de la rampe'),
+      champ('tp3-i-q4#angle', '°', DEGRES_PAR_TOUR, TOL_M(), 'une période = un tour du disque'),
+      champ('tp3-i-q5#duree', 's', rampe.dureeNonLineaire, TOL_M(), 'ΔX de la partie non linéaire'),
+      champ('tp3-i-q5', '°', rampe.angleMort, TOL_M(), '(durée non linéaire / période) × 360°'),
+      champ('tp3-ii2-m-q1', 'V', k7.dm, TOL_M(), 'ΔY sur la voie 2'),
+      champ('tp3-ii2-m-q2', '', k7.g0b, TOL_M(), 'G0b = m(∞)/C0'),
+      {
+        id: 'tp3-ii2-m-q3',
+        unite: 'V',
+        attendu: k7.d1,
+        tolerance: null,
+        texte: `${afficher(k7.d1, 'V')} à K = 7 (pas de dépassement, tolérance ±${afficher(tolD1, 'V')}) ; ou ${afficher(k9.d1, 'V')} à K = ${nombre(K9)}`,
+        corriger: (saisie, lectures) => (avecK9(lectures) ? corriger(saisie, k9.d1, 'V', TOL_M()) : corrigerAbsolu(saisie, k7.d1, 'V', tolD1)),
+      },
+      {
+        id: 'tp3-ii2-m-q4',
+        unite: '%',
+        attendu: k7.d1rel * PC,
+        tolerance: null,
+        texte: `${nombre(k7.d1rel * PC)} % à K = 7 (tolérance ±${nombre(au3('TP4_ERREUR_MAX') * PC)} point) ; ou ${nombre(k9.d1rel * PC)} % à K = ${nombre(K9)}`,
+        corriger: (saisie, lectures) => (avecK9(lectures) ? corriger(saisie, k9.d1rel * PC, '%', TOL_M()) : corrigerAbsolu(saisie, k7.d1rel * PC, '%', au3('TP4_ERREUR_MAX') * PC)),
+      },
+      champTr5('tp3-ii2-m-q5', k7.tr5),
+    ],
+    [
+      ouverte('tp3-i-q1', OUI_NON, rampe.dureeNonLineaire < rampe.periode / 2 ? 'Oui' : 'Non', 'Oui : segments de droite inclinés, sauf sur l’angle mort.'),
+      ouverte('tp3-i-q2', OUI_NON, Number.isFinite(rampe.periode) ? 'Oui' : 'Non', `Oui : le signal se répète à chaque tour du disque (${afficher(rampe.periode, 's')}).`),
+      ouverte('tp3-i-q3', CHOIX_TP3.q3, rampe.paliers.join() === [BANC_POSITION.alim, 0, -BANC_POSITION.alim].join() ? CHOIX_TP3.q3[0] : CHOIX_TP3.q3[1], 'Soudure +12 V, isolant à 0 V, soudure −12 V : la tension n’y est pas proportionnelle à l’angle.'),
+      ouverte('tp3-i-q6', OUI_NON, Math.abs(rampe.r.final.omega) > 0 ? 'Non' : 'Oui', 'Non : la position ne se stabilise jamais (le disque tourne tout le temps) : intégrateur mécanique, θ = ∫Ω dt.'),
+      ouverte('tp3-ii1-q1', CHOIX_TP3.mise, c.mise.arrete && Math.abs(c.mise.deplacement) > 0 ? CHOIX_TP3.mise[0] : CHOIX_TP3.mise[1], 'Le disque tourne vers l’orientation de consigne puis s’arrête.'),
+      ouverte('tp3-ii1-q2', CHOIX_TP3.repos, Math.abs(c.repos.deplacement) < AU3_EPSILON ? CHOIX_TP3.repos[0] : CHOIX_TP3.repos[2], 'Immobile : erreur ≈ 0, donc U = K·e trop faible pour vaincre le frottement.'),
+      ouverte('tp3-ii1-q3', CHOIX_TP3.change, c.mise.arrete ? CHOIX_TP3.change[0] : CHOIX_TP3.change[2], 'Le disque suit la nouvelle consigne et s’arrête dès que la mesure la rejoint.'),
+      ouverte('tp3-ii1-q4', CHOIX_TP3.transitoire, k7.d1rel >= au3('TP4_D1_MAX') ? CHOIX_TP3.transitoire[2] : k7.tr5 < au3('TP3_TR5_MAX') ? CHOIX_TP3.transitoire[0] : CHOIX_TP3.transitoire[1], `Rapide : TR5%b ≈ ${afficher(k7.tr5, 's')} à K = 7, sans dépassement notable.`),
+      ouverte('tp3-ii1-q5', CHOIX_TP3.permanent, Math.abs(k7.erreur) < au3('TP4_ERREUR_MAX') ? CHOIX_TP3.permanent[0] : CHOIX_TP3.permanent[1], 'Superposées : erreur statique quasi nulle à K = 7.'),
+      ouverte('tp3-ii1-q6', CHOIX_TP3.limites, c.limite.dansAngleMort ? CHOIX_TP3.limites[1] : CHOIX_TP3.limites[0], 'Non : à ±12 V la position visée est au bord ou dans l’angle mort, où la mesure ne dépend plus de l’angle.'),
+      ouverte('tp3-ii1-q7', CHOIX_TP3.k1, k1.tr5 > k7.tr5 && Math.abs(k1.erreur) > Math.abs(k7.erreur) ? CHOIX_TP3.k1[0] : CHOIX_TP3.k1[1], `Plus lent (TR5%b ≈ ${afficher(k1.tr5, 's')}) et erreur statique de ${pourcentSimple(k1.erreur)} : U = K·e ne vainc plus le frottement.`),
+      ouverte('tp3-ii1-q8', CHOIX_TP3.teleop, k7.tr5 < k1.tr5 && Math.abs(k7.erreur) < Math.abs(k1.erreur) ? CHOIX_TP3.teleop[0] : CHOIX_TP3.teleop[1], 'K = 7 : suit la consigne plus vite et plus précisément (gestes non brutaux).'),
+      ouverte('tp3-ii2-o-q1', OUI_NON, Math.abs(k7.erreur) < TOL_M() ? 'Oui' : 'Non', 'Oui : en boucle fermée, la position se stabilise après un régime transitoire.'),
+      ouverte('tp3-ii2-o-q2', CHOIX_TP3.tangente, k7.penteRelative < 1 / 2 ? CHOIX_TP3.tangente[0] : CHOIX_TP3.tangente[1], 'Tangente à l’origine horizontale : ordre ≥ 2.'),
+      ouverte('tp3-ii2-o-q3', OUI_NON, Math.abs(k7.erreur) < au3('TP4_ERREUR_MAX') ? 'Oui' : 'Non', `Oui : erreur statique ${pourcentSimple(Math.abs(k7.erreur))} (moins de ${nombre(au3('TP4_ERREUR_MAX') * PC)} %).`),
+      ouverte('tp3-ii2-o-q4', OUI_NON, Math.abs(k7.erreur) < au3('TP4_ERREUR_MAX') ? 'Oui' : 'Non', 'Oui : E revient à 0 en régime permanent.'),
+      ouverte('tp3-ii2-o-q5', CHOIX_TP3.saturation, k7.dureeSaturation > 0 ? CHOIX_TP3.saturation[0] : CHOIX_TP3.saturation[1], `Non : K × ΔC = ${nombre(k7.K * au3('TP3_GBF_VPP'))} V > ${nombre(au3('USAT'))} V, U sature pendant ${afficher(k7.dureeSaturation, 's')}.`),
+      ouverte('tp3-ii2-m-q6', CHOIX_TP3.fil, Math.abs(c.fil.u) >= au3('USAT') * (1 - AU3_EPSILON) && c.fil.tours >= 1 ? CHOIX_TP3.fil[0] : CHOIX_TP3.fil[1], 'Entrée Mesure en l’air (0 V) : e = c, U saturé, le disque tourne sans arrêt.'),
+      // shortcut: une seule réponse attendue si l'ensemble calculé a un seul K (cas du modèle : {7}) ; sinon question non notée
+      ouverte('tp3-ii2-m-q7', CHOIX_TP3.lesK, retenus.length === 1 ? `K = ${retenus[0]}` : null, `K qui respectent le cahier des charges (erreur < ${nombre(au3('TP4_ERREUR_MAX') * PC)} %, TR5%b < ${afficher(au3('TP3_TR5_MAX'), 's')}) : ${retenus.map((k) => `K = ${k}`).join(', ') || 'aucun'}.`),
     ],
   )
 }

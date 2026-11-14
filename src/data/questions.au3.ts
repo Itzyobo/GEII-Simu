@@ -3,7 +3,8 @@ import type { RefKey } from './reference'
 /**
  * AU3 : attendus officiels (« A la fin du TPx, vous devez savoir », copiés mot pour mot de docs/au3/enonce.md)
  * et catalogue des questions. L'id d'une question est l'ancre <a id="…"> de l'énoncé ; son intitulé est le
- * texte exact de l'énoncé. TP1, TP2 et TP4 disponibles (TP4 : badge partout, aucune mesure ; II.2 non couverte).
+ * texte exact de l'énoncé. TP1 à TP4 disponibles (TP3 et TP4 : badge partout, aucune mesure ; TP4 II.2 et, au TP3,
+ * le cas « Si vous avez le temps » (consigne triangulaire) non couverts).
  *
  * Règle du badge (PRD §3.4) : « valeur non vérifiée » si la réponse attendue dépend d'une hypothèse (`cles`)
  * ET n'est pas validée par un test contre une valeur du CR dans sa tolérance (`validee` : clés CR testées,
@@ -74,6 +75,11 @@ const TP4_BOUTEILLE: RefKey[] = [...TP4_MODELE, 'BOUTEILLE', 'TP4_BOUTEILLE_T']
 
 const q2 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], validee: RefKey[] = [], optionnelle = false): QuestionAu3 => ({ id, tp: 'tp2', numero, intitule, attendus, cles, validee, statut: 'disponible', optionnelle })
 const q4 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], statut: StatutQuestion = 'disponible'): QuestionAu3 => ({ id, tp: 'tp4', numero, intitule, attendus, cles, validee: [], statut })
+/** TP3 : aucune mesure, tout vient du modèle de position (hypothèses TP3_*, TAU_A et TAU_B) */
+const TP3_MODELE: RefKey[] = ['TP3_T_TOUR', 'TP3_SOUDURE_M12', 'TP3_ISOLANT', 'TP3_SOUDURE_P12', 'TP3_UF', 'TP3_KV', 'TAU_A', 'TAU_B']
+const TP3_BF: RefKey[] = [...TP3_MODELE, 'TP3_G1', 'TP3_G2', 'TP3_R_EGALES']
+const TP3_CARRE: RefKey[] = [...TP3_BF, 'TP3_GBF_FREQ', 'TP3_GBF_VPP']
+const q3 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], statut: StatutQuestion = 'disponible', optionnelle = false): QuestionAu3 => ({ id, tp: 'tp3', numero, intitule, attendus, cles, validee: [], statut, optionnelle })
 const q1 = (id: string, numero: string, intitule: string, attendus: string[], cles: RefKey[], validee: RefKey[] = []): QuestionAu3 => ({ id, tp: 'tp1', numero, intitule, attendus, cles, validee, statut: 'disponible' })
 
 export const AU3_QUESTIONS: readonly QuestionAu3[] = [
@@ -142,6 +148,45 @@ export const AU3_QUESTIONS: readonly QuestionAu3[] = [
   q2('tp2-comparaison-ecart', 'Comparaison', 'A-t-on l’écart statique le plus faible entre la consigne c(t) et la mesure m(t) en régime permanent ?', ['tp2-a5'], [...TP2_K38, ...TP2_K40], ['CR_TP2K38_G0B', 'CR_TP2K40_G0B']),
   q2('tp2-comparaison-tr5', 'Comparaison', 'A-t-on le temps de réponse Tr5%b le plus faible ?', ['tp2-a5'], [...TP2_K38, ...TP2_K40, 'CR_TP2K38_TR5', 'CR_TP2K40_TR5']),
   q2('tp2-comparaison-depassement', 'Comparaison', 'A-t-on le dépassement le plus grand ?', ['tp2-a5'], [...TP2_K38, ...TP2_K40], ['CR_TP2K40_D1']),
+
+  /* ───────────── TP3 (valeurs non vérifiées, ordre de l'énoncé) ───────────── */
+  q3('tp3-triangle', 'Cahier des charges', 'Si vous avez le temps : Dans le cas où la consigne est périodique de forme triangulaire, la mesure (en Volt) de la position angulaire doit suivre la valeur de la consigne, avec une erreur de trainage (en régime permanent) de maximum 0,15V pour f=0,7 Hz.', ['tp3-a4'], TP3_CARRE, 'non-couverte', true),
+  q3('tp3-i-reglages', 'I Réglages', 'Réglages à effectuer sur l’oscilloscope (platine éteinte) :', ['tp3-a2'], ['TP3_VOIE2_VDIV', 'TP3_SDIV', 'TP3_T_TOUR']),
+  q3('tp3-i-cablage', 'I Câblage', 'Câblages à réaliser (platine éteinte) :', ['tp3-a1'], TP3_MODELE),
+  q3('tp3-i-sous-tension', 'I Mise sous tension', 'Vérifiez que les segments de droites ont une pente positive. Cela signifie que le gain du moteur est positif. Si ce n’est pas le cas, inversez les connexions du potentiomètre rotatif à -12 V et +12 V.', ['tp3-a1','tp3-a2'], TP3_MODELE),
+  q3('tp3-i-q1', 'I Q1', 'Est-ce que le signal de mesure de la position angulaire est bien proportionnel à la position angulaire (linéaire) la majorité du temps (segment de droite incliné) ?', ['tp3-a2'], TP3_MODELE),
+  q3('tp3-i-q2', 'I Q2', 'Constate-t-on une certaine périodicité de ce signal ? Si oui, comment l’expliquez vous ?', ['tp3-a2'], TP3_MODELE),
+  q3('tp3-i-q3', 'I Q3', 'Décrivez la courbe et expliquez ce que représentent physiquement les 3 parties qui composent cet angle mort qui correspond à toute la partie de la courbe qui n’est pas linéaire (pas une droite).', ['tp3-a2'], TP3_MODELE),
+  q3('tp3-i-q4', 'I Q4', 'Sur l’oscilloscope, changez le calibre des temps à 100ms et déplacez la courbe pour visualiser une période. Déterminez la période temporelle de ce signal de mesure de position angulaire en utilisant les Data Cursors de l’oscilloscope. Copiez cette courbe dans votre compte-rendu de TP, à l’aide d’une clé USB. A quelle période angulaire est ce que cela correspond (en degrés) ?', ['tp3-a2'], TP3_MODELE),
+  q3('tp3-i-q5', 'I Q5', 'Ensuite, mesurez l\'angle mort du potentiomètre, en degrés (ne zoomez pas trop pour bien voir les cassures du signal) après avoir effectué la mesure adéquate.', ['tp3-a2'], [...TP3_MODELE, 'TP3_ANGLE_MORT']),
+  q3('tp3-i-valider', 'I Validation', 'Faire valider la mesure de l’angle mort par l’enseignant avant de continuer.', ['tp3-a2'], [...TP3_MODELE, 'TP3_ANGLE_MORT']),
+  q3('tp3-i-q6', 'I Q6', 'Est-ce que ce système en boucle ouverte est de même nature, avec le même type de comportement, que les systèmes des TP1 et TP2 (stabilisation de la mesure après un certain temps) ?', ['tp3-a2'], TP3_MODELE),
+  q3('tp3-ii1-reglages', 'II.1 Réglages', 'Réglages à changer (platine éteinte) :', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-cablage', 'II.1 Câblage', 'Câblages à changer/réaliser (en boucle fermée cette fois) (platine éteinte) :', ['tp3-a1'], TP3_BF),
+  q3('tp3-ii1-q1', 'II.1 Q1', 'Que se passe-t-il à la mise sous tension de la platine « Régulateur » ?', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-q2', 'II.1 Q2', 'Que se passe-t-il ensuite si l’on ne change pas la tension de consigne (orientation désirée de l’antenne) avec le bouton d’offset du GBF ? Expliquez pourquoi.', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-q3', 'II.1 Q3', 'Que se passe-t-il si l’on change la tension de consigne (orientation désirée de l’antenne) avec le bouton d’offset du GBF (regarder d’abord le disque et pas les courbes sur l’oscilloscope) ? Si nécessaire, appuyer sur « Force Trigger » pour mettre à jour la courbe.', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-q4', 'II.1 Q4', 'Comment est le régime transitoire (réaction rapide, « molle», …) ?', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-q5', 'II.1 Q5', 'Comment est le régime permanent (position angulaire mesurée et consigne superposées, …) ?', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-q6', 'II.1 Q6', 'Est-ce qu’il se passe la même chose pour toutes les valeurs de la consigne (Proche de -12V ou +12V, loin de ces 2 limites) ? Expliquez pourquoi.', ['tp3-a3'], [...TP3_BF, 'GBF_OFFSET_MAX']),
+  q3('tp3-ii1-q7', 'II.1 Q7', 'Baissez la valeur du gain K jusqu’à K=1 et observez la réaction du disque quand vous changez la tension de consigne (en régime transitoire et permanent).', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-q8', 'II.1 Q8', 'Si un système de téléopération (opération chirurgicale à distance) était commandé de cette manière, vaut-il mieux régler K=1 ou K=7 pour que la trajectoire réelle de l’outil soit la plus prêt possible de celle de la consigne avec un chirurgien formé à ne pas faire d’actions trop brutales sur le potentiomètre de consigne ?', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii1-valider', 'II.1 Validation', 'Faire valider vos conclusions par l’enseignant.', ['tp3-a3'], TP3_BF),
+  q3('tp3-ii2-reglages', 'II.2 Réglages', 'Réglages à changer (platine éteinte) :', ['tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-cablage', 'II.2 Câblage', 'Câblages à changer/compléter (en boucle fermée) (platine éteinte) :', ['tp3-a1','tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-valider', 'II.2 Validation', 'Faire valider les courbes par l’enseignant avant de répondre aux questions suivantes', ['tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-o-q1', 'II.2 Obs. Q1', 'Est-ce que ce système en boucle fermée est maintenant de même nature, avec le même type de comportement (avec stabilisation de la position après un certain temps lors de la réponse à un échelon), que les systèmes des TP1 et TP2 (avec stabilisation de la vitesse après un certain temps lors de la réponse à un échelon) ?', ['tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-o-q2', 'II.2 Obs. Q2', 'Zoomez sur le démarrage du déplacement du balai d’essui-glace (réponse à un échelon avec une consigne de position carrée positive) et observez la tangente à l’origine. Que peut-on en conclure sur l’ordre de ce système en boucle fermée ?', ['tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-o-q3', 'II.2 Obs. Q3', 'Est-ce que le déplacement du balai d’essui-glace respecte le cahier des charges du client (en terme de précision) ?', ['tp3-a4'], [...TP3_CARRE, 'TP4_ERREUR_MAX']),
+  q3('tp3-ii2-o-q4', 'II.2 Obs. Q4', 'Vous pouvez relier le signal d’erreur, E, sur la voie 4 (rose) de l’oscilloscope et réglez son calibre au même calibre que C et M pour mieux comprendre. Positionnez le correctement par rapport à C et M. L’erreur statique correspondant à la variation de position est elle nulle ?', ['tp3-a4'], [...TP3_CARRE, 'TP4_ERREUR_MAX']),
+  q3('tp3-ii2-o-q5', 'II.2 Obs. Q5', 'Est-ce que le signal de commande en sortie du régulateur, U (le bleu) est linéaire (pas de saturation à ±10,6 V (12V moins « somme des tensions de seuil de 2 diodes ») ? U est la tension d’alimentation du moteur de l’essui-glace. Vous pouvez comparer sa forme avec celle du signal d’erreur, E (rose), pour conclure.', ['tp3-a4'], [...TP3_CARRE, 'USAT']),
+  q3('tp3-ii2-m-q1', 'II.2 Mes. Q1', 'Mesurez avec les curseurs la valeur finale de la variation de la mesure, m(∞).', ['tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-m-q2', 'II.2 Mes. Q2', 'D’après l’observation des courbes m(t) et c(t) en régime statique, donnez le gain statique de la boucle fermée, G0b (sans mesures).', ['tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-m-q3', 'II.2 Mes. Q3', 'Mesurez le 1ier dépassement, D1 (S’il n’y a pas de dépassement, vous pouvez régler K à 9 au lieu de 7 (le dire dans votre compte-rendu))', ['tp3-a4'], [...TP3_CARRE, 'TP3_G1_K9']),
+  q3('tp3-ii2-m-q4', 'II.2 Mes. Q4', 'Calculez D1/m(∞) en %', ['tp3-a4'], [...TP3_CARRE, 'TP3_G1_K9']),
+  q3('tp3-ii2-m-q5', 'II.2 Mes. Q5', 'Mesurez avec les curseurs le temps de réponse à 5% de ce système bouclé, TR5%b.', ['tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-m-q6', 'II.2 Mes. Q6', 'Si le fil de sortie du potentiomêtre de mesure s’use et casse, que se passe-t-il ? Testez le en débranchant le fil. Expliquez le comportement observé.', ['tp3-a1','tp3-a4'], TP3_CARRE),
+  q3('tp3-ii2-m-q7', 'II.2 Mes. Q7', 'Pour comparer les comportements avec différents réglages, réglez le gain du régulateur proportionnel à K=4, K=2 et K=1 puis comparer le fonctionnement du balai d’essai-glace central commandé en boucle fermée avec ces 3 réglages (en observant et sans nouvelles mesures). Vaut- il mieux régler K=1, K=2, K=4 ou K=7 pour que le cahier des charges du client soit respecté (Pas d’erreur statique et TR5%b inférieur à 200 ms) ?', ['tp3-a4'], [...TP3_CARRE, 'TP4_ERREUR_MAX', 'TP3_TR5_MAX']),
 
   /* ───────────── TP4 (valeurs non vérifiées) ───────────── */
   q4('tp4-cablage', 'Câblage', 'Câblages à réaliser (en boucle fermée) (platine éteinte) :', ['tp4-a1'], TP4_MODELE),

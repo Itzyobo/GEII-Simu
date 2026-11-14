@@ -55,6 +55,20 @@ export const MISE_EN_PAGE = {
     /** Durée d'un tour de l'animation à pleine échelle (s) */
     tourPleineEchelle: 0.4,
   },
+  /** TP3 : disque (antenne / balai) et vue de face du potentiomètre, en pixels SVG */
+  disque: {
+    taille: 132,
+    rayonDisque: 58,
+    rayonPiste: 46,
+    epaisseurPiste: 9,
+    rayonCurseur: 40,
+    couleurs: { piste: '#8d7b5a', soudureRouge: '#d62828', soudureBleue: '#2b6fd6', isolant: '#f2f2f2', curseur: '#f5a524', disque: '#c9ced6' },
+    /** Chiffres de l'angle affiché */
+    chiffres: 0,
+    /** Figures du TP3 : durée montrée après le front montant (s), couleurs des essais K = 1, 2, 4, 7 */
+    fenetreFigure: 1,
+    couleursK: ['#c0392b', '#c87a0c', '#3a84d4', '#1f9e5a'],
+  },
   ui: {
     /** Graine du bruit à la première acquisition */
     graineInitiale: 7,

@@ -8,11 +8,11 @@ Simulateur des TP d'automatique AU3 (IUT GEII) : moteur à courant continu et dy
 npm install
 npm run dev        # puis ouvrir /au3
 npm test           # tests (dont AU3 : src/au3/**/*.test.ts)
-npm run test:perf  # performance de simulate()
+npm run test:perf  # performance de simulate() et du mode temps réel du TP3
 npm run build
 ```
 
-Pages : `/au3` (accueil et attendus officiels), `/au3/libre` (banc libre), `/au3/tp1`, `/au3/tp2`, `/au3/tp4`, `/au3/examen` (mode examen). Le TP3 n'est pas couvert (autre capteur, aucune mesure), ni le II.2 du TP4 (fichiers Simulink non fournis).
+Pages : `/au3` (accueil et attendus officiels), `/au3/libre` (banc libre), `/au3/tp1`, `/au3/tp2`, `/au3/tp3`, `/au3/tp4`, `/au3/examen` (mode examen). Non couverts : le II.2 du TP4 (fichiers Simulink non fournis) et, au TP3, le cas optionnel « Si vous avez le temps » (consigne triangulaire, erreur de traînage).
 
 ## Ce qui fait foi
 
@@ -33,6 +33,18 @@ Le modèle ne reproduit pas la dérive lente visible en fin de courbe sur les ca
 ## TP4 : aucune mesure réelle
 
 Le TP4 n'a pas été réalisé : toutes ses valeurs sont prédites par le modèle calé sur TP1/TP2 et portent le badge « valeur non vérifiée ». La partie II est simulée sur le moteur du banc, pas sur celui du convoyeur de l'énoncé.
+
+## TP3 : extension demandée après le PRD, aucune mesure réelle
+
+Le PRD excluait le TP3 ; il a été ajouté à la demande de l'utilisateur, sans modifier le PRD. L'étudiant n'a pas fait ce TP : toutes ses valeurs propres sont des hypothèses (`TP3_*` dans `reference.au3.ts`), calées sur les indications de l'énoncé, et toutes ses questions portent le badge « valeur non vérifiée ». La page affiche « Aucune mesure réelle : valeurs calées sur les indications de l'énoncé ».
+
+- **Modèle** (`src/au3/sim/position.ts`, fonctions pures) : zone morte u_eff = signe(u)·max(|u| − UF, 0), puis τa·dx1/dt = KV·u_eff − x1, τb·dΩ/dt = x1 − Ω, dθ/dt = Ω (θ en degrés, non borné), τa et τb du TP1. Potentiomètre : rampe de la borne rouge à la borne bleue sur 340°, puis soudure côté bleue, isolant (0 V), soudure côté rouge ; alimentation inversée = pente négative. Boucle fermée : régulateur à impédances de la platine, saturation ±10,6 V. Même pas d'Euler (`PAS_EULER`) que les autres TP.
+- **Temps réel** (`src/au3/tp3/tempsReel.ts`) : tout le banc du TP3 tourne en continu ; à chaque image, l'état avance de la durée écoulée avec les réglages courants (molette d'offset, K, câblage). L'oscilloscope lit une fenêtre glissante : mode Normal = nouvel affichage à chaque déclenchement, Auto = défilement, bouton « Force Trigger » (aussi disponible hors TP3). Le disque et le curseur du potentiomètre (angle mort visible, vue de face) sont dessinés à l'angle θ simulé.
+- **Réponses attendues** (`src/au3/tp3/attendus.ts`, `contexteTp3` / `catalogueTp3` dans `src/au3/examen/catalogue.ts`) : période et angle mort lus sur la trace échantillonnée comme à l'oscilloscope ; échelon établi ±2 V à 0,2 Hz lu par l'algorithme de curseur du TP2 ; Q7 = ensemble des K de {1, 2, 4, 7} qui respectent le cahier des charges, par simulation. Calculées dans un Worker sur la page (`src/au3/tp3/useContexte.ts`).
+- **Câblage** : montages `tp3` (I), `tp3-ii1`, `tp3-ii2` ; « Faire vérifier » refuse le +12 V laissé sur l'entrée de l'ampli (modification n° 1) et contrôle les résistances égales (n° 5). Variante piège : R1 = 10 kΩ / R2 = 27 kΩ laissées du TP4 → K = 18,9.
+- **Piège de l'énoncé** : « La tension délivrée en sortie du potentiomètre est proportionnelle à la vitesse de rotation du moteur » est faux : elle est proportionnelle à la POSITION angulaire. `docs/au3/enonce.md` n'est pas modifié (seules les ancres des questions TP3 y ont été ajoutées) ; la note de correction est affichée sur la page, à côté de la phrase citée.
+- **Écarts signalés** : (1) potentiomètre inversé en boucle fermée : réaction positive et U saturé, mais le disque ne tourne pas sans arrêt ; il reste piégé au bord isolant / soudure (U commute entre ±10,6 V), conséquence des paliers de l'angle mort. (2) Consigne à ±12 V (II.1 Q6) : le modèle stabilise le disque dans la soudure, sans tour complet ; la réponse attendue s'appuie sur ce point (position dans l'angle mort, mesure indépendante de l'angle).
+- **Session** : schéma v5 (migration v4 → v5 : ajout des validations du TP3, rien d'autre ne change).
 
 ## Hypothèses (liste générée depuis reference.au3.ts)
 
@@ -80,11 +92,22 @@ Ne pas modifier à la main : `AU3_ECRIRE_README=1 npx vitest run src/au3/examen/
 - `SECTEUR_HZ` = 50 Hz — Voie flottante : bruit 50 Hz de valeur moyenne nulle
 - `FLOTTANT_AMPLITUDE` = 0.2 V — Amplitude crête du 50 Hz capté par une entrée en l’air
 - `GBF_VPP_MAX` = 20 V — Amplitude maximale du TG315 (non donnée par l’énoncé)
-- `GBF_OFFSET_MAX` = 10 V — Offset maximal du TG315 (non donné par l’énoncé)
+- `GBF_OFFSET_MAX` = 12 V — Offset maximal du TG315 et excursion maximale de MAIN OUT (non donnés par l’énoncé) : étendus à ±12 V pour approcher les limites de l’angle mort en tension continue (TP3 II.1 Q6)
 - `GBF_FREQ_MIN` = 0.1 Hz
 - `GBF_FREQ_MAX` = 100 Hz — Bornée pour le simulateur : « quelques Hertz maximum » en B26
 - `GBF_DISSYMETRIE` = 0.2 — TP1 p. 6 : carré « pas symétrique » quand la platine est éteinte ; palier bas réduit de 20 % (valeur inventée)
 - `AMPLI_BLOQUE` = 1 — TP1 p. 6, remarque : ampli de courant bloqué, sortie collée à +USAT ou 0 V quelle que soit l’entrée ; seule la procédure de l’énoncé le débloque
 - `VITESSE_ARRET` = 0.01 — Animation : moteur dessiné à l’arrêt sous 1 % de la pleine échelle G0r·USAT
 - `PERIODES_CHAUFFE` = 1 période — Périodes du GBF simulées avant la recherche du déclenchement (régime périodique établi)
+- `TP3_T_TOUR` = 0.5 s — Durée d’un tour à +12 V en boucle ouverte, déduit de l’énoncé : 100 ms/div, environ 2 périodes à l’écran
+- `TP3_SOUDURE_M12` = 6 ° — Largeur de la soudure d’alimentation −12 V (angle mort, partie 1)
+- `TP3_ISOLANT` = 8 ° — Largeur de l’isolant à 0 V (angle mort, partie 2)
+- `TP3_SOUDURE_P12` = 6 ° — Largeur de la soudure d’alimentation +12 V (angle mort, partie 3)
+- `TP3_ANGLE_MORT` = 20 ° — Angle mort = soudure −12 V + isolant + soudure +12 V (calculé ; cohérence testée dans src/au3/tp3/tp3.test.ts)
+- `TP3_GCAPT` = 0.07058823529411765 V/° — Gain du capteur 2·VALIM/(360° − angle mort), calculé, jamais saisi
+- `TP3_UF` = 0.05 V — Frottement sec équivalent (zone morte), calé pour reproduire la conclusion de l’énoncé (K = 7 sans erreur statique, K petit gêné par les frottements)
+- `TP3_KV` = 60.25104602510461 °/s/V — Gain en vitesse 360°/(T_TOUR·(12 V − UF)), calculé ; dynamique : TAU_A et TAU_B du TP1 (même famille de moteur, réducteur non modélisé)
+- `TP3_R_EGALES` = 10000 Ω — Résistances égales des supports Z1 et Z2 (l’énoncé dit seulement « valeurs égales ») : composant R3 de 10 kΩ, à côté de R1 = 10 kΩ
+- `TP3_PAS_MESURE` = 0.0001 s — Pas d’échantillonnage des courbes de référence du TP3 (réponses attendues), multiple du pas d’Euler
+- `TP3_DT_IMAGE_MAX` = 0.05 s — Mode temps réel : durée simulée au plus par image (onglet en arrière-plan : la simulation ne rattrape pas le temps perdu)
 <!-- hypotheses:fin -->

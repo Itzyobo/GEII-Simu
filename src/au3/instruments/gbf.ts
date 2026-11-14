@@ -27,7 +27,7 @@ export const facteurAttenuation = (g: ReglagesGbf) => (g.attenuation ? facteurDe
 export function generateurGbf(g: ReglagesGbf): (t: number) => number {
   if (!g.sortie) return () => 0
   const k = facteurAttenuation(g)
-  const max = au3('GBF_VPP_MAX') / 2
+  const max = au3('GBF_OFFSET_MAX')
   const borne = (v: number) => (v > max ? max : v < -max ? -max : v)
   if (g.forme === 'continu') {
     const v = borne(k * g.offset)

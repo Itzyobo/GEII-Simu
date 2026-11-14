@@ -258,7 +258,7 @@ describe('17. corrections de l’étape 2', () => {
     const v2 = { ...base, version: 2, reponses: { 'tp1-i21-q3': { valeur: '12,2 ms', essais: 1 } }, cablage: [...PRESET_TP1], tp1: { ...progressionNeuve(), croixT3T1: { z: 1.2, y: 3.4 }, methodeWn: 't3' as const } }
     st.setItem(cleSession('libre', 'tp1'), JSON.stringify(v2))
     const s = chargerSession(st, 'libre', 'tp1')!
-    expect(SESSION_VERSION).toBe(4)
+    expect(SESSION_VERSION).toBe(5)
     expect(s.version).toBe(SESSION_VERSION)
     expect(s.reponses).toEqual(v2.reponses)
     expect(s.cablage).toEqual(v2.cablage)
