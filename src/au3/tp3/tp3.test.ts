@@ -4,7 +4,13 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import { AU3_ATTENDUS, AU3_QUESTIONS, couverture } from '../../data/questions.au3'
 import { au3 } from '../../data/reference'
-import { reduire, SUPPORTS_TP3, type EtatBanc } from '../banc'
+import { reduire, sessionTp3, SUPPORTS_TP3, type EtatBanc } from '../banc'
+import BilanExamen from '../examen/BilanExamen'
+import { noter } from '../examen/notation'
+import { SELON_MODELE } from '../hypothese'
+import { MISE_EN_PAGE } from '../miseEnPage'
+import { PageTp3 } from '../pages/Tp3'
+import { positionFiche, rangsFiches } from '../ui/cables'
 import { catalogueTp3, contexteTp3 } from '../examen/catalogue'
 import { badgeAffiche } from '../hypothese'
 import Accueil from '../pages/Accueil'
@@ -128,6 +134,52 @@ describe('TP3 — 8 à 10. défauts de câblage', () => {
     const oubli = reduire({ session: { ...s, cablage: [...CABLAGE_TP3_II, { id: 'x', a: 'plat.p12', b: 'plat.ampliIn', couleur: '#d62828' }], platine: { ...s.platine, ...SUPPORTS_TP3 } }, montage: 'tp3-ii1', verdict: null, message: null }, { type: 'faire-verifier' }, 0).verdict!
     expect(oubli.reussi).toBe(false)
     expect(oubli.manquantes.map((l) => l.nom)).toContain('1. Enlevez le cable entre l’entrée de l’ampli de courant et la borne +12V de la platine régulateur')
+  })
+})
+
+describe('TP3 — bornes empilées et liaison n° 4 à deux fils', () => {
+  it('partie I : 2 câbles sur +12 V (ampli et potentiomètre) → « Faire vérifier » 5/5 ; un seul des deux fils de la n° 4 → 4/5', () => {
+    const s = sessionNeuve('libre')
+    const verif = (cablage: typeof CABLAGE_TP3_I) => reduire({ session: { ...s, cablage: [...cablage] }, montage: 'tp3', verdict: null, message: null }, { type: 'faire-verifier' }, 0).verdict!
+    expect(CABLAGE_TP3_I.filter((c) => c.a === 'plat.p12' || c.b === 'plat.p12')).toHaveLength(2)
+    const v = verif(CABLAGE_TP3_I)
+    expect([v.correctes.length, v.total, v.reussi]).toEqual([5, 5, true])
+    const sansBleue = verif(CABLAGE_TP3_I.filter((c) => c.b !== 'pot.bleue'))
+    expect([sansBleue.correctes.length, sansBleue.reussi]).toEqual([4, false])
+  })
+  it('les fiches d’une borne sont hors du disque de la borne et ne se recouvrent pas', () => {
+    const o = { x: 0, y: 0 }
+    const rayonBorne = 16 // bouton h-7 (28 px) + anneau de 2 px
+    const f = Array.from({ length: 6 }, (_, k) => positionFiche(o, k))
+    for (const p of f) expect(Math.hypot(p.x, p.y) - MISE_EN_PAGE.cable.rayonPlot).toBeGreaterThanOrEqual(rayonBorne)
+    for (let i = 0; i < f.length; i++) for (let j = i + 1; j < f.length; j++) expect(Math.hypot(f[i]!.x - f[j]!.x, f[i]!.y - f[j]!.y)).toBeGreaterThan(2 * MISE_EN_PAGE.cable.rayonPlot)
+    expect([...rangsFiches([{ id: 'a', a: 'm', b: 'x' }, { id: 'b', a: 'm', b: 'y' }, { id: 'c', a: 'z', b: 'm' }]).values()].map((r) => [r.a, r.b])).toEqual([[0, 0], [1, 0], [0, 2]])
+  })
+})
+
+describe('TP3 — 3. comportements prédits non vérifiés (texte rendu)', () => {
+  const texte = (html: string) => html.replace(/<!-- -->/g, '')
+  /** Contenu textuel des éléments marqués data-predit */
+  const predits = (html: string) => [...texte(html).matchAll(/<(\w+)[^>]*data-predit[^>]*>([\s\S]*?)<\/\1>/g)].map((m) => m[2]!)
+  it('page TP3 : la réponse attendue et la correction de II.1 Q6 (consigne proche de ±12 V) commencent par le préfixe et portent le badge', () => {
+    const s = { ...sessionTp3('libre'), reponses: { 'tp3-ii1-q6': { valeur: 'Oui, partout\nx', essais: 1 } } }
+    const html = renderToString(createElement(MemoryRouter, null, createElement(PageTp3, { etat: { session: s, montage: 'tp3-ii1', verdict: null, message: null }, agir: () => {} })))
+    const p = predits(html)
+    expect(p).toHaveLength(2)
+    for (const x of p) {
+      expect(x.startsWith(SELON_MODELE)).toBe(true)
+      expect(x).toContain('valeur non vérifiée')
+    }
+  })
+  it('bilan d’examen : la question non traitée II.1 Q6 est corrigée avec le préfixe et le badge', () => {
+    const s = { ...sessionTp3('examen'), examen: { tp: 'tp3' as const, graine: 1, incident: 'aucun' as const, debut: 0, duree: au3('DUREE_EXAMEN'), termine: true, finA: 1 } }
+    const bilan = noter(s, 'tp3', catalogueTp3(contexteTp3()))
+    const html = renderToString(createElement(MemoryRouter, null, createElement(BilanExamen, { bilan, examen: s.examen })))
+    const p = predits(html)
+    expect(p).toHaveLength(1)
+    expect(p[0]!.startsWith(SELON_MODELE)).toBe(true)
+    expect(p[0]).toContain('±12 V')
+    expect(p[0]).toContain('valeur non vérifiée')
   })
 })
 

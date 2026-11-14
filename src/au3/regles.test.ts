@@ -1,7 +1,7 @@
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import enonce from '../../docs/au3/enonce.md?raw'
-import { AU3, type RefKey } from '../data/reference'
+import { AU3, au3, type RefKey } from '../data/reference'
 import { AU3_ATTENDUS, AU3_QUESTIONS, couverture } from '../data/questions.au3'
 import { dependDHypothese } from './hypothese'
 import { chargerSession, cleSession, sauverSession, sessionNeuve, SESSION_VERSION } from './session'
@@ -38,6 +38,26 @@ function litterauxInterdits(chemin: string, texte: string): string[] {
   return fautes
 }
 
+const REFERENCE_AU3 = import.meta.glob<string>('/src/data/reference.au3.ts', { query: '?raw', import: 'default', eager: true })['/src/data/reference.au3.ts']!
+const MAIN = import.meta.glob<string>('/src/main.tsx', { query: '?raw', import: 'default', eager: true })['/src/main.tsx']!
+const DERIVEES = ['TP3_ANGLE_MORT', 'TP3_GCAPT', 'TP3_KV']
+
+/** Grandeurs dérivées dont `valeur` n'est pas un accesseur lisant d'autres entrées (AU3_VALEURS.X.valeur) */
+function derivesSaisis(texte: string): string[] {
+  const src = ts.createSourceFile('reference.au3.ts', texte, ts.ScriptTarget.Latest, true)
+  const fautes: string[] = []
+  const visite = (n: ts.Node) => {
+    if (ts.isPropertyAssignment(n) && DERIVEES.includes(n.name.getText()) && ts.isObjectLiteralExpression(n.initializer)) {
+      const v = n.initializer.properties.find((p) => p.name?.getText() === 'valeur')
+      const lit = v && ts.isGetAccessorDeclaration(v) && /AU3_VALEURS\.\w+\.valeur/.test(v.body?.getText() ?? '')
+      if (!lit) fautes.push(n.name.getText())
+    }
+    ts.forEachChild(n, visite)
+  }
+  visite(src)
+  return fautes.sort()
+}
+
 describe('12. règle des constantes', () => {
   it('aucun nombre littéral hors {0, 1, -1, 2} dans le code AU3 (hors reference.ts et tests)', () => {
     expect(Object.keys(SOURCES).length).toBeGreaterThan(10)
@@ -54,6 +74,37 @@ describe('12. règle des constantes', () => {
     }
     visite(src)
     expect(vus).toEqual(['3.5'])
+  })
+
+  it('2a. TP3_ANGLE_MORT, TP3_GCAPT et TP3_KV sont calculés (accesseur sur les hypothèses de base), jamais un nombre saisi', () => {
+    expect(derivesSaisis(REFERENCE_AU3)).toEqual([])
+    // Le détecteur échoue bien sur un nombre littéral ou une expression de littéraux
+    expect(derivesSaisis('const AU3_VALEURS = { TP3_GCAPT: { valeur: 0.0706 }, TP3_KV: { valeur: 360 / (0.5 * (12 - 0.05)) }, TP3_ANGLE_MORT: { get valeur() { return 20 } } }')).toEqual(['TP3_ANGLE_MORT', 'TP3_GCAPT', 'TP3_KV'])
+  })
+
+  it('2b. changer TP3_T_TOUR change TP3_KV (et la base du gain du capteur change TP3_GCAPT)', () => {
+    const tour = AU3.TP3_T_TOUR as { valeur: number }
+    const avant = tour.valeur
+    const kv = au3('TP3_KV')
+    try {
+      tour.valeur = 2 * avant
+      expect(au3('TP3_KV')).toBeCloseTo(kv / 2, 12)
+    } finally {
+      tour.valeur = avant
+    }
+    expect(au3('TP3_KV')).toBe(kv)
+    const iso = AU3.TP3_ISOLANT as { valeur: number }
+    const g = au3('TP3_GCAPT')
+    iso.valeur += 2
+    expect(au3('TP3_GCAPT')).toBeGreaterThan(g)
+    iso.valeur -= 2
+    expect(au3('TP3_GCAPT')).toBe(g)
+  })
+
+  it('2c. le module AU3 est chargé à la demande au niveau de la route (aucun import statique de src/au3 dans main.tsx)', () => {
+    const statiques = [...MAIN.matchAll(/^import[^\n]*from '([^']+)'/gm)].map((m) => m[1]!)
+    expect(statiques.filter((x) => x.includes('/au3/') || x.endsWith('reference.au3'))).toEqual([])
+    expect(MAIN).toMatch(/lazy\(\(\) => import\('\.\/au3\/pages\/Tp3'\)\)/)
   })
 
   it('chaque entrée de reference AU3 a une valeur, une unité et une source valide', () => {

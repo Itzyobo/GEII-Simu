@@ -2,6 +2,7 @@ import { au3 } from '../../data/reference'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import type { SessionExamen } from '../session'
 import BadgeNonVerifie from '../ui/BadgeNonVerifie'
+import { SELON_MODELE } from '../hypothese'
 import { nombre } from '../tp1/affichage'
 import type { Bilan } from './notation'
 
@@ -94,8 +95,9 @@ export default function BilanExamen({ bilan, examen }: { bilan: Bilan; examen: S
                 </li>
               ))}
               {q.ouvertes.map((o) => (
-                <li key={o.def.id}>
-                  Réponse attendue : {o.def.attendu ?? 'dépend de votre identification (non faite)'} — {o.def.texte}
+                <li key={o.def.id} data-predit={o.def.predit || undefined}>
+                  {o.def.predit && SELON_MODELE}Réponse attendue : {o.def.attendu ?? 'dépend de votre identification (non faite)'} — {o.def.texte}
+                  {o.def.predit && <BadgeNonVerifie cles={q.question.cles} validee={q.question.validee} />}
                 </li>
               ))}
             </ul>

@@ -11,6 +11,9 @@
 
 export type RefSource = 'CR' | 'enonce' | 'hypothese'
 
+/** Degrés par tour (définition, pour les grandeurs dérivées du TP3) */
+const DEGRES_TOUR = 360
+
 export interface RefEntry {
   valeur: number
   unite: string
@@ -151,10 +154,29 @@ const AU3_VALEURS = {
   TP3_SOUDURE_M12: { valeur: 6, unite: '°', source: 'hypothese', note: 'Largeur de la soudure d’alimentation −12 V (angle mort, partie 1)' },
   TP3_ISOLANT: { valeur: 8, unite: '°', source: 'hypothese', note: 'Largeur de l’isolant à 0 V (angle mort, partie 2)' },
   TP3_SOUDURE_P12: { valeur: 6, unite: '°', source: 'hypothese', note: 'Largeur de la soudure d’alimentation +12 V (angle mort, partie 3)' },
-  TP3_ANGLE_MORT: { valeur: 6 + 8 + 6, unite: '°', source: 'hypothese', note: 'Angle mort = soudure −12 V + isolant + soudure +12 V (calculé ; cohérence testée dans src/au3/tp3/tp3.test.ts)' },
-  TP3_GCAPT: { valeur: (2 * 12) / (360 - (6 + 8 + 6)), unite: 'V/°', source: 'hypothese', note: 'Gain du capteur 2·VALIM/(360° − angle mort), calculé, jamais saisi' },
+  /* Grandeurs dérivées : accesseurs calculés à la lecture depuis les hypothèses de base (jamais saisis) */
+  TP3_ANGLE_MORT: {
+    get valeur(): number {
+      return AU3_VALEURS.TP3_SOUDURE_M12.valeur + AU3_VALEURS.TP3_ISOLANT.valeur + AU3_VALEURS.TP3_SOUDURE_P12.valeur
+    },
+    unite: '°',
+    source: 'hypothese',
+    note: 'Angle mort = soudure −12 V + isolant + soudure +12 V (calculé)',
+  },
+  TP3_GCAPT: {
+    get valeur(): number {
+      return (2 * AU3_VALEURS.TP3_VALIM_POT.valeur) / (DEGRES_TOUR - AU3_VALEURS.TP3_ANGLE_MORT.valeur)
+    },
+    unite: 'V/°',
+    source: 'hypothese',
+    note: 'Gain du capteur 2·VALIM/(360° − angle mort), calculé, jamais saisi',
+  },
   TP3_UF: { valeur: 0.05, unite: 'V', source: 'hypothese', note: 'Frottement sec équivalent (zone morte), calé pour reproduire la conclusion de l’énoncé (K = 7 sans erreur statique, K petit gêné par les frottements)' },
-  TP3_KV: { valeur: 360 / (0.5 * (12 - 0.05)), unite: '°/s/V', source: 'hypothese', note: 'Gain en vitesse 360°/(T_TOUR·(12 V − UF)), calculé ; dynamique : TAU_A et TAU_B du TP1 (même famille de moteur, réducteur non modélisé)' },
+  TP3_KV: {
+    get valeur(): number {
+      return DEGRES_TOUR / (AU3_VALEURS.TP3_T_TOUR.valeur * (AU3_VALEURS.TP3_VALIM_POT.valeur - AU3_VALEURS.TP3_UF.valeur))
+    },
+    unite: '°/s/V', source: 'hypothese', note: 'Gain en vitesse 360°/(T_TOUR·(12 V − UF)), calculé ; dynamique : TAU_A et TAU_B du TP1 (même famille de moteur, réducteur non modélisé)' },
   TP3_R_EGALES: { valeur: 10e3, unite: 'Ω', source: 'hypothese', note: 'Résistances égales des supports Z1 et Z2 (l’énoncé dit seulement « valeurs égales ») : composant R3 de 10 kΩ, à côté de R1 = 10 kΩ' },
   TP3_PAS_MESURE: { valeur: 1e-4, unite: 's', source: 'hypothese', note: 'Pas d’échantillonnage des courbes de référence du TP3 (réponses attendues), multiple du pas d’Euler' },
   TP3_DT_IMAGE_MAX: { valeur: 0.05, unite: 's', source: 'hypothese', note: 'Mode temps réel : durée simulée au plus par image (onglet en arrière-plan : la simulation ne rattrape pas le temps perdu)' },

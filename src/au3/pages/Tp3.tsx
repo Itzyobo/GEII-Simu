@@ -17,7 +17,9 @@ import FigureK from '../tp3/FigureK'
 import MoteurPosition from '../tp3/MoteurPosition'
 import { creerTempsReel } from '../tp3/tempsReel'
 import { useContexteTp3, type ContexteTp3 } from '../tp3/useContexte'
+import BadgeNonVerifie from '../ui/BadgeNonVerifie'
 import Etabli from '../ui/Etabli'
+import { SELON_MODELE } from '../hypothese'
 import { formatSi } from '../ui/format'
 import type { PropsPage } from '../ui/types'
 import { useBanc } from '../ui/useBanc'
@@ -285,9 +287,11 @@ function Panneau({ s, agir, examen, C, ctx, rec, verdict, K }: { s: SessionAu3; 
           id="tp3-ii1-q6"
           choix={o('tp3-ii1-q6').choix}
           attendu={C.ouvertes['tp3-ii1-q6']!.attendu}
+          predit={qu('tp3-ii1-q6').cles}
           correction={
-            <p>
-              Non. Loin de ±12 V, le disque se positionne sur la consigne. À la limite de l’offset ({formatSi(au3('GBF_OFFSET_MAX'), 'V')}), le modèle arrête le disque à {nombre(ctx.limite.theta)}° du début de la piste, dans la soudure (la piste linéaire s’arrête à {nombre(DEGRES_PAR_TOUR - au3('TP3_ANGLE_MORT'))}°) : la mesure y vaut {formatSi(ctx.limite.mesure, 'V')} quel que soit l’angle, la position n’est plus mesurée ni régulée. Les orientations de l’angle mort ({au3('TP3_ANGLE_MORT')}°) sont inaccessibles ; c’est pourquoi « la consigne ne sera jamais choisie en limite d’angle mort ».
+            <p data-predit>
+              {SELON_MODELE}Non. Loin de ±12 V, le disque se positionne sur la consigne. À la limite de l’offset ({formatSi(au3('GBF_OFFSET_MAX'), 'V')}), le modèle arrête le disque à {nombre(ctx.limite.theta)}° du début de la piste, dans la soudure (la piste linéaire s’arrête à {nombre(DEGRES_PAR_TOUR - au3('TP3_ANGLE_MORT'))}°) : la mesure y vaut {formatSi(ctx.limite.mesure, 'V')} quel que soit l’angle, la position n’est plus mesurée ni régulée. Les orientations de l’angle mort ({au3('TP3_ANGLE_MORT')}°) sont inaccessibles ; c’est pourquoi « la consigne ne sera jamais choisie en limite d’angle mort ».
+              <BadgeNonVerifie cles={qu('tp3-ii1-q6').cles} />
             </p>
           }
           p={p}

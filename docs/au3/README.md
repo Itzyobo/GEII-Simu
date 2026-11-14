@@ -43,7 +43,8 @@ Le PRD excluait le TP3 ; il a été ajouté à la demande de l'utilisateur, sans
 - **Réponses attendues** (`src/au3/tp3/attendus.ts`, `contexteTp3` / `catalogueTp3` dans `src/au3/examen/catalogue.ts`) : période et angle mort lus sur la trace échantillonnée comme à l'oscilloscope ; échelon établi ±2 V à 0,2 Hz lu par l'algorithme de curseur du TP2 ; Q7 = ensemble des K de {1, 2, 4, 7} qui respectent le cahier des charges, par simulation. Calculées dans un Worker sur la page (`src/au3/tp3/useContexte.ts`).
 - **Câblage** : montages `tp3` (I), `tp3-ii1`, `tp3-ii2` ; « Faire vérifier » refuse le +12 V laissé sur l'entrée de l'ampli (modification n° 1) et contrôle les résistances égales (n° 5). Variante piège : R1 = 10 kΩ / R2 = 27 kΩ laissées du TP4 → K = 18,9.
 - **Piège de l'énoncé** : « La tension délivrée en sortie du potentiomètre est proportionnelle à la vitesse de rotation du moteur » est faux : elle est proportionnelle à la POSITION angulaire. `docs/au3/enonce.md` n'est pas modifié (seules les ancres des questions TP3 y ont été ajoutées) ; la note de correction est affichée sur la page, à côté de la phrase citée.
-- **Écarts signalés** : (1) potentiomètre inversé en boucle fermée : réaction positive et U saturé, mais le disque ne tourne pas sans arrêt ; il reste piégé au bord isolant / soudure (U commute entre ±10,6 V), conséquence des paliers de l'angle mort. (2) Consigne à ±12 V (II.1 Q6) : le modèle stabilise le disque dans la soudure, sans tour complet ; la réponse attendue s'appuie sur ce point (position dans l'angle mort, mesure indépendante de l'angle).
+- **Écarts signalés** (badge « valeur non vérifiée ») : (1) potentiomètre inversé en boucle fermée — Selon le modèle (non vérifié au labo) : réaction positive et U saturé, mais le disque ne tourne pas sans arrêt ; il reste piégé au bord isolant / soudure (U commute entre ±10,6 V), conséquence des paliers de l'angle mort. (2) Consigne à ±12 V (II.1 Q6) — Selon le modèle (non vérifié au labo) : le disque se stabilise dans la soudure, sans tour complet ; la réponse attendue s'appuie sur ce point (position dans l'angle mort, mesure indépendante de l'angle). Dans l'application, tout texte qui décrit ces deux comportements commence par « Selon le modèle (non vérifié au labo) : » et porte le badge.
+- **Bornes** : une borne accepte plusieurs câbles (fiches banane empilées). Chaque extrémité est une fiche dessinée à côté de la borne : cliquer la borne démarre un câble, cliquer une fiche sélectionne son câble (pour le retirer). Le fil ne capte aucun clic.
 - **Session** : schéma v5 (migration v4 → v5 : ajout des validations du TP3, rien d'autre ne change).
 
 ## Hypothèses (liste générée depuis reference.au3.ts)
@@ -103,7 +104,7 @@ Ne pas modifier à la main : `AU3_ECRIRE_README=1 npx vitest run src/au3/examen/
 - `TP3_SOUDURE_M12` = 6 ° — Largeur de la soudure d’alimentation −12 V (angle mort, partie 1)
 - `TP3_ISOLANT` = 8 ° — Largeur de l’isolant à 0 V (angle mort, partie 2)
 - `TP3_SOUDURE_P12` = 6 ° — Largeur de la soudure d’alimentation +12 V (angle mort, partie 3)
-- `TP3_ANGLE_MORT` = 20 ° — Angle mort = soudure −12 V + isolant + soudure +12 V (calculé ; cohérence testée dans src/au3/tp3/tp3.test.ts)
+- `TP3_ANGLE_MORT` = 20 ° — Angle mort = soudure −12 V + isolant + soudure +12 V (calculé)
 - `TP3_GCAPT` = 0.07058823529411765 V/° — Gain du capteur 2·VALIM/(360° − angle mort), calculé, jamais saisi
 - `TP3_UF` = 0.05 V — Frottement sec équivalent (zone morte), calé pour reproduire la conclusion de l’énoncé (K = 7 sans erreur statique, K petit gêné par les frottements)
 - `TP3_KV` = 60.25104602510461 °/s/V — Gain en vitesse 360°/(T_TOUR·(12 V − UF)), calculé ; dynamique : TAU_A et TAU_B du TP1 (même famille de moteur, réducteur non modélisé)

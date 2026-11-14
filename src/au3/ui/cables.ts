@@ -1,6 +1,8 @@
 import { MISE_EN_PAGE } from '../miseEnPage'
+import { DEGRES_PAR_TOUR } from '../unites'
 
 const C = MISE_EN_PAGE.cable
+const DEMI_TOUR = DEGRES_PAR_TOUR / 2
 
 export interface Point {
   x: number
@@ -47,6 +49,27 @@ export function cheminCable(a: Point, b: Point, zones: readonly Rect[] = []): st
     if (!traverse(echantillons(a, b, dessus, dessus), zones)) return d(a, b, dessus, dessus)
   }
   return d(a, b, ya, yb)
+}
+
+/**
+ * Fiche n° k empilée sur une borne de centre `centre` : hors du disque de la borne (elle n'intercepte jamais le clic
+ * destiné à la borne), en éventail depuis le bas : k = 0 en bas, puis alternativement à droite et à gauche.
+ */
+export function positionFiche(centre: Point, k: number): Point {
+  const cote = k % 2 === 1 ? 1 : -1
+  const a = (cote * Math.ceil(k / 2) * C.pasAngleFiche * Math.PI) / DEMI_TOUR
+  return { x: centre.x + C.rayonFiche * Math.sin(a), y: centre.y + C.rayonFiche * Math.cos(a) }
+}
+
+/** Fiches de chaque extrémité : rang de chaque câble parmi ceux de sa borne, dans l'ordre du câblage */
+export function rangsFiches(cablage: readonly { id: string; a: string; b: string }[]): Map<string, { a: number; b: number }> {
+  const parBorne = new Map<string, number>()
+  const rang = (borne: string) => {
+    const k = parBorne.get(borne) ?? 0
+    parBorne.set(borne, k + 1)
+    return k
+  }
+  return new Map(cablage.map((c) => [c.id, { a: rang(c.a), b: rang(c.b) }]))
 }
 
 /** Vrai si le chemin calculé évite toutes les zones (pour les tests) */

@@ -5,7 +5,7 @@ import { periodeGbf } from '../instruments/gbf'
 import type { Enregistrement, PlanAcquisition } from '../instruments/oscillo'
 import { MONTAGES, PRESET_TP1, massesNonNoires, nomBorne, type Borne as IdBorne, type Cablage } from '../sim/cablage'
 import { BANC_REEL, simulate, vitesseAffichee } from '../sim/simulate'
-import { cheminCable, type Rect } from './cables'
+import { cheminCable, positionFiche, rangsFiches, type Rect } from './cables'
 import Gbf from './Gbf'
 import Moteur from './Moteur'
 import Oscillo from './Oscillo'
@@ -87,6 +87,7 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
   const { gbf, platine, cablage: cablageEtudiant } = s
   // Le banc réel = câbles de l'étudiant + liaisons pré-câblées
   const cablage = useMemo(() => [...cablageEtudiant, ...precablage], [cablageEtudiant, precablage])
+  const rangs = useMemo(() => rangsFiches(cablage), [cablage])
   const simuler = useCallback(
     (graine: number, p: PlanAcquisition) => {
       const r = simulate(BANC_REEL, { gbf, platine, duree: p.duree, pasSortie: p.pasSortie }, cablage, graine)
@@ -238,26 +239,58 @@ export default function Etabli({ etat, agir, preset = true, variantes = false, o
           </div>
 
           <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-label="Câbles">
+            {/* Câbles et fiches : seul le disque de chaque fiche (à côté de la borne) capte le clic, qui sélectionne le câble ;
+                le fil et son raccord à la borne laissent passer les clics vers la borne (plusieurs fiches par borne) */}
             {precablage.map((c) => {
               const a = points[c.a]
               const b = points[c.b]
-              if (!a || !b) return null
+              const r = rangs.get(c.id)
+              if (!a || !b || !r) return null
+              const fa = positionFiche(a, r.a)
+              const fb = positionFiche(b, r.b)
               return (
-                <path key={c.id} d={cheminCable(a, b, zones)} fill="none" stroke={c.couleur} strokeWidth={C.epaisseur} strokeDasharray={C.pointillePrecablage} strokeLinecap="round" opacity="0.7" data-precable={c.id}>
+                <g key={c.id} opacity="0.7" data-precable={c.id}>
+                  <path d={`${cheminCable(fa, fb, zones)} M ${a.x} ${a.y} L ${fa.x} ${fa.y} M ${b.x} ${b.y} L ${fb.x} ${fb.y}`} fill="none" stroke={c.couleur} strokeWidth={C.epaisseur} strokeDasharray={C.pointillePrecablage} strokeLinecap="round" />
                   <title>{`Pré-câblé : ${nomBorne(c.a)} — ${nomBorne(c.b)}`}</title>
-                </path>
+                </g>
               )
             })}
             {cablageEtudiant.map((c) => {
               const a = points[c.a]
               const b = points[c.b]
-              if (!a || !b) return null
-              const d = cheminCable(a, b, zones)
+              const r = rangs.get(c.id)
+              if (!a || !b || !r) return null
+              const fa = positionFiche(a, r.a)
+              const fb = positionFiche(b, r.b)
+              const d = cheminCable(fa, fb, zones)
+              const raccords = `M ${a.x} ${a.y} L ${fa.x} ${fa.y} M ${b.x} ${b.y} L ${fb.x} ${fb.y}`
+              const nom = `${nomBorne(c.a)} — ${nomBorne(c.b)}`
               return (
-                <g key={c.id} className="pointer-events-auto cursor-pointer" onClick={() => setCableActif(c.id)}>
+                <g key={c.id} data-cable={c.id}>
                   <path d={d} fill="none" stroke="#000" strokeOpacity="0.45" strokeWidth={C.epaisseur * 2} strokeLinecap="round" />
-                  <path d={d} fill="none" stroke={c.couleur} strokeWidth={C.epaisseur} strokeLinecap="round" className={cableActif === c.id ? 'opacity-100' : 'opacity-90'} />
-                  <title>{`${nomBorne(c.a)} — ${nomBorne(c.b)}`}</title>
+                  <path d={`${d} ${raccords}`} fill="none" stroke={c.couleur} strokeWidth={C.epaisseur} strokeLinecap="round" className={cableActif === c.id ? 'opacity-100' : 'opacity-90'} />
+                  <title>{nom}</title>
+                  {[
+                    { f: fa, borne: c.a },
+                    { f: fb, borne: c.b },
+                  ].map(({ f, borne }) => (
+                    <circle
+                      key={borne}
+                      cx={f.x}
+                      cy={f.y}
+                      r={C.rayonPlot}
+                      fill={c.couleur}
+                      stroke={cableActif === c.id ? '#f5a524' : '#000'}
+                      strokeWidth="2"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Fiche du câble ${nom}, sur ${nomBorne(borne)} : sélectionner le câble`}
+                      data-fiche={`${c.id}@${borne}`}
+                      className="pointer-events-auto cursor-pointer"
+                      onClick={() => setCableActif(c.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && setCableActif(c.id)}
+                    />
+                  ))}
                 </g>
               )
             })}

@@ -37,6 +37,14 @@ export const MISE_EN_PAGE = {
     /** Affaissement des courbes de Bézier (px) */
     affaissement: 60,
     epaisseur: 4,
+    /**
+     * Fiches banane empilées : chaque extrémité de câble est une fiche dessinée à côté de la borne, à rayonFiche
+     * de son centre (hors du disque de la borne, rayon 14 px + anneau 2 px), en éventail depuis le bas
+     * (pasAngleFiche degrés entre deux fiches) ; rayonPlot = rayon de la fiche cliquable.
+     */
+    rayonFiche: 23,
+    rayonPlot: 6,
+    pasAngleFiche: 50,
     /** Tirets d'une liaison pré-câblée */
     pointillePrecablage: '2 6',
     /** Contournement d'une zone d'exclusion : marge (px), pas de recherche (px), essais, points d'échantillonnage */

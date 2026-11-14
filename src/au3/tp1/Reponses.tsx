@@ -4,6 +4,8 @@ import type { Action } from '../banc'
 import { MISE_EN_PAGE } from '../miseEnPage'
 import type { SessionAu3 } from '../session'
 import BadgeNonVerifie from '../ui/BadgeNonVerifie'
+import { SELON_MODELE } from '../hypothese'
+import type { RefKey } from '../../data/reference'
 import { afficher, pourcent } from './affichage'
 import type { Correction } from './correction'
 import { valeursChamp, type ChampDef } from '../examen/catalogue'
@@ -90,7 +92,7 @@ function lecturesTexte(champ: ChampDef, lectures?: readonly number[]) {
  * Question qualitative : choix + justification. La correction rédigée ne s'affiche qu'après la réponse
  * de l'étudiant (et jamais en mode examen).
  */
-export function QuestionOuverte({ id, choix, attendu, correction, p }: { id: string; choix: readonly string[]; attendu: string | null; correction: ReactNode; p: PropsReponse }) {
+export function QuestionOuverte({ id, choix, attendu, correction, p, predit }: { id: string; choix: readonly string[]; attendu: string | null; correction: ReactNode; p: PropsReponse; predit?: readonly RefKey[] }) {
   const r = p.session.reponses[id]
   const [choisi, setChoisi] = useState(r?.valeur.split('\n')[0] ?? '')
   const [texte, setTexte] = useState(r?.valeur.split('\n').slice(1).join('\n') ?? '')
@@ -119,8 +121,10 @@ export function QuestionOuverte({ id, choix, attendu, correction, p }: { id: str
       {r && !p.examen && (
         <div className="rounded bg-au3-panel-2 p-2 ring-1 ring-au3-line" role="status" data-correction={id}>
           {attendu !== null && (
-            <p className={r.valeur.startsWith(attendu + '\n') ? 'text-au3-ok' : 'text-au3-err'}>
+            <p className={r.valeur.startsWith(attendu + '\n') ? 'text-au3-ok' : 'text-au3-err'} data-predit={predit ? true : undefined}>
+              {predit && SELON_MODELE}
               {r.valeur.startsWith(attendu + '\n') ? '✓' : '✗'} Réponse attendue : {attendu}
+              {predit && <BadgeNonVerifie cles={predit} />}
             </p>
           )}
           <div className="mt-1 text-au3-ink">{correction}</div>

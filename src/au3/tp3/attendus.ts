@@ -19,7 +19,7 @@ const [NOIR, ROUGE, VERT, JAUNE] = MISE_EN_PAGE.cable.couleurs
 
 /** Un câble par liaison de l'énoncé, « masse » = première masse de la platine, masses en noir */
 export const cablageDe = (liaisons: readonly Liaison[], prefixe: string): Cablage =>
-  liaisons.map((l, i) => {
+  liaisons.flatMap((l): Liaison[] => (l.et ? [{ a: l.a, b: l.b, nom: l.nom }, { ...l.et, nom: l.nom }] : [l])).map((l, i) => {
     const a: Borne = l.a === 'masse' ? 'plat.masse1' : l.a
     const b: Borne = l.b === 'masse' ? 'plat.masse1' : l.b
     return { id: `${prefixe}-${i}`, a, b, couleur: l.a === 'masse' || l.b === 'masse' ? NOIR : a.startsWith('pot') || b.startsWith('pot') ? VERT : a === 'gbf.out' ? JAUNE : ROUGE }

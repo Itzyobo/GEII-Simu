@@ -37,6 +37,8 @@ export interface OuverteDef {
   attendu: string | null
   /** Justification courte, pour la liste des questions non traitées */
   texte: string
+  /** Comportement prédit par le modèle, non vérifié au labo : affiché après SELON_MODELE, avec le badge */
+  predit?: boolean
 }
 export interface Catalogue {
   champs: Record<string, ChampDef>
@@ -86,7 +88,7 @@ const pourcentAbsolu = (id: string, attendu: number): ChampDef => ({
 })
 /** Repère des champs TR5% (affichage d'une ou deux lectures) */
 const MARQUE_TR5 = ' ; ou sur votre trace affichée'
-const ouverte = (id: string, choix: readonly string[], attendu: string | null, texte: string): OuverteDef => ({ id, choix, attendu, texte })
+const ouverte = (id: string, choix: readonly string[], attendu: string | null, texte: string, predit = false): OuverteDef => ({ id, choix, attendu, texte, ...(predit ? { predit } : {}) })
 const cat = (champs: ChampDef[], ouvertes: OuverteDef[]): Catalogue => ({ champs: Object.fromEntries(champs.map((c) => [c.id, c])), ouvertes: Object.fromEntries(ouvertes.map((o) => [o.id, o])) })
 
 /** Valeurs du fit comparées aux réponses de l'étudiant : « Oui » si toutes dans la tolérance, null si incomplet */
@@ -451,7 +453,7 @@ export function catalogueTp3(c: ReturnType<typeof contexteTp3>): Catalogue {
       ouverte('tp3-ii1-q3', CHOIX_TP3.change, c.mise.arrete ? CHOIX_TP3.change[0] : CHOIX_TP3.change[2], 'Le disque suit la nouvelle consigne et s’arrête dès que la mesure la rejoint.'),
       ouverte('tp3-ii1-q4', CHOIX_TP3.transitoire, k7.d1rel >= au3('TP4_D1_MAX') ? CHOIX_TP3.transitoire[2] : k7.tr5 < au3('TP3_TR5_MAX') ? CHOIX_TP3.transitoire[0] : CHOIX_TP3.transitoire[1], `Rapide : TR5%b ≈ ${afficher(k7.tr5, 's')} à K = 7, sans dépassement notable.`),
       ouverte('tp3-ii1-q5', CHOIX_TP3.permanent, Math.abs(k7.erreur) < au3('TP4_ERREUR_MAX') ? CHOIX_TP3.permanent[0] : CHOIX_TP3.permanent[1], 'Superposées : erreur statique quasi nulle à K = 7.'),
-      ouverte('tp3-ii1-q6', CHOIX_TP3.limites, c.limite.dansAngleMort ? CHOIX_TP3.limites[1] : CHOIX_TP3.limites[0], 'Non : à ±12 V la position visée est au bord ou dans l’angle mort, où la mesure ne dépend plus de l’angle.'),
+      ouverte('tp3-ii1-q6', CHOIX_TP3.limites, c.limite.dansAngleMort ? CHOIX_TP3.limites[1] : CHOIX_TP3.limites[0], 'Non : à ±12 V la position visée est au bord ou dans l’angle mort, où la mesure ne dépend plus de l’angle.', true),
       ouverte('tp3-ii1-q7', CHOIX_TP3.k1, k1.tr5 > k7.tr5 && Math.abs(k1.erreur) > Math.abs(k7.erreur) ? CHOIX_TP3.k1[0] : CHOIX_TP3.k1[1], `Plus lent (TR5%b ≈ ${afficher(k1.tr5, 's')}) et erreur statique de ${pourcentSimple(k1.erreur)} : U = K·e ne vainc plus le frottement.`),
       ouverte('tp3-ii1-q8', CHOIX_TP3.teleop, k7.tr5 < k1.tr5 && Math.abs(k7.erreur) < Math.abs(k1.erreur) ? CHOIX_TP3.teleop[0] : CHOIX_TP3.teleop[1], 'K = 7 : suit la consigne plus vite et plus précisément (gestes non brutaux).'),
       ouverte('tp3-ii2-o-q1', OUI_NON, Math.abs(k7.erreur) < TOL_M() ? 'Oui' : 'Non', 'Oui : en boucle fermée, la position se stabilise après un régime transitoire.'),

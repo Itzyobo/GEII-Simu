@@ -55,6 +55,8 @@ export interface Liaison {
   b: Borne | 'masse'
   /** Intitulé de l'énoncé (docs/au3/enonce.md) */
   nom: string
+  /** Second fil de la même liaison numérotée (TP3 I, n° 4 : le potentiomètre est alimenté par ses deux bornes) */
+  et?: { a: Borne | 'masse'; b: Borne | 'masse' }
 }
 
 /** TP1, « Câblages à réaliser (platine éteinte) », liaisons 1 à 6 */
@@ -110,8 +112,12 @@ export const MONTAGE_TP3_I: readonly Liaison[] = [
   { a: 'plat.p12', b: 'plat.ampliIn', nom: '1. Reliez la sortie +12V de la platine « Régulateur Analogique » (en bas à gauche) à l’entrée de l’amplificateur de courant.' },
   { a: 'plat.ampliOut', b: 'mot.rouge', nom: '2. Reliez la sortie bleue de l’amplificateur de courant (< 1A) à l’entrée d’alimentation rouge du moteur (ou bleue sur le moteur « blanc »).' },
   { a: 'mot.noir', b: 'masse', nom: '3. Reliez la borne noire d’alimentation du moteur à une masse de la platine « Régulateur Analogique » avec un cable noir.' },
-  { a: 'plat.m12', b: 'pot.rouge', nom: '4. Alimentez le potentiomètre rotatif en reliant la sortie -12V en bas à gauche de la platine « Régulateur Analogique » à la borne rouge (ou jaune sur le moteur « blanc ») du capteur' },
-  { a: 'plat.p12', b: 'pot.bleue', nom: '4. (suite) et en reliant la sortie +12V en bas à gauche de la platine « Régulateur Analogique » à la borne bleue (ou rouge sur le moteur « blanc ») du capteur.' },
+  {
+    a: 'plat.m12',
+    b: 'pot.rouge',
+    et: { a: 'plat.p12', b: 'pot.bleue' },
+    nom: '4. Alimentez le potentiomètre rotatif en reliant la sortie -12V en bas à gauche de la platine « Régulateur Analogique » à la borne rouge (ou jaune sur le moteur « blanc ») du capteur et en reliant la sortie +12V en bas à gauche de la platine « Régulateur Analogique » à la borne bleue (ou rouge sur le moteur « blanc ») du capteur.',
+  },
   { a: 'pot.verte', b: 'osc.v2', nom: '5. Reliez la sortie du potentiomètre rotatif (borne verte) qui est la mesure de la position angulaire à la voie 2 (verte) de l’oscilloscope.' },
 ]
 
@@ -228,7 +234,8 @@ export function verifier(cablage: Cablage, attendu: readonly Liaison[], supports
   const r = reseaux(cablage)
   const net = (b: Borne | 'masse') => (b === 'masse' ? r.masse : r.de(b))
   const encore = (regles.interdites ?? []).filter((l) => net(l.a) === net(l.b))
-  const correctes = [...attendu.filter((l) => net(l.a) === net(l.b)), ...(regles.interdites ?? []).filter((l) => !encore.includes(l))]
+  const relie = (l: Liaison) => net(l.a) === net(l.b) && (!l.et || net(l.et.a) === net(l.et.b))
+  const correctes = [...attendu.filter(relie), ...(regles.interdites ?? []).filter((l) => !encore.includes(l))]
   const impedances: ControleImpedance[] = attendues
     ? (['z1', 'z2'] as const).map((k) => {
         const z = supports?.[k] ?? null
