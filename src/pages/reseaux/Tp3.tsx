@@ -15,6 +15,7 @@ import { createPingExercise, framesOfSecond, salle, salleTraffic, type Scenario 
 import { bonusExercise, checkScope31, CHRONOS, CONSEILS_TP3, halvesOf, tp3Attendus } from '../../lib/reseaux/tp3'
 import type { ScopeSettings } from '../../lib/scope/types'
 import Layout from '../../modbus/pages/Layout'
+import { Btn, Card } from './ui'
 
 const SEED_KEY = 'tp-sim:res3-tp3:seed'
 const L_MAX = 6000
@@ -406,23 +407,6 @@ function Step({ title, conseil, children }: { title: string; conseil?: string; c
         </details>
       )}
     </div>
-  )
-}
-
-function Card({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="rounded-card bg-card p-4 ring-1 ring-line">
-      <h2 className="mb-2 text-sm font-semibold">{title}</h2>
-      {children}
-    </div>
-  )
-}
-
-function Btn({ onClick, pressed, children }: { onClick: () => void; pressed?: boolean; children: ReactNode }) {
-  return (
-    <button type="button" onClick={onClick} aria-pressed={pressed} className={`min-h-11 rounded-lg px-3 text-sm ring-1 ring-line ${pressed ? 'bg-accent text-on-accent' : 'hover:ring-accent'}`}>
-      {children}
-    </button>
   )
 }
 

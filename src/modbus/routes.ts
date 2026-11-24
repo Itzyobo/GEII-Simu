@@ -3,6 +3,7 @@ export const MODBUS_PAGES = [
   ['', 'Accueil'],
   ['tp1', 'TP1 Câble coaxial'],
   ['tp3', 'TP3 Ethernet 10Base2'],
+  ['partiel-reseaux', 'Partiel Réseaux'],
   ['banc', 'Banc'],
   ['logiciel', 'Logiciel MODBUS'],
   ['questions', 'Questions'],

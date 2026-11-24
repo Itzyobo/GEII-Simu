@@ -306,6 +306,50 @@ export const ETH10B2 = {
   tolDuree: 0.02,
 } as const
 
+/* ───────── Réseaux RES3 · partiel pratique (src/lib/reseaux/partiel.ts) ───────── */
+
+export const RES3_PARTIEL = {
+  /** Durée de l'épreuve — s (1 h 30) — énoncé */
+  dureeS: 90 * 60,
+  /**
+   * PARTIEL_BAREME — points par question ; parties : câble 7, trame série 6, ping 7 (total 20) — hypothèse,
+   * à valider avec l'enseignant (répartition interne aux parties choisie par nous)
+   */
+  PARTIEL_BAREME: {
+    cable: { zc: 2, l: 2, gammaOpen: 1, gammaShort: 1, methode: 1 },
+    serie: { baud: 1.5, parity: 1.5, level: 1, message: 2 },
+    ping: { L: 2, padding: 1.5, durationUs: 2, macByte: 1.5 },
+  },
+  /** Tolérances : Zc et l ±5 %, durées ±2 % ; Γ, parité, norme, L et octets exacts */
+  tolZc: 0.05,
+  tolL: 0.05,
+  tolDuree: 0.02,
+} as const
+
+/* ───────── Réseaux RES3 · trame série du partiel (src/lib/reseaux/serial.ts) ───────── */
+
+export const RES3_SERIE = {
+  /** Débits normalisés proposés — baud — cours (RS-232) */
+  debits: [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200] as const,
+  /** Niveaux TTL : 0 / 5 V, repos à 5 V — V — cours */
+  ttlBas: 0,
+  ttlHaut: 5,
+  /** RS-232 / V28 : ±10 V ± 1 V selon le transmetteur, logique inversée, repos à −10 V — V — cours, ±1 V hypothèse */
+  rs232: 10,
+  rs232Ecart: 1,
+  /** Fronts : TTL ≈ 20 ns ; RS-232 limité en vitesse de balayage ≈ 30 V/µs — s, V/s — ordres de grandeur, hypothèse */
+  frontTtl: 20e-9,
+  slewRs232: 30e6,
+  /** Le message est réémis en boucle toutes les ≈ 200 ms — s — hypothèse */
+  periode: 0.2,
+  /** Bits de repos tirés entre deux caractères : 0 à 3 */
+  reposMax: 3,
+  /** Tolérance sur un débit mesuré (sinon valeur normalisée exacte) — relative (±3 %) */
+  tolDebit: 0.03,
+  /** Mots du message : 2 à 4 caractères ASCII imprimables */
+  mots: ['OK', 'Go', 'TP3', 'Hi!', 'R2D2', '42', 'Net', 'bus', 'ON', 'off', 'IUT', 'Ok7', 'GEII', 'abc', 'Z80', 'x=1', 'Rx', 'Tx', '7E1', 'Ping', 'LAN', 'b10', 'Mux', 'Ack'] as const,
+} as const
+
 /* ───────── Réseaux RES3 · TP1 câble coaxial (src/lib/reseaux/coax.ts) ───────── */
 
 export interface CableType {
