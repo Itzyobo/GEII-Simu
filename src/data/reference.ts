@@ -254,6 +254,56 @@ export const OSCILLO = {
   cranFin: 1.02,
 } as const
 
+/* ───────── Réseaux RES3 · TP3 Ethernet 10Base2 (src/lib/reseaux/ethernet.ts, traffic.ts) ───────── */
+
+export const ETH10B2 = {
+  /** Débit — bit/s (10 Mbit/s, 100 ns par bit) — norme IEEE 802.3 */
+  debit: 10e6,
+  /** Octets de préambule (55h) avant le SFD (D5h) — norme */
+  preambule: 7,
+  /** Charge utile minimale d'une trame (bourrage au-delà) — octets — norme */
+  payloadMin: 46,
+  /** MTU Ethernet — octets — norme */
+  mtu: 1500,
+  /** Données IP par fragment (MTU − en-tête IP de 20 octets) — octets — norme */
+  fragment: 1480,
+  /** Espace inter-trame — s (9,6 µs = 96 temps bit) — norme */
+  ifg: 9.6e-6,
+  /** TTL des paquets émis par Windows — sans unité — cours */
+  ttlWindows: 128,
+  /** Courant tiré par la carte pendant la trame : 40 ± 30 mA — A — cours */
+  iMoyen: 40e-3,
+  iEcart: 30e-3,
+  /** Charge vue par la carte : deux demi-câbles bouchonnés en parallèle (50 Ω // 50 Ω) — Ω — cours */
+  zCharge: 25,
+  /** Durée des fronts du signal Manchester — s (≈ 25 ns) — ordre de grandeur, hypothèse */
+  front: 25e-9,
+  /** Fin de trame : maintien au niveau haut puis retour à 0 V — s — ordre de grandeur, hypothèse */
+  finMaintien: 200e-9,
+  finRetour: 100e-9,
+  /** Délai de réponse de l'automate TSX 57 à un ping — s (0,5 à 2 ms) — hypothèse */
+  reponseMin: 0.5e-3,
+  reponseMax: 2e-3,
+  /** Broadcasts de fond (ARP, UDP) par seconde — hypothèse */
+  broadcastsMin: 2,
+  broadcastsMax: 5,
+  /** Part des broadcasts de fond qui sont des UDP (le reste : requêtes ARP) — hypothèse */
+  partUdp: 0.2,
+  /** Distance point d'observation → extrémité dont on retire le bouchon — m — énoncé */
+  dBouchon: 15,
+  /** Vitesse de propagation dans le RG58 — m/s — ordre de grandeur, hypothèse */
+  v: 2e8,
+  /** Longueur du coax de la salle — m (≈ 40 m) — énoncé */
+  lSalle: 40,
+  /** Plage du ping « valeur mystère » et du partiel — octets */
+  pingMin: 1,
+  pingMax: 1472,
+  /** Part des tirages du partiel sous 18 octets (bourrage obligatoire) */
+  partBourrage: 0.3,
+  /** Tolérance sur les durées mesurées — relative (±2 %) */
+  tolDuree: 0.02,
+} as const
+
 /* ───────── Réseaux RES3 · TP1 câble coaxial (src/lib/reseaux/coax.ts) ───────── */
 
 export interface CableType {
