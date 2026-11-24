@@ -2,7 +2,8 @@
  * Trafic de la salle du TP3 : hub 10Base2, coax 50 Ω bouchonné aux deux bouts. Broadcasts de fond aléatoires
  * et ping -l L -t d'un PC vers l'automate TSX 57, tirés seconde par seconde (graine), à la demande.
  */
-import { ETH10B2 } from '../../data/reference'
+import { ETH10B2, RES3_PARTIEL } from '../../data/reference'
+import { tieredScore } from '../grading'
 import { mulberry32 } from '../../au3/sim/prng'
 import { gamma, withEcho } from './coax'
 import {
@@ -198,16 +199,18 @@ export interface PingGradeDetail {
   key: keyof PingExpected
   given: number
   expected: number
+  /** 1, ½ ou 0 */
+  score: number
   ok: boolean
 }
 
-/** Correction : durée à ±2 %, tout le reste exact. Score dans [0, 1]. */
+/** Correction : durée pleine à ±2 %, moitié à ±5 % ; tout le reste exact. Score moyen dans [0, 1]. */
 export function gradePing(expected: PingExpected, answers: Partial<Record<keyof PingExpected, number>>): { score: number; details: PingGradeDetail[] } {
   const details = (Object.keys(expected) as (keyof PingExpected)[]).map((key) => {
     const given = answers[key] ?? NaN
     const e = expected[key]
-    const ok = Number.isFinite(given) && (key === 'durationUs' ? Math.abs(given - e) <= ETH10B2.tolDuree * e : given === e)
-    return { key, given, expected: e, ok }
+    const score = key === 'durationUs' ? tieredScore(given, e, RES3_PARTIEL.tolDuree, RES3_PARTIEL.tolDureeMoitie) : given === e ? 1 : 0
+    return { key, given, expected: e, score, ok: score === 1 }
   })
-  return { score: details.filter((d) => d.ok).length / details.length, details }
+  return { score: details.reduce((s, d) => s + d.score, 0) / details.length, details }
 }

@@ -35,7 +35,7 @@ describe('correction', () => {
       expect(gradePartiel(s, emptyAnswers()).note).toBe(0)
     })
   }
-  it('limites de tolérance : Zc ±5 %, durée ±2 %, L exact, Γ exact', () => {
+  it('points partiels : Zc et l ½ à 10 %, durée ½ à 5 %, débit ½ à 10 %, message au prorata ; le reste exact', () => {
     const s = subjectOf(3)
     const ok = correctAnswers(s)
     const with_ = (patch: (a: typeof ok) => void) => {
@@ -45,14 +45,26 @@ describe('correction', () => {
     }
     const zc = s.coax.expected.Zc
     expect(with_((a) => (a.cable.zc = String(zc * 1.049))).note).toBe(20)
-    expect(with_((a) => (a.cable.zc = String(zc * 1.051))).note).toBe(18)
+    expect(with_((a) => (a.cable.zc = String(zc * 1.051))).note).toBe(19)
+    expect(with_((a) => (a.cable.zc = String(zc * 1.101))).note).toBe(18)
+    expect(with_((a) => (a.cable.l = String(s.coax.expected.l * 0.92))).note).toBe(19)
     const d = s.ping.expected.durationUs
     expect(with_((a) => (a.ping.durationUs = String(d * 1.019))).note).toBe(20)
-    expect(with_((a) => (a.ping.durationUs = String(d * 1.021))).note).toBe(18)
+    expect(with_((a) => (a.ping.durationUs = String(d * 1.021))).note).toBe(19)
+    expect(with_((a) => (a.ping.durationUs = String(d * 1.051))).note).toBe(18)
+    const b = s.serie.expected.baud
+    expect(with_((a) => (a.serie.baud = String(b * 1.05))).note).toBe(19.25)
+    expect(with_((a) => (a.ping.padding = String(s.ping.expected.paddingBytes + 1))).note).toBe(18.5)
     expect(with_((a) => (a.ping.L = String(s.ping.expected.L + 1))).note).toBe(18)
     expect(with_((a) => (a.cable.gammaOpen = '0,9')).note).toBe(19)
     expect(with_((a) => (a.cable.methode = 'ohmmetre')).note).toBe(19)
-    expect(with_((a) => (a.serie.message = a.serie.message.toLowerCase() === a.serie.message ? a.serie.message.toUpperCase() + '#' : a.serie.message.toLowerCase())).note).toBe(18)
+    // Un caractère faux sur n : 2 × (n − 1)/n points pour le message, bit fautif dans le calcul
+    const m = s.serie.expected.message
+    const n = m.length
+    const wrong = m.slice(0, -1) + (m.at(-1) === '#' ? '%' : '#')
+    const r = with_((a) => (a.serie.message = wrong))
+    expect(r.note).toBeCloseTo(18 + (2 * (n - 1)) / n, 9)
+    expect(r.lines.find((l) => l.label.startsWith('Message'))!.calcul).toMatch(/attendu \d, lu \d/)
   })
   it('octet hexadécimal : A4, a4h, 0xA4', () => {
     expect([parseHexByte('A4'), parseHexByte('a4h'), parseHexByte('0xA4'), parseHexByte('G1')]).toEqual([0xa4, 0xa4, 0xa4, NaN])

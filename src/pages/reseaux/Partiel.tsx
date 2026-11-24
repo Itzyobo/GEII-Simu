@@ -360,7 +360,9 @@ function Result({ s, onNew }: { s: PartielSession; onNew: () => void }) {
               .map((l) => (
                 <li key={l.label} className="border-t border-line pt-2">
                   <p>
-                    <span className={l.ok ? 'text-ok' : 'text-err'}>{l.ok ? '✓' : '✗'}</span> <b>{l.label}</b> · vous : <span className="font-mono">{l.given}</span> · attendu : <span className="font-mono">{l.expected}</span> ·{' '}
+                    <span className={l.ok ? 'text-ok' : l.score > 0 ? 'text-warn' : 'text-err'} aria-label={l.ok ? 'juste' : l.score > 0 ? 'en partie juste' : 'faux'}>
+                      {l.ok ? '✓' : l.score > 0 ? '◐' : '✗'}
+                    </span> <b>{l.label}</b> · vous : <span className="font-mono">{l.given}</span> · attendu : <span className="font-mono">{l.expected}</span> ·{' '}
                     {fr(l.pts, 3)}/{l.max}
                   </p>
                   <p className="mt-1 text-xs text-muted">{l.calcul}</p>

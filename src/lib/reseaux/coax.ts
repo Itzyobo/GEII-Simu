@@ -8,7 +8,8 @@
  * Sinus : A = 10^(−α(f)·l/100/20). Impulsions : A = 1 mais chaque terme passe dans un passe-bas « effet de peau »
  * de constante de temps τs ∝ (longueur parcourue)², gain continu 1 : en BF l'escalier converge sans règle spéciale.
  */
-import { RES3, type CableType } from '../../data/reference'
+import { RES3, RES3_PARTIEL, type CableType } from '../../data/reference'
+import { tieredScore } from '../grading'
 import { mulberry32 } from '../../au3/sim/prng'
 import type { SignalSource } from '../scope/types'
 
@@ -210,17 +211,20 @@ export interface GradeDetail {
   key: keyof CoaxExpected
   given: number
   expected: number
+  /** 1, ½ ou 0 */
+  score: number
   ok: boolean
 }
 
-/** Correction : Zc et l à ±5 % ; Γ à ±0,05 en absolu (Γ attendus = ±1). Score dans [0, 1]. */
+/** Correction : Zc et l pleins à ±5 %, moitié à ±10 % ; Γ exact (±1). Score moyen dans [0, 1]. */
 export function gradeCoax(expected: CoaxExpected, answers: Partial<Record<keyof CoaxExpected, number>>): { score: number; details: GradeDetail[] } {
+  const P = RES3_PARTIEL
   const keys = Object.keys(expected) as (keyof CoaxExpected)[]
   const details = keys.map((key) => {
     const given = answers[key] ?? NaN
     const e = expected[key]
-    const tol = key === 'gammaOpen' || key === 'gammaShort' ? RES3.tolMesure : RES3.tolMesure * Math.abs(e)
-    return { key, given, expected: e, ok: Number.isFinite(given) && Math.abs(given - e) <= tol }
+    const score = key === 'Zc' ? tieredScore(given, e, P.tolZc, P.tolZcMoitie) : key === 'l' ? tieredScore(given, e, P.tolL, P.tolLMoitie) : given === e ? 1 : 0
+    return { key, given, expected: e, score, ok: score === 1 }
   })
-  return { score: details.filter((d) => d.ok).length / details.length, details }
+  return { score: details.reduce((s, d) => s + d.score, 0) / details.length, details }
 }

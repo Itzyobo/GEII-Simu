@@ -173,6 +173,8 @@ describe('API du partiel', () => {
     const { expected } = createPingExercise(9)
     expect(gradePing(expected, { ...expected, durationUs: expected.durationUs * 1.015 }).score).toBe(1)
     expect(gradePing(expected, { ...expected, L: expected.L + 1 }).score).toBe(0.8)
+    const dur = (k: number) => gradePing(expected, { durationUs: expected.durationUs * k }).details.find((d) => d.key === 'durationUs')!.score
+    expect([dur(1.02), dur(0.98), dur(1.021), dur(1.05), dur(1.051)]).toEqual([1, 1, 0.5, 0.5, 0])
     expect(ETH10B2.tolDuree).toBe(0.02)
   })
 })

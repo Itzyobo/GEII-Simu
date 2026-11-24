@@ -320,10 +320,16 @@ export const RES3_PARTIEL = {
     serie: { baud: 1.5, parity: 1.5, level: 1, message: 2 },
     ping: { L: 2, padding: 1.5, durationUs: 2, macByte: 1.5 },
   },
-  /** Tolérances : Zc et l ±5 %, durées ±2 % ; Γ, parité, norme, L et octets exacts */
+  /**
+   * Tolérances : points pleins à ±5 % (Zc, l) et ±2 % (durée), moitié à ±10 % et ±5 % ;
+   * Γ, parité, norme, L, bourrage et octet de MAC exacts ; message au prorata des caractères justes
+   */
   tolZc: 0.05,
+  tolZcMoitie: 0.1,
   tolL: 0.05,
+  tolLMoitie: 0.1,
   tolDuree: 0.02,
+  tolDureeMoitie: 0.05,
 } as const
 
 /* ───────── Réseaux RES3 · trame série du partiel (src/lib/reseaux/serial.ts) ───────── */
@@ -331,12 +337,12 @@ export const RES3_PARTIEL = {
 export const RES3_SERIE = {
   /** Débits normalisés proposés — baud — cours (RS-232) */
   debits: [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200] as const,
-  /** Niveaux TTL : 0 / 5 V, repos à 5 V — V — cours */
-  ttlBas: 0,
-  ttlHaut: 5,
-  /** RS-232 / V28 : ±10 V ± 1 V selon le transmetteur, logique inversée, repos à −10 V — V — cours, ±1 V hypothèse */
-  rs232: 10,
-  rs232Ecart: 1,
+  /**
+   * Tirage pondéré du débit : part des débits ≤ debitLentMax (1200 à 19200 bauds), le reste de 38400 à 115200
+   * — sans unité (85 %) — hypothèse. Niveaux TTL / RS-232 : ceux mesurés au TP2 (src/modbus/data/reference.ts).
+   */
+  partDebitsLents: 0.85,
+  debitLentMax: 19200,
   /** Fronts : TTL ≈ 20 ns ; RS-232 limité en vitesse de balayage ≈ 30 V/µs — s, V/s — ordres de grandeur, hypothèse */
   frontTtl: 20e-9,
   slewRs232: 30e6,
@@ -344,8 +350,9 @@ export const RES3_SERIE = {
   periode: 0.2,
   /** Bits de repos tirés entre deux caractères : 0 à 3 */
   reposMax: 3,
-  /** Tolérance sur un débit mesuré (sinon valeur normalisée exacte) — relative (±3 %) */
+  /** Débit mesuré : points pleins à ±3 % (ou valeur normalisée exacte), moitié à ±10 % — relatif */
   tolDebit: 0.03,
+  tolDebitMoitie: 0.1,
   /** Mots du message : 2 à 4 caractères ASCII imprimables */
   mots: ['OK', 'Go', 'TP3', 'Hi!', 'R2D2', '42', 'Net', 'bus', 'ON', 'off', 'IUT', 'Ok7', 'GEII', 'abc', 'Z80', 'x=1', 'Rx', 'Tx', '7E1', 'Ping', 'LAN', 'b10', 'Mux', 'Ack'] as const,
 } as const

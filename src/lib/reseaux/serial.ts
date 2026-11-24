@@ -5,7 +5,8 @@
  */
 import { RES3_SERIE } from '../../data/reference'
 import { mulberry32 } from '../../au3/sim/prng'
-import { formatFrame, uartFrame, type Level, type UartFormat } from '../../modbus/models/uart'
+import { tieredScore } from '../grading'
+import { formatFrame, levelOf, uartFrame, type Level, type UartFormat } from '../../modbus/models/uart'
 import type { Parity } from '../../modbus/data/reference'
 import type { SignalSource } from '../scope/types'
 
@@ -16,17 +17,14 @@ export interface SerialLine {
   format: UartFormat
   baud: number
   level: Level
-  /** Niveau RS-232 de ce transmetteur, en valeur absolue — V */
-  amplitude: number
   /** Bits de repos avant chaque caractère */
   gaps: number[]
   /** Période de réémission — s */
   period: number
 }
 
-/** Tension d'un état logique : TTL 0/5 V ; RS-232 inversé (1 = −A, 0 = +A) */
-export const voltOf = (bit: number, l: Pick<SerialLine, 'level' | 'amplitude'>) =>
-  l.level === 'TTL' ? (bit ? RES3_SERIE.ttlHaut : RES3_SERIE.ttlBas) : bit ? -l.amplitude : l.amplitude
+/** Tension d'un état logique : niveaux mesurés au TP2 (TTL 0/5 V ; RS-232 inversé ≈ +11,5 / −11,8 V), seule source */
+export const voltOf = (bit: number, l: Pick<SerialLine, 'level'>) => levelOf(bit, l.level)
 
 /** Bits émis dans une période (repos compris), à partir du 1er repos */
 export function lineBits(l: SerialLine): number[] {
@@ -34,7 +32,7 @@ export function lineBits(l: SerialLine): number[] {
 }
 
 /** Durée d'un front : TTL fixe, RS-232 = excursion / vitesse de balayage — s */
-const edgeTime = (l: SerialLine) => (l.level === 'TTL' ? RES3_SERIE.frontTtl : (2 * l.amplitude) / RES3_SERIE.slewRs232)
+const edgeTime = (l: SerialLine) => (l.level === 'TTL' ? RES3_SERIE.frontTtl : Math.abs(voltOf(0, l) - voltOf(1, l)) / RES3_SERIE.slewRs232)
 
 /**
  * Source d'oscilloscope : la ligne au repos, puis le message, réémis toutes les `period` secondes.
@@ -102,6 +100,8 @@ export interface SerialExercise {
 }
 
 const PARITIES: readonly Parity[] = ['none', 'even', 'odd']
+const LENTS = RES3_SERIE.debits.filter((d) => d <= RES3_SERIE.debitLentMax)
+const RAPIDES = RES3_SERIE.debits.filter((d) => d > RES3_SERIE.debitLentMax)
 
 export function createSerialExercise(seed: number): SerialExercise {
   const rnd = mulberry32(seed ^ 0x27d4eb2f)
@@ -111,9 +111,9 @@ export function createSerialExercise(seed: number): SerialExercise {
   const line: SerialLine = {
     bytes: Array.from(message, (c) => c.charCodeAt(0)),
     format,
-    baud: pick(RES3_SERIE.debits),
+    // Débits lents bien plus fréquents en salle (pondération : hypothèse)
+    baud: pick(rnd() < RES3_SERIE.partDebitsLents ? LENTS : RAPIDES),
     level: rnd() < 0.5 ? 'TTL' : 'RS232',
-    amplitude: RES3_SERIE.rs232 + (2 * rnd() - 1) * RES3_SERIE.rs232Ecart,
     gaps: Array.from(message, () => Math.floor(rnd() * (RES3_SERIE.reposMax + 1))),
     period: RES3_SERIE.periode,
   }
@@ -141,37 +141,77 @@ export interface CharDetail {
   /** start·données·parité·stop, attendus puis tels qu'ils seraient pour le caractère donné */
   bitsExpected: string
   bitsGiven: string
+  /** Bits fautifs (« D3 : attendu 1, lu 0 »), ou « caractère absent / en trop » */
+  wrongBits: string
   /** Bit de parité attendu et vérification du nombre de 1 */
   parityNote: string
   ok: boolean
 }
 
 export interface SerialGrade {
-  baud: { ok: boolean; note: string }
+  /** 1 : valeur normalisée exacte ou ±3 % ; ½ : ±10 % ; 0 sinon */
+  baud: { score: number; note: string }
   parity: boolean
   level: boolean
-  message: boolean
+  /** Part des caractères justes, rapportée au plus long des deux messages */
+  message: { score: number }
   chars: CharDetail[]
 }
 
 const PARITY_FR: Record<Parity, string> = { none: 'aucune', even: 'paire', odd: 'impaire' }
 export const parityFr = (p: Parity) => PARITY_FR[p]
 
-/** Débit juste : valeur normalisée exacte, ou valeur mesurée à ±3 % (la correction rappelle la valeur normalisée). */
+/** Nom du bit k d'une trame : start, D0 (poids faible)…, P, stop */
+function bitName(k: number, f: UartFormat): string {
+  if (k === 0) return 'start'
+  if (k <= f.dataBits) return `D${k - 1}`
+  if (f.parity !== 'none' && k === f.dataBits + 1) return 'P'
+  return 'stop'
+}
+
 export function gradeSerial(ex: SerialExercise, a: SerialAnswers): SerialGrade {
   const e = ex.expected
   const f = ex.line.format
-  const exact = a.baud === e.baud
-  const close = a.baud !== undefined && Math.abs(a.baud - e.baud) <= RES3_SERIE.tolDebit * e.baud
-  const baudNote = exact ? `${e.baud} bauds` : close ? `valeur mesurée acceptée (±3 %), valeur normalisée : ${e.baud} bauds` : `attendu ${e.baud} bauds (bit de ${(1e6 / e.baud).toFixed(2).replace('.', ',')} µs)`
+  const baudScore = a.baud === e.baud ? 1 : tieredScore(a.baud ?? NaN, e.baud, RES3_SERIE.tolDebit, RES3_SERIE.tolDebitMoitie)
+  const baudNote =
+    a.baud === e.baud
+      ? `${e.baud} bauds`
+      : baudScore === 1
+        ? `valeur mesurée acceptée (±3 %), valeur normalisée : ${e.baud} bauds`
+        : baudScore === 0.5
+          ? `à moins de 10 % : moitié des points ; valeur normalisée ${e.baud} bauds`
+          : `attendu ${e.baud} bauds (bit de ${(1e6 / e.baud).toFixed(2).replace('.', ',')} µs)`
   const given = a.message ?? ''
-  const bitsOf = (c: string | undefined) => (c === undefined ? '—' : formatFrame(uartFrame(c.charCodeAt(0), f), f))
-  const chars = Array.from(e.message, (c, i): CharDetail => {
+  const frameOf = (c: string) => uartFrame(c.charCodeAt(0), f)
+  const n = Math.max(e.message.length, given.length)
+  const chars = Array.from({ length: n }, (_, i): CharDetail => {
+    const c = e.message[i]
     const g = given[i]
-    const code = c.charCodeAt(0)
-    const ones = Array.from({ length: f.dataBits }, (_, k) => (code >> k) & 1).reduce((s, b) => s + b, 0)
-    const par = f.parity === 'none' ? 'pas de parité' : `${ones} bit(s) à 1 dans les données ⇒ P = ${uartFrame(code, f)[1 + f.dataBits]} (parité ${PARITY_FR[f.parity]})`
-    return { expected: c, given: g ?? '', bitsExpected: bitsOf(c), bitsGiven: bitsOf(g), parityNote: `${code.toString(16).toUpperCase().padStart(2, '0')}h : ${par}`, ok: g === c }
+    const parityNote = (() => {
+      if (c === undefined) return ''
+      const code = c.charCodeAt(0)
+      const ones = Array.from({ length: f.dataBits }, (_, k) => (code >> k) & 1).reduce((x, b) => x + b, 0)
+      const par = f.parity === 'none' ? 'pas de parité' : `${ones} bit(s) à 1 dans les données ⇒ P = ${frameOf(c)[1 + f.dataBits]} (parité ${PARITY_FR[f.parity]})`
+      return `${code.toString(16).toUpperCase().padStart(2, '0')}h : ${par}`
+    })()
+    const fe = c === undefined ? null : frameOf(c)
+    const fg = g === undefined ? null : frameOf(g)
+    const wrongBits = !fe ? 'caractère en trop' : !fg ? 'caractère absent' : fe.flatMap((b, k) => (b === fg[k] ? [] : [`${bitName(k, f)} : attendu ${b}, lu ${fg[k]}`])).join(', ')
+    return {
+      expected: c ?? '',
+      given: g ?? '',
+      bitsExpected: fe ? formatFrame(fe, f) : '—',
+      bitsGiven: fg ? formatFrame(fg, f) : '—',
+      wrongBits,
+      parityNote,
+      ok: c !== undefined && g === c,
+    }
   })
-  return { baud: { ok: exact || close, note: baudNote }, parity: a.parity === e.parity, level: a.level === e.level, message: given === e.message, chars }
+  return {
+    baud: { score: baudScore, note: baudNote },
+    parity: a.parity === e.parity,
+    level: a.level === e.level,
+    message: { score: n === 0 ? 0 : chars.filter((c) => c.ok).length / n },
+    chars,
+  }
 }

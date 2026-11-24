@@ -4,7 +4,7 @@ Site React 100 % front qui reproduit trois TP d'électrotechnique : moteur pas �
 Chaque page comporte un câblage simplifié, des instruments et les questions de l'énoncé, corrigées et notées.
 Les valeurs simulées sont calées sur les comptes rendus (CR). Toutes les constantes vivent dans `src/data/reference.ts`.
 
-L'accueil classe le site par matière : **ENER3** (les 3 TP sous `/ener`, et le cours animé sous `/ener/cours`) et **Réseaux** (TP2 liaison série / MODBUS, sous `/modbus`, avec son propre README : [docs/modbus/README.md](docs/modbus/README.md)).
+L'accueil classe le site par matière : **ENER3** (les 3 TP sous `/ener`, et le cours animé sous `/ener/cours`) et **Réseaux** (TP2 liaison série / MODBUS, sous `/modbus`, avec son propre README : [docs/modbus/README.md](docs/modbus/README.md) ; TP1 câble coaxial `/modbus/tp1`, TP3 Ethernet 10Base2 `/modbus/tp3`, partiel Réseaux `/modbus/partiel-reseaux`).
 
 Le cours animé reprend le diaporama `docs/Énergie - Cours.pdf` en 7 chapitres génériques (circuits magnétiques, alimentations à découpage, moteurs pas à pas, champ tournant, machine synchrone, machine asynchrone, onduleurs et variation de vitesse). Il intègre les animations de `Moteurs ENER3.html` (rotor pas à pas, pont en H, champ tournant, moteur asynchrone, couplage). Code : `src/cours/` (modèles dans `physique.ts`, testés dans `physique.test.ts`).
 
@@ -15,6 +15,9 @@ npm install
 npm run dev      # http://localhost:5173
 npm test         # Vitest : modèles, barème, progression, câblage, oscilloscope
 npm run build    # vérification TypeScript stricte + bundle de production dans dist/
+npx oxlint       # lint
+npm run check:375            # Playwright : chaque route à 375 px, sans débordement ni erreur console
+npm run check:partiel-res3   # Playwright : partiel Réseaux complet (entraînement), 375 px et ordinateur, note 20/20 attendue
 ```
 
 Node 20 ou plus récent. Le dossier `dist/` se sert comme un site statique. Il faut prévoir un repli vers `index.html` pour les routes `/tp/...` et `/examen-blanc`.

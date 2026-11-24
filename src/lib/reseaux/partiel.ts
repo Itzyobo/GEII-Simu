@@ -5,9 +5,9 @@
  */
 import { RES3, RES3_PARTIEL } from '../../data/reference'
 import { parseAnswer } from '../grading'
-import { createCoaxExercise, gamma } from './coax'
+import { createCoaxExercise, gamma, gradeCoax } from './coax'
 import { createSerialExercise, gradeSerial, parityFr, type Level, type Parity, type SerialExercise } from './serial'
-import { createPingExercise } from './traffic'
+import { createPingExercise, gradePing } from './traffic'
 
 export const PARTIES = ['Câble coaxial', 'Trame série', 'Ping Ethernet'] as const
 export type PartIndex = 0 | 1 | 2
@@ -53,6 +53,8 @@ export interface Line {
   label: string
   given: string
   expected: string
+  /** 1, ½, prorata (message) ou 0 */
+  score: number
   ok: boolean
   pts: number
   max: number
@@ -77,49 +79,54 @@ const CONSEILS = [
   'CH1 0,5 V/div, 0 V centré, DC · 10 µs/div, réf. gauche · Normal, front descendant CH1 à −0,1 V · Single (ignorer ARP et broadcasts), curseurs X du début du préambule à la fin de la trame ; zoom pour compter le bourrage et lire la MAC après le « 11 » du SFD.',
 ]
 
-/** Correction complète au barème RES3_PARTIEL */
+/** Correction complète au barème RES3_PARTIEL ; les points dégressifs viennent de gradeCoax / gradeSerial / gradePing. */
 export function gradePartiel(s: PartielSubject, a: PartielAnswers): PartielResult {
   const B = RES3_PARTIEL.PARTIEL_BAREME
   const lines: Line[] = []
-  const add = (part: PartIndex, label: string, given: string, expected: string, ok: boolean, max: number, calcul: string) =>
-    lines.push({ part, label, given: given.trim() || '—', expected, ok, pts: ok ? max : 0, max, calcul })
-  const rel = (given: number, e: number, tol: number) => Number.isFinite(given) && Math.abs(given - e) <= tol * Math.abs(e)
+  const add = (part: PartIndex, label: string, given: string, expected: string, score: number, max: number, calcul: string) =>
+    lines.push({ part, label, given: given.trim() || '—', expected, score, ok: score === 1, pts: score * max, max, calcul })
+  const half = (score: number) => (score === 0.5 ? ' Écart entre les deux seuils : moitié des points.' : '')
 
   // 1. Câble
   const { cable, expected: ce } = s.coax
+  const gc = gradeCoax(ce, { Zc: parseAnswer(a.cable.zc), l: parseAnswer(a.cable.l), gammaOpen: parseAnswer(a.cable.gammaOpen), gammaShort: parseAnswer(a.cable.gammaShort) })
+  const sc = (k: keyof typeof ce) => gc.details.find((d) => d.key === k)?.score ?? 0
   const Ei = (RES3.eg * cable.Zc) / (RES3.zg + cable.Zc)
   const dt = (2 * cable.l) / RES3.v
-  add(0, 'Impédance caractéristique Zc (Ω)', a.cable.zc, `${ce.Zc} Ω`, rel(parseAnswer(a.cable.zc), ce.Zc, RES3_PARTIEL.tolZc), B.cable.zc, `Ei = Eg·Zc/(Zg + Zc) = 8 × ${ce.Zc}/(50 + ${ce.Zc}) = ${fr(Ei)} V ⇒ Zc = Zg·Ei/(Eg − Ei) = 50 × ${fr(Ei)}/(8 − ${fr(Ei)}) = ${ce.Zc} Ω (±5 %).`)
-  add(0, 'Longueur l (m)', a.cable.l, `${ce.l} m`, rel(parseAnswer(a.cable.l), ce.l, RES3_PARTIEL.tolL), B.cable.l, `Retard de l’écho Δt = 2l/v = ${fr(dt * 1e6)} µs ⇒ l = v·Δt/2 = 2·10⁸ × ${fr(dt * 1e6)}·10⁻⁶ / 2 = ${ce.l} m (±5 %). Contrôle : N·π·D = ${cable.N}·π·${fr(cable.D)} = ${fr(cable.N * Math.PI * cable.D)} m.`)
-  add(0, 'Γ en circuit ouvert', a.cable.gammaOpen, '+1', parseAnswer(a.cable.gammaOpen) === ce.gammaOpen, B.cable.gammaOpen, `Γ = (ZL − Zc)/(ZL + Zc) → ${gamma(Infinity, ce.Zc)} quand ZL → ∞ : écho de même signe (atténué par les pertes).`)
-  add(0, 'Γ en court-circuit', a.cable.gammaShort, '−1', parseAnswer(a.cable.gammaShort) === ce.gammaShort, B.cable.gammaShort, 'Γ = (0 − Zc)/(0 + Zc) = −1 : écho inversé.')
+  add(0, 'Impédance caractéristique Zc (Ω)', a.cable.zc, `${ce.Zc} Ω`, sc('Zc'), B.cable.zc, `Ei = Eg·Zc/(Zg + Zc) = 8 × ${ce.Zc}/(50 + ${ce.Zc}) = ${fr(Ei)} V ⇒ Zc = Zg·Ei/(Eg − Ei) = 50 × ${fr(Ei)}/(8 − ${fr(Ei)}) = ${ce.Zc} Ω. Plein à ±5 %, moitié à ±10 %.${half(sc('Zc'))}`)
+  add(0, 'Longueur l (m)', a.cable.l, `${ce.l} m`, sc('l'), B.cable.l, `Retard de l’écho Δt = 2l/v = ${fr(dt * 1e6)} µs ⇒ l = v·Δt/2 = 2·10⁸ × ${fr(dt * 1e6)}·10⁻⁶ / 2 = ${ce.l} m. Contrôle : N·π·D = ${cable.N}·π·${fr(cable.D)} = ${fr(cable.N * Math.PI * cable.D)} m. Plein à ±5 %, moitié à ±10 %.${half(sc('l'))}`)
+  add(0, 'Γ en circuit ouvert', a.cable.gammaOpen, '+1', sc('gammaOpen'), B.cable.gammaOpen, `Γ = (ZL − Zc)/(ZL + Zc) → ${gamma(Infinity, ce.Zc)} quand ZL → ∞ : écho de même signe (atténué par les pertes).`)
+  add(0, 'Γ en court-circuit', a.cable.gammaShort, '−1', sc('gammaShort'), B.cable.gammaShort, 'Γ = (0 − Zc)/(0 + Zc) = −1 : écho inversé.')
   const methodeOk = a.cable.methode === 'amplitude' || a.cable.methode === 'adaptation' || a.cable.methode === 'les-deux'
-  add(0, 'Méthode utilisée pour Zc', METHODES.find(([k]) => k === a.cable.methode)?.[1] ?? '', 'amplitude incidente ou adaptation', methodeOk, B.cable.methode, 'Deux méthodes valables : amplitude incidente (pont diviseur Zg/Zc à t = 0⁺) ou adaptation au potentiomètre. L’ohmmètre sur le câble mesure une résistance de fils, pas Zc.')
+  add(0, 'Méthode utilisée pour Zc', METHODES.find(([k]) => k === a.cable.methode)?.[1] ?? '', 'amplitude incidente ou adaptation', methodeOk ? 1 : 0, B.cable.methode, 'Deux méthodes valables : amplitude incidente (pont diviseur Zg/Zc à t = 0⁺) ou adaptation au potentiomètre. L’ohmmètre sur le câble mesure une résistance de fils, pas Zc.')
 
   // 2. Trame série
   const se = s.serie.expected
   const g = gradeSerial(s.serie, { baud: parseAnswer(a.serie.baud), parity: a.serie.parity || undefined, level: a.serie.level || undefined, message: a.serie.message })
   const fmt = s.serie.line.format
-  add(1, 'Débit (bauds)', a.serie.baud, `${se.baud} bauds`, g.baud.ok, B.serie.baud, `Durée d’un bit isolé Tb = ${fr(1e6 / se.baud)} µs ⇒ D = 1/Tb = ${se.baud} bauds. ${g.baud.ok ? g.baud.note : ''}`)
-  add(1, 'Parité', a.serie.parity ? parityFr(a.serie.parity) : '', parityFr(se.parity), g.parity, B.serie.parity, `Format donné : ${fmt.dataBits} bits de données, ${fmt.stopBits} stop(s). ${g.chars.map((c) => c.parityNote).join(' ; ')}.`)
-  add(1, 'Norme', a.serie.level ? levelFr(a.serie.level) : '', levelFr(se.level), g.level, B.serie.level, se.level === 'TTL' ? 'Niveaux 0 / 5 V, repos au niveau haut, start = front descendant.' : 'Niveaux ±10 V environ, repos à −10 V (1 logique), start = front montant : logique inversée.')
+  add(1, 'Débit (bauds)', a.serie.baud, `${se.baud} bauds`, g.baud.score, B.serie.baud, `Durée d’un bit isolé Tb = ${fr(1e6 / se.baud)} µs ⇒ D = 1/Tb = ${se.baud} bauds. Plein : valeur normalisée ou ±3 % ; moitié : ±10 %. ${g.baud.note}.`)
+  add(1, 'Parité', a.serie.parity ? parityFr(a.serie.parity) : '', parityFr(se.parity), g.parity ? 1 : 0, B.serie.parity, `Format donné : ${fmt.dataBits} bits de données, ${fmt.stopBits} stop(s). ${g.chars.filter((c) => c.parityNote).map((c) => c.parityNote).join(' ; ')}.`)
+  add(1, 'Norme', a.serie.level ? levelFr(a.serie.level) : '', levelFr(se.level), g.level ? 1 : 0, B.serie.level, se.level === 'TTL' ? 'Niveaux 0 / 5 V, repos au niveau haut, start = front descendant.' : 'Niveaux ≈ +11,5 / −11,8 V, repos négatif (1 logique), start = front montant : logique inversée.')
   add(
     1,
     'Message (casse comprise)',
     a.serie.message,
     `« ${se.message} »`,
-    g.message,
+    g.message.score,
     B.serie.message,
-    g.chars.map((c) => `« ${c.expected} » ${c.bitsExpected}${c.ok ? '' : ` (vous : « ${c.given || '∅'} » ${c.bitsGiven})`}`).join(' ; ') + ' — start·données (poids faible en premier)·parité·stop.',
+    `Points au prorata des caractères justes (${g.chars.filter((c) => c.ok).length}/${g.chars.length}). ` +
+      g.chars.map((c) => (c.ok ? `« ${c.expected} » ${c.bitsExpected} ✓` : `« ${c.expected || '∅'} » ${c.bitsExpected}, vous « ${c.given || '∅'} » ${c.bitsGiven} : ${c.wrongBits}`)).join(' ; ') +
+      ' — start·données (D0 = poids faible, émis en premier)·parité·stop.',
   )
 
   // 3. Ping
   const pe = s.ping.expected
-  const L = parseAnswer(a.ping.L)
-  add(2, 'L (ping -l L)', a.ping.L, `ping -l ${pe.L} ${s.ping.to.ip.join('.')}`, L === pe.L, B.ping.L, pe.L < 18 ? `Trame minimale (72 octets, 57,6 µs) : L = 18 − bourrage = 18 − ${pe.paddingBytes} = ${pe.L}.` : `T = ${fr(pe.durationUs)} µs ⇒ L = T/0,8 µs − 54 = ${pe.L} (54 = 8 préambule/SFD + 14 Ethernet + 20 IP + 8 ICMP + 4 FCS).`)
-  add(2, 'Octets de bourrage', a.ping.padding, String(pe.paddingBytes), parseAnswer(a.ping.padding) === pe.paddingBytes, B.ping.padding, `Charge = 20 + 8 + L = ${28 + pe.L} octets ; bourrage = max(0, 46 − ${28 + pe.L}) = ${pe.paddingBytes}.`)
-  add(2, 'Durée de la trame sur le câble (µs)', a.ping.durationUs, `${fr(pe.durationUs)} µs`, rel(parseAnswer(a.ping.durationUs), pe.durationUs, RES3_PARTIEL.tolDuree), B.ping.durationUs, `${pe.frameBytesOnWire} octets (préambule et FCS compris) × 0,8 µs = ${fr(pe.durationUs)} µs (±2 %).`)
-  add(2, '1er octet de la MAC destination (hexa)', a.ping.macByte, `${hex2(pe.firstMacDstByte)}h`, parseHexByte(a.ping.macByte) === pe.firstMacDstByte, B.ping.macByte, `Après le « 11 » final du SFD, 8 bits émis poids faible en premier : ${pe.firstMacDstByte.toString(2).padStart(8, '0').split('').reverse().join('')} ⇒ ${hex2(pe.firstMacDstByte)}h (MAC ${s.ping.to.mac.map(hex2).join(':')}).`)
+  const gp = gradePing(pe, { L: parseAnswer(a.ping.L), paddingBytes: parseAnswer(a.ping.padding), durationUs: parseAnswer(a.ping.durationUs), firstMacDstByte: parseHexByte(a.ping.macByte) })
+  const sp = (k: keyof typeof pe) => gp.details.find((d) => d.key === k)?.score ?? 0
+  add(2, 'L (ping -l L)', a.ping.L, `ping -l ${pe.L} ${s.ping.to.ip.join('.')}`, sp('L'), B.ping.L, pe.L < 18 ? `Trame minimale (72 octets, 57,6 µs) : L = 18 − bourrage = 18 − ${pe.paddingBytes} = ${pe.L}.` : `T = ${fr(pe.durationUs)} µs ⇒ L = T/0,8 µs − 54 = ${pe.L} (54 = 8 préambule/SFD + 14 Ethernet + 20 IP + 8 ICMP + 4 FCS).`)
+  add(2, 'Octets de bourrage', a.ping.padding, String(pe.paddingBytes), sp('paddingBytes'), B.ping.padding, `Charge = 20 + 8 + L = ${28 + pe.L} octets ; bourrage = max(0, 46 − ${28 + pe.L}) = ${pe.paddingBytes}.`)
+  add(2, 'Durée de la trame sur le câble (µs)', a.ping.durationUs, `${fr(pe.durationUs)} µs`, sp('durationUs'), B.ping.durationUs, `${pe.frameBytesOnWire} octets (préambule et FCS compris) × 0,8 µs = ${fr(pe.durationUs)} µs. Plein à ±2 %, moitié à ±5 %.${half(sp('durationUs'))}`)
+  add(2, '1er octet de la MAC destination (hexa)', a.ping.macByte, `${hex2(pe.firstMacDstByte)}h`, sp('firstMacDstByte'), B.ping.macByte, `Après le « 11 » final du SFD, 8 bits émis poids faible en premier : ${pe.firstMacDstByte.toString(2).padStart(8, '0').split('').reverse().join('')} ⇒ ${hex2(pe.firstMacDstByte)}h (MAC ${s.ping.to.mac.map(hex2).join(':')}).`)
 
   const parts = PARTIES.map((name, i) => {
     const ls = lines.filter((l) => l.part === i)

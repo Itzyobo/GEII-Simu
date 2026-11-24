@@ -171,9 +171,17 @@ describe('câble mystère et API du partiel', () => {
   it('createCoaxExercise / gradeCoax', () => {
     const { cable, expected } = createCoaxExercise(7)
     expect(expected).toEqual({ Zc: cable.Zc, l: cable.l, gammaOpen: 1, gammaShort: -1 })
-    expect(gradeCoax(expected, { Zc: cable.Zc * 1.03, l: cable.l, gammaOpen: 0.97, gammaShort: -1 }).score).toBe(1)
+    expect(gradeCoax(expected, { Zc: cable.Zc * 1.03, l: cable.l, gammaOpen: 1, gammaShort: -1 }).score).toBe(1)
     const g = gradeCoax(expected, { Zc: cable.Zc * 1.2, gammaOpen: -1, gammaShort: -1 })
     expect(g.score).toBe(0.25)
     expect(g.details.find((d) => d.key === 'l')?.ok).toBe(false)
+  })
+  it('gradeCoax : Zc et l pleins à 5 %, moitié à 10 %, 0 au-delà ; Γ exact', () => {
+    const { cable, expected } = createCoaxExercise(7)
+    const zc = (k: number) => gradeCoax(expected, { Zc: cable.Zc * k }).details.find((d) => d.key === 'Zc')!.score
+    const l = (k: number) => gradeCoax(expected, { l: cable.l * k }).details.find((d) => d.key === 'l')!.score
+    expect([zc(1.05), zc(0.95), zc(1.051), zc(1.1), zc(1.101)]).toEqual([1, 1, 0.5, 0.5, 0])
+    expect([l(1.05), l(1.08), l(0.89)]).toEqual([1, 0.5, 0])
+    expect(gradeCoax(expected, { gammaOpen: 0.97 }).details.find((d) => d.key === 'gammaOpen')!.score).toBe(0)
   })
 })
