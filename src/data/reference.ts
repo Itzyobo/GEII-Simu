@@ -277,8 +277,14 @@ export const RES3 = {
   periode: 1e-3,
   /** Largeur d'impulsion de l'étude basse fréquence §3.2.3 — s (100 µs) — énoncé */
   largeurBF: 100e-6,
-  /** Largeur au-delà de laquelle les pertes sont négligées (A = 1) — s — hypothèse */
-  seuilBF: 1e-6,
+  /**
+   * Pertes en impulsion (effet de peau) : passe-bas du 1er ordre dont la constante de temps croît comme
+   * le carré de la longueur parcourue, calé pour que l'écho d'un câble de 100 m ouvert vaille 0,8 × l'incident
+   * (impulsion de 40 ns) — sans unité — hypothèse, à recalibrer sur mesures réelles
+   */
+  ECHO_RATIO_100M: 0.8,
+  /** Longueur de calage de ECHO_RATIO_100M : aller-retour sur 100 m — m */
+  lCalagePeau: 200,
   /** Temps de front du générateur d'impulsions — s (≈ 3 ns) — ordre de grandeur, hypothèse */
   front: 3e-9,
   /** Fréquence du sinus §3.2.2 e — Hz (5 MHz) — énoncé */
@@ -309,6 +315,8 @@ export const RES3 = {
   /** Tolérances de correction : mesures ±5 %, longueur par les spires ±10 %, écart entre méthodes de Zc < 10 % */
   tolMesure: 0.05,
   tolSpires: 0.1,
+  /** Tolérance absolue sur un déphasage — degrés */
+  tolPhaseDeg: 5,
   ecartMethodes: 0.1,
   /** Réglages du générateur à l'arrivée en salle (avant réglage par l'étudiant) — hypothèse */
   genInitial: { eg: 1, largeur: 1e-6, periode: 10e-3, f: 1e6 },

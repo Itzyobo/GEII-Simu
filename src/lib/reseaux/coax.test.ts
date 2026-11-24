@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { RES3 } from '../../data/reference'
+import type { SignalSource } from '../scope/types'
 import {
   attenuationDb,
   coaxSources,
@@ -11,6 +12,9 @@ import {
   lengthFromDelay,
   lengthFromSpires,
   phaseLagDeg,
+  pulsePeakRatio,
+  tauPeau,
+  withEcho,
   zcFromAmplitude,
   type CoaxParams,
 } from './coax'
@@ -31,19 +35,36 @@ describe('treillis en impulsions', () => {
     expect(s.value(mid(2 * tau))).toBeCloseTo(0, 9)
   })
 
-  it('ouverte : écho +Ei à 2τ (sans pertes)', () => {
-    const s = coaxSources(base({})).ch1
-    expect(s.value(mid(2 * tau))).toBeCloseTo(4, 9)
-    expect(coaxTerms(base({})).ch1).toHaveLength(2) // Γg = 0 : un seul écho
+  /** Crête d'un écho arrivant à d */
+  const crest = (s: SignalSource, d: number, sign = 1) => {
+    let m = 0
+    for (let t = d; t < d + 2 * W; t += 0.1e-9) m = Math.max(m, sign * s.value(t))
+    return sign * m
+  }
+
+  it('ouverte : écho positif à 2τ, un seul (Γg = 0)', () => {
+    expect(crest(coaxSources(base({})).ch1, 2 * tau)).toBeGreaterThan(0)
+    expect(coaxTerms(base({})).ch1).toHaveLength(2)
   })
 
-  it('court-circuit : écho −Ei à 2τ', () => {
-    expect(coaxSources(base({ ZL: 0 })).ch1.value(mid(2 * tau))).toBeCloseTo(-4, 9)
+  it('court-circuit : écho négatif, symétrique de l’ouvert', () => {
+    expect(crest(coaxSources(base({ ZL: 0 })).ch1, 2 * tau, -1)).toBeCloseTo(-crest(coaxSources(base({})).ch1, 2 * tau), 9)
   })
 
-  it('pertes : écho multiplié par A² = 10^(−2·α·l/100/20)', () => {
-    const s = coaxSources(base({ alpha: 5 })).ch1
-    expect(s.value(mid(2 * tau))).toBeCloseTo(4 * 10 ** (-10 / 20), 9)
+  it('effet de peau calé : 100 m ouvert ⇒ écho ≈ 0,8 × incident, fronts arrondis', () => {
+    expect(crest(coaxSources(base({})).ch1, 2 * tau) / 4).toBeCloseTo(RES3.ECHO_RATIO_100M, 2)
+    expect(pulsePeakRatio(200)).toBeCloseTo(RES3.ECHO_RATIO_100M, 2)
+    // montée 10-90 % ≈ 2,2·τs, ≫ les 3 ns du générateur ; ∝ l²
+    expect(2.2 * tauPeau(200)).toBeGreaterThan(30e-9)
+    expect(tauPeau(400) / tauPeau(200)).toBeCloseTo(4, 12)
+    // câble court : écho presque intact
+    expect(pulsePeakRatio(80)).toBeGreaterThan(0.99)
+  })
+
+  it('sinus : le gain α(f) reste appliqué', () => {
+    const f = RES3.fSinus
+    const s = coaxSources(base({ ZL: 50, alpha: 5, wave: { kind: 'sine', f } })).end
+    expect(s.value(tau + 1 / f / 4)).toBeCloseTo(4 * 10 ** (-5 / 20), 9)
   })
 
   it('Zc = 75 Ω ouvert : échos multiples alternés (Γg = −0,2)', () => {
@@ -58,7 +79,7 @@ describe('treillis en impulsions', () => {
 
   it('extrémité ouverte : 2·Ei arrive à τ', () => {
     const { end } = coaxSources(base({}))
-    expect(end.value(mid(tau))).toBeCloseTo(8, 9)
+    expect(crest(end, tau) / 8).toBeGreaterThan(0.99)
     expect(end.value(mid(0))).toBeCloseTo(0, 9)
   })
 
@@ -88,13 +109,14 @@ describe('régime BF (W ≥ 1 µs) : escalier vers Eg·ZL/(Zg+ZL), A = 1', () =>
   })
   it('CC : câble non équipotentiel pendant 2τ (Ei sur CH1), puis 0', () => {
     expect(at({ ZL: 0 }, 2 * tau - 10e-9)).toBeCloseTo(4, 9)
-    expect(at({ ZL: 0 }, 2 * tau + 10e-9)).toBeCloseTo(0, 9)
+    expect(at({ ZL: 0 }, 2 * tau + 300e-9)).toBeCloseTo(0, 3)
   })
   it('escalier 75 Ω ouvert : marches 4,8 → 8,64 → 7,872 …', () => {
-    const v = [1, 3, 5].map((k) => at({ Zc: 75 }, k * tau))
-    expect(v[0]).toBeCloseTo(4.8, 6)
-    expect(v[1]).toBeCloseTo(4.8 + 3.84, 6)
-    expect(v[2]).toBeCloseTo(4.8 + 3.84 - 0.768, 6)
+    // juste avant l'arrivée de la marche suivante : la précédente est établie
+    const v = [1, 2, 3].map((k) => at({ Zc: 75 }, 2 * k * tau - 10e-9))
+    expect(v[0]).toBeCloseTo(4.8, 3)
+    expect(v[1]).toBeCloseTo(4.8 + 3.84, 3)
+    expect(v[2]).toBeCloseTo(4.8 + 3.84 - 0.768, 3)
   })
 })
 
@@ -109,6 +131,15 @@ describe('sinus sur ligne adaptée', () => {
     expect(end.value(tau + 1 / f / 4)).toBeCloseTo(4 * A, 9)
     expect(attenuationDb(4, 4 * A)).toBeCloseTo(3.5, 9)
     expect(phaseLagDeg(f, 100, RES3.v)).toBeCloseTo(900 % 360, 9)
+  })
+})
+
+describe('écho d’extrémité', () => {
+  it('withEcho : ajoute la source retardée, coins compris', () => {
+    const s = coaxSources(base({ ZL: 50, wave: { kind: 'pulse', width: 1e-6, period: 1e-3 } })).ch1
+    const e = withEcho(s, 150e-9, 1)
+    expect(e.value(500e-9)).toBeCloseTo(8, 9)
+    expect(e.edges(0, 2e-6)).toHaveLength(8)
   })
 })
 

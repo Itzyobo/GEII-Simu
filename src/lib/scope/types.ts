@@ -31,12 +31,15 @@ export interface ChannelSettings {
   vdiv: number
   /** Réglage fin du calibre (sinon suite 1-2-5) */
   fine: boolean
-  /** Position de la masse — div (0 = centre, + vers le haut) */
-  pos: number
+  /** Position verticale : tension au centre de l'écran — V affichés (readout « 0 V centré ») */
+  offset: number
   coupling: Coupling
   /** Atténuation réglée dans le menu de la voie (la liaison BNC est 1:1) */
   probe: Probe
 }
+
+/** Acquisition : Normal (1 échantillon par intervalle), Peak Detect (min/max à 2 GSa/s), Moyenne sur N acquisitions */
+export type AcqMode = 'normal' | 'peak' | 'moyenne'
 
 export type MeasureKind = 'vpp' | 'max' | 'min' | 'ampl' | 'largeurP' | 'largeurN' | 'periode' | 'freq' | 'montee' | 'retard'
 
@@ -54,4 +57,5 @@ export interface ScopeSettings extends Horizontal {
   /** x : s depuis le déclenchement ; y : V affichés sur la voie ych */
   cursors: { on: boolean; x1: number; x2: number; y1: number; y2: number; ych: Ch }
   measures: { source: Ch; kinds: MeasureKind[] }
+  acq: { mode: AcqMode; /** 2 à 256 */ n: number }
 }

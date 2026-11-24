@@ -3,7 +3,7 @@
  * Le temps est celui du banc (s) ; l'appelant fait avancer tNow à chaque image.
  */
 import { OSCILLO } from '../../data/reference'
-import { findTrigger, refDiv, sampleRate, screenWindow } from './engine'
+import { findTrigger, refDiv, sampleRate, screenWindow, type StoredRecord } from './engine'
 import type { Horizontal, ScopeSettings, SignalSource } from './types'
 
 export type RunMode = 'run' | 'stop' | 'single'
@@ -21,6 +21,8 @@ export interface Capture {
   rec: [number, number]
   /** Réglage horizontal à l'acquisition */
   hz: Horizontal
+  /** Échantillons numérisés, remplis à l'arrêt (Stop/Single) et relus ensuite par le zoom */
+  records?: (StoredRecord | null)[]
 }
 
 export interface RunState {

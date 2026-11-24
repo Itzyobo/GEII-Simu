@@ -11,6 +11,7 @@ import { RES3_TP1_COURS, RES3_TP1_QUESTIONS } from '../../data/questions'
 import { mulberry32 } from '../../au3/sim/prng'
 import { ExamContext, type ExamApi } from '../../lib/exam'
 import { formatSI } from '../../lib/format'
+import { parseAnswer } from '../../lib/grading'
 import { useProgress } from '../../lib/progress'
 import { alphaAt, coaxSources, generateCable, termsSource, type Waveform } from '../../lib/reseaux/coax'
 import { gammasTheoriques, tp1Attendus, tp1Conseils, type Conseil } from '../../lib/reseaux/tp1'
@@ -195,12 +196,29 @@ function Parcours({ seed }: { seed: number }) {
   const k = tp1Conseils(cable)
   const g = gammasTheoriques(cable.Zc)
   const gg = (RES3.zg - cable.Zc) / (RES3.zg + cable.Zc)
-  const alpha10 = RES3.cables[cable.type].alpha10M
   const hypV = ['RES3.v']
   const hypAlpha = ['RES3.cables']
+  const hypPeau = ['RES3.ECHO_RATIO_100M']
   const qcm = (id: string) => <QuestionCard id={id} kind="choix" statement={RES3_TP1_COURS[id].statement} choices={RES3_TP1_COURS[id].choices} correct={RES3_TP1_COURS[id].correct} explanation={RES3_TP1_COURS[id].explanation} />
-  const num = (id: string, statement: string, expected: number, unit: string, explanation: string, extra?: { tolerance?: number; unverified?: string[] }) => (
-    <QuestionCard id={id} statement={statement} expected={expected} unit={unit} explanation={explanation} tolerance={extra?.tolerance ?? RES3.tolMesure} unverified={extra?.unverified} />
+  const num = (
+    id: string,
+    statement: string,
+    expected: number,
+    unit: string,
+    explanation: string,
+    extra?: { tolerance?: number; unverified?: string[]; check?: (v: number) => boolean; toleranceLabel?: string },
+  ) => (
+    <QuestionCard
+      id={id}
+      statement={statement}
+      expected={expected}
+      unit={unit}
+      explanation={explanation}
+      tolerance={extra?.tolerance ?? RES3.tolMesure}
+      unverified={extra?.unverified}
+      check={extra?.check}
+      toleranceLabel={extra?.toleranceLabel}
+    />
   )
 
   return (
@@ -223,8 +241,8 @@ function Parcours({ seed }: { seed: number }) {
           'Rapport V_écho / V_incident mesuré sur CH1',
           a.ratioOpen,
           '',
-          `Écho = Ei·(1 + Γg)·ΓL·A² avec ΓL = +1, Γg = ${n3(gg)}, A² = 10^(−2·α·l/100/20) (α ≈ ${alpha10} dB/100 m à 10 MHz) : rapport = ${n3(a.ratioOpen)}. Il est < 1 à cause des pertes${gg ? ' et du facteur (1 + Γg)' : ''}, mais de même signe que l’incident : Γ = +1.`,
-          { unverified: hypAlpha },
+          `Écho = Ei·(1 + Γg)·ΓL × (crête après 2l de câble) avec ΓL = +1, Γg = ${n3(gg)}. L’effet de peau arrondit et écrase l’impulsion de 40 ns d’autant plus que le câble est long (temps de montée ∝ l²) : rapport = ${n3(a.ratioOpen)}. Il est < 1 à cause des pertes${gg ? ' et du facteur (1 + Γg)' : ''}, mais de même signe que l’incident : Γ = +1.`,
+          { unverified: hypPeau },
         )}
         {num('res3-tp1-b-dt', 'Retard de l’écho sur l’incident Δt (s)', a.dt, 's', `Δt = 2τ = 2l/v = ${fr(a.dt, 's')}.`, { unverified: hypV })}
         {num('res3-tp1-b-l', 'Longueur du câble l = v·Δt/2 (m)', cable.l, 'm', `l = 2·10⁸ × ${fr(a.dt, 's')} / 2 = ${cable.l} m.`, { unverified: hypV })}
@@ -241,7 +259,7 @@ function Parcours({ seed }: { seed: number }) {
       <Step title="3.2.2 c — Court-circuit" conseil={k.c}>
         <p>Mettez l’extrémité en court-circuit (ou le potentiomètre branché, réglé à 0 Ω). Relevez l’écho.</p>
         {qcm('res3-tp1-c-gamma')}
-        {num('res3-tp1-c-ratio', 'Rapport V_écho / V_incident mesuré sur CH1 (court-circuit)', a.ratioShort, '', `ΓL = −1 : écho inversé, rapport = −(1 + Γg)·A² = ${n3(a.ratioShort)}.`, { unverified: hypAlpha })}
+        {num('res3-tp1-c-ratio', 'Rapport V_écho / V_incident mesuré sur CH1 (court-circuit)', a.ratioShort, '', `ΓL = −1 : écho inversé, rapport = −(1 + Γg) × crête après 2l = ${n3(a.ratioShort)}.`, { unverified: hypPeau })}
       </Step>
 
       <Step title="3.2.2 d — Ligne adaptée" conseil={k.d}>
@@ -250,6 +268,7 @@ function Parcours({ seed }: { seed: number }) {
           mesures. Remplacez ensuite le potentiomètre par le bouchon de même valeur, puis vérifiez avec le Té vers CH2.
         </p>
         {num('res3-tp1-d-zc', 'Zc, méthode 2 : valeur du potentiomètre à l’adaptation (Ω)', cable.Zc, 'Ω', `ΓL = (R − Zc)/(R + Zc) = 0 ⇔ R = Zc = ${cable.Zc} Ω (Γ adapté = ${g.adapte}).`)}
+        <EcartZc seed={seed} />
         {qcm('res3-tp1-d-ch2')}
       </Step>
 
@@ -264,7 +283,12 @@ function Parcours({ seed }: { seed: number }) {
           `A = 20·log(Ve/Vs) sur ${cable.l} m, ramené à 100 m : α = A·100/l ≈ ${n3(a.alphaSinus)} dB/100 m (${cable.type}). Précision limitée par la lecture des Vpp (CAN 8 bits, bruit).`,
           { tolerance: RES3.tolSpires, unverified: hypAlpha },
         )}
-        {num('res3-tp1-e-phase', 'Déphasage de Vs sur Ve, dans [0 ; 360[ (°)', a.phase, '°', `φ = 360·f·l/v mod 360 = 360 × 5·10⁶ × ${cable.l} / 2·10⁸ mod 360 = ${n3(a.phase)}°. L’oscillo mesure Δt modulo la période (200 ns).`, { unverified: hypV })}
+        {num('res3-tp1-e-phase', 'Déphasage de Vs sur Ve, dans [0 ; 360[ (°)', a.phase, '°', `φ = 360·f·l/v mod 360 = 360 × 5·10⁶ × ${cable.l} / 2·10⁸ mod 360 = ${n3(a.phase)}°. L’oscillo mesure Δt modulo la période (200 ns).`, {
+          unverified: hypV,
+          // ±5° en absolu, modulo 360° (2° et 358° sont à 4° l'un de l'autre)
+          check: (v) => Math.abs(((v - a.phase + 540) % 360) - 180) <= RES3.tolPhaseDeg,
+          toleranceLabel: `tolérance ±${RES3.tolPhaseDeg}°`,
+        })}
       </Step>
 
       <Step title="3.2.3 — Étude basse fréquence" conseil={k.bfLent} conseilTexte={`Puis base rapide : ${conseilTxt(k.bfRapide)}`}>
@@ -276,6 +300,40 @@ function Parcours({ seed }: { seed: number }) {
         {qcm('res3-tp1-bf-conclusion')}
       </Step>
     </section>
+  )
+}
+
+/** Écart entre les deux méthodes de Zc, lu dans les réponses saisies (étapes b et d) */
+function EcartZc({ seed }: { seed: number }) {
+  const [res, setRes] = useState<number | null | 'vide'>(null)
+  const read = (id: string) => {
+    try {
+      const raw = localStorage.getItem(`tp-sim:state:res3-tp1:${seed}:${id}:input`)
+      return raw === null ? NaN : parseAnswer(JSON.parse(raw) as string)
+    } catch {
+      return NaN
+    }
+  }
+  const compare = () => {
+    const [z1, z2] = [read('res3-tp1-b-zc'), read('res3-tp1-d-zc')]
+    setRes(Number.isFinite(z1) && Number.isFinite(z2) && z1 > 0 ? Math.abs(z2 - z1) / z1 : 'vide')
+  }
+  return (
+    <div className="rounded-card bg-card p-4 text-sm ring-1 ring-line">
+      <div className="flex flex-wrap items-center gap-3">
+        <span>Écart entre la méthode 1 (amplitude) et la méthode 2 (potentiomètre)</span>
+        <Btn onClick={compare}>Comparer mes deux valeurs</Btn>
+      </div>
+      {res === 'vide' && <p className="mt-2 text-muted">Saisissez d’abord Zc par les deux méthodes (3.2.2 b et ci-dessus).</p>}
+      {typeof res === 'number' && (
+        <p className={`mt-2 ${res > RES3.ecartMethodes ? 'text-err' : 'text-ok'}`}>
+          Écart {(res * 100).toFixed(1).replace('.', ',')} %
+          {res > RES3.ecartMethodes
+            ? ' : plus de 10 %, refaire la mesure. Causes fréquentes : potentiomètre mal réglé (un petit écho subsiste, de signe donné par R − Zc), curseurs mal placés sur Ei ou sur Eg, Eg pas réellement à 8 V à vide.'
+            : ' : moins de 10 %, les deux méthodes concordent.'}
+        </p>
+      )}
+    </div>
   )
 }
 

@@ -5,6 +5,8 @@
  *   τ = l/v ; Γg = (Zg−Zc)/(Zg+Zc) ; ΓL = (ZL−Zc)/(ZL+Zc) ; Ei = Eg·Zc/(Zg+Zc) ; A = 10^(−α·l/100/20)
  *   V_CH1(t) = Ei·p(t) + Σ_{k≥1} Ei·(1+Γg)·ΓL^k·Γg^(k−1)·A^(2k)·p(t−2kτ)
  *   V_ext(t) = Σ_{k≥0} Ei·(1+ΓL)·(ΓL·Γg)^k·A^(2k+1)·p(t−(2k+1)τ)
+ * Sinus : A = 10^(−α(f)·l/100/20). Impulsions : A = 1 mais chaque terme passe dans un passe-bas « effet de peau »
+ * de constante de temps τs ∝ (longueur parcourue)², gain continu 1 : en BF l'escalier converge sans règle spéciale.
  */
 import { RES3, type CableType } from '../../data/reference'
 import { mulberry32 } from '../../au3/sim/prng'
@@ -48,11 +50,15 @@ export function alphaAt(cable: CableType, f: number) {
 /** Déphasage de la sortie sur l'entrée d'une ligne adaptée — degrés dans [0, 360[ */
 export const phaseLagDeg = (f: number, l: number, v: number) => (((360 * f * l) / v) % 360 + 360) % 360
 
-/** Un terme du treillis : amplitude c (V) et retard d (s) */
+/** Un terme du treillis : amplitude c (V), retard d (s), constante de temps des pertes en impulsion ts (s) */
 export interface Term {
   c: number
   d: number
+  ts: number
 }
+
+/** Constante de temps de l'effet de peau après une longueur parcourue L — s (calage TAU_PEAU_REF plus bas) */
+export const tauPeau = (L: number) => TAU_PEAU_REF * (L / RES3.lCalagePeau) ** 2
 
 /** Termes du treillis vus sur CH1 (entrée) et à l'extrémité. */
 export function coaxTerms(p: CoaxParams): { ch1: Term[]; end: Term[]; Ei: number; tau: number } {
@@ -62,39 +68,41 @@ export function coaxTerms(p: CoaxParams): { ch1: Term[]; end: Term[]; Ei: number
   const gg = gamma(Zg, p.Zc)
   const gl = gamma(p.ZL, p.Zc)
   const Ei = (Eg * p.Zc) / (Zg + p.Zc)
-  // Impulsion longue (étude BF) : pertes négligées
-  const bf = p.wave.kind === 'pulse' && p.wave.width >= RES3.seuilBF
-  const A = bf ? 1 : 10 ** (-(p.alpha * p.l) / 100 / 20)
-  const ch1: Term[] = [{ c: Ei, d: 0 }]
+  const pulse = p.wave.kind === 'pulse'
+  const A = pulse ? 1 : 10 ** (-(p.alpha * p.l) / 100 / 20)
+  const ts = (passes: number) => (pulse ? tauPeau(passes * p.l) : 0)
+  const ch1: Term[] = [{ c: Ei, d: 0, ts: 0 }]
   for (let k = 1; k <= RES3.kMax; k++) {
     const c = Ei * (1 + gg) * gl ** k * gg ** (k - 1) * A ** (2 * k)
     if (Math.abs(c) < RES3.seuilTerme) break
-    ch1.push({ c, d: 2 * k * tau })
+    ch1.push({ c, d: 2 * k * tau, ts: ts(2 * k) })
   }
   const end: Term[] = []
   for (let k = 0; k <= RES3.kMax; k++) {
     const c = Ei * (1 + gl) * (gl * gg) ** k * A ** (2 * k + 1)
     if (Math.abs(c) < RES3.seuilTerme) break
-    end.push({ c, d: (2 * k + 1) * tau })
+    end.push({ c, d: (2 * k + 1) * tau, ts: ts(2 * k + 1) })
   }
   return { ch1, end, Ei, tau }
 }
 
-/** Forme élémentaire p(t), ses coins et sa période. */
-function shape(w: Waveform): { p: (t: number) => number; corners: (a: number, b: number, out: number[], shift: number) => void; period: number } {
+/** Réponse d'un passe-bas de constante ts à une rampe unité démarrant en 0 (intégrale de la réponse indicielle). */
+const ramp = (t: number, ts: number) => (t <= 0 ? 0 : ts > 0 ? t - ts * (1 - Math.exp(-t / ts)) : t)
+
+/** Forme élémentaire p(t) (filtrée par un passe-bas de constante ts pour les impulsions), ses coins et sa période. */
+function shape(w: Waveform, ts = 0): { p: (t: number) => number; corners: (a: number, b: number, out: number[], shift: number) => void; period: number } {
   if (w.kind === 'sine') return { p: (t) => Math.sin(2 * Math.PI * w.f * t), corners: () => {}, period: 1 / w.f }
   const r = w.rise ?? RES3.front
   const T = w.period
   const W = w.width
-  // Trapèze : montée [0, r], palier jusqu'à W, descente [W, W + r] ; largeur à mi-hauteur = W
+  // Trapèze : montée [0, r], palier jusqu'à W, descente [W, W + r] ; largeur à mi-hauteur = W.
+  // Filtré : somme de 4 rampes filtrées ; la traîne de la période précédente est ajoutée (ts ≪ T).
   const pts = [0, r, W, W + r]
+  const one = (u: number) => (ramp(u, ts) - ramp(u - r, ts) - ramp(u - W, ts) + ramp(u - W - r, ts)) / r
   return {
     p: (t) => {
       const u = ((t % T) + T) % T
-      if (u < r) return u / r
-      if (u < W) return 1
-      if (u < W + r) return 1 - (u - W) / r
-      return 0
+      return ts > 0 ? one(u) + one(u + T) : one(u)
     },
     corners: (a, b, out, shift) => {
       for (let n = Math.floor(a / T); n * T <= b; n++)
@@ -109,15 +117,46 @@ function shape(w: Waveform): { p: (t: number) => number; corners: (a: number, b:
 
 /** Somme de termes c·p(t − d) présentée comme une source d'oscilloscope. */
 export function termsSource(terms: readonly Term[], w: Waveform): SignalSource {
-  const s = shape(w)
+  const shapes = terms.map((t) => shape(w, t.ts))
   return {
-    value: (t) => terms.reduce((acc, { c, d }) => acc + c * s.p(t - d), 0),
+    value: (t) => terms.reduce((acc, { c, d }, i) => acc + c * shapes[i].p(t - d), 0),
     edges: (t0, t1) => {
       const out: number[] = []
-      for (const { d } of terms) s.corners(t0 - d, t1 - d, out, d)
+      terms.forEach(({ d }, i) => shapes[i].corners(t0 - d, t1 - d, out, d))
       return out.sort((a, b) => a - b)
     },
-    period: s.period,
+    period: w.kind === 'sine' ? 1 / w.f : w.period,
+  }
+}
+
+/** Crête d'une impulsion de consigne passée dans le filtre de constante ts (rapportée à l'impulsion d'origine). */
+function peakAfter(ts: number, width = RES3.largeur, rise = RES3.front): number {
+  const s = shape({ kind: 'pulse', width, period: 1, rise }, ts)
+  let m = 0
+  for (let t = 0; t <= width + rise + 2e-9; t += 0.1e-9) m = Math.max(m, s.p(t))
+  return m
+}
+
+/** Constante de temps pour 200 m parcourus, calée par dichotomie : crête de l'écho = ECHO_RATIO_100M — s */
+export const TAU_PEAU_REF = (() => {
+  let [lo, hi] = [1e-12, 1e-6]
+  for (let k = 0; k < 60; k++) {
+    const mid = Math.sqrt(lo * hi)
+    if (peakAfter(mid) > RES3.ECHO_RATIO_100M) lo = mid
+    else hi = mid
+  }
+  return Math.sqrt(lo * hi)
+})()
+
+/** Crête d'une impulsion de consigne après une longueur parcourue L (effet de peau). */
+export const pulsePeakRatio = (L: number) => peakAfter(tauPeau(L))
+
+/** Source = source + gain × (source retardée) : écho d'une extrémité (ex. bouchon retiré, Γ = +1). */
+export function withEcho(src: SignalSource, delay: number, gain: number): SignalSource {
+  return {
+    value: (t) => src.value(t) + gain * src.value(t - delay),
+    edges: (t0, t1) => [...src.edges(t0, t1), ...src.edges(t0 - delay, t1 - delay).map((t) => t + delay)].sort((a, b) => a - b),
+    period: src.period,
   }
 }
 

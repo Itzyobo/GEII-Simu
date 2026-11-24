@@ -22,6 +22,10 @@ type QuestionCardProps = {
       unit: string
       /** Tolérance relative, ±5 % par défaut */
       tolerance?: number
+      /** Correction sur mesure (ex. tolérance absolue sur un angle modulo 360°) ; remplace la tolérance relative */
+      check?: (v: number) => boolean
+      /** Texte de tolérance affiché à la place de « tolérance ±x % » */
+      toleranceLabel?: string
     }
   | {
       /** QCM : une seule bonne réponse */
@@ -76,7 +80,7 @@ export default function QuestionCard(props: QuestionCardProps) {
     } else {
       const v = parseAnswer(input)
       if (Number.isNaN(v)) return setResult('nan')
-      ok = isCorrect(v, props.expected, props.tolerance ?? 0.05)
+      ok = props.check ? props.check(v) : isCorrect(v, props.expected, props.tolerance ?? 0.05)
       given = `${fr(v)} ${props.unit}`.trim()
       if (props.expected !== 0) {
         const pct = Math.round(((v - props.expected) / Math.abs(props.expected)) * 1000) / 10 // évite « -0,0 % »
@@ -148,7 +152,11 @@ export default function QuestionCard(props: QuestionCardProps) {
             <button type="submit" className="min-h-11 rounded-lg bg-card-2 px-4 py-1.5 text-sm font-medium ring-1 ring-line hover:ring-accent">
               {exam.active ? 'Enregistrer' : 'Valider'}
             </button>
-            {!exam.active && <span className="text-xs text-muted">tolérance ±{Math.round((props.tolerance ?? 0.05) * 100)} %</span>}
+            {!exam.active && (
+              <span className="text-xs text-muted">
+                {props.toleranceLabel ?? (props.tolerance === 0 ? 'valeur exacte' : `tolérance ±${Math.round((props.tolerance ?? 0.05) * 100)} %`)}
+              </span>
+            )}
           </div>
         </>
       )}

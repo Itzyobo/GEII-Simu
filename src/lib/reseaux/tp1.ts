@@ -4,7 +4,7 @@
  */
 import { OSCILLO, RES3 } from '../../data/reference'
 import { SDIV_STEPS, VDIV_STEPS } from '../scope/engine'
-import { alphaAt, coaxTerms, gamma, lengthFromSpires, phaseLagDeg, type Cable } from './coax'
+import { alphaAt, coaxTerms, gamma, lengthFromSpires, phaseLagDeg, pulsePeakRatio, type Cable } from './coax'
 
 export interface Tp1Attendus {
   /** Tension lue à vide (entrée 1 MΩ) — V */
@@ -35,7 +35,8 @@ export function tp1Attendus(c: Cable): Tp1Attendus {
   const pulse = { kind: 'pulse', width: RES3.largeur, period: RES3.periode } as const
   const terms = (ZL: number) => coaxTerms({ Zc: c.Zc, l: c.l, ZL, alpha: cable.alpha10M, wave: pulse })
   const open = terms(Infinity)
-  const ratio = (ZL: number) => terms(ZL).ch1[1].c / open.Ei
+  // Crête de l'écho / crête de l'incident : (1 + Γg)·ΓL × crête après 2l d'effet de peau
+  const ratio = (ZL: number) => (terms(ZL).ch1[1].c / open.Ei) * pulsePeakRatio(2 * c.l)
   const divider = (ZL: number) => (ZL === Infinity ? RES3.eg : (RES3.eg * ZL) / (RES3.zg + ZL))
   return {
     egVide: divider(OSCILLO.rEntree),

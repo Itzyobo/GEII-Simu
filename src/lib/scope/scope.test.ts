@@ -121,7 +121,8 @@ describe('mesures', () => {
     const view = screenWindow(s, tTrig)
     const f1 = channelFn(open.ch1, s.ch[0], view)
     const f2 = channelFn(open.end, s.ch[0], view)
-    expect(measureDelay(f1, open.ch1, f2, open.end, view, tTrig)).toBeCloseTo(tau, 11)
+    // l'effet de peau retarde un peu le passage à mi-hauteur de l'impulsion arrivée (≈ τs·ln 2)
+    expect(Math.abs(measureDelay(f1, open.ch1, f2, open.end, view, tTrig) - tau)).toBeLessThan(10e-9)
   })
 })
 

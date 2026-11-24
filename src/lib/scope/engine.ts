@@ -48,7 +48,7 @@ export function screenWindow(h: Horizontal, tTrig: number): [number, number] {
 export const sampleRate = (sdiv: number) => Math.min(OSCILLO.fsMax, OSCILLO.memoire / (divX * sdiv))
 
 export function defaultSetup(): ScopeSettings {
-  const ch = (on: boolean): ChannelSettings => ({ on, vdiv: OSCILLO.defautVdiv, fine: false, pos: 0, coupling: 'DC', probe: 1 })
+  const ch = (on: boolean): ChannelSettings => ({ on, vdiv: OSCILLO.defautVdiv, fine: false, offset: 0, coupling: 'DC', probe: 1 })
   const s = OSCILLO.defautSdiv
   return {
     ch: [ch(true), ch(false)],
@@ -58,6 +58,7 @@ export function defaultSetup(): ScopeSettings {
     trig: { source: 0, slope: 'montant', level: 0, holdoff: OSCILLO.holdoffMin, mode: 'auto' },
     cursors: { on: false, x1: -2 * s, x2: 2 * s, y1: -OSCILLO.defautVdiv, y2: OSCILLO.defautVdiv, ych: 0 },
     measures: { source: 0, kinds: [] },
+    acq: { mode: 'normal', n: 16 },
   }
 }
 
@@ -73,10 +74,11 @@ function cornersIn(src: SignalSource, a: number, b: number): number[] | null {
   return e.length > CORNER_BUDGET ? null : e
 }
 
-/** Ajoute le milieu de chaque segment : une source à marches franches (coin = saut) reste bien vue. */
+/** Points intermédiaires entre coins : marches franches et segments courbes (filtre de câble) restent bien vus. */
+const SUBDIV = 4
 function withMidpoints(T: number[]): number[] {
   const out = [T[0]]
-  for (let i = 1; i < T.length; i++) if (T[i] > T[i - 1]) out.push((T[i - 1] + T[i]) / 2, T[i])
+  for (let i = 1; i < T.length; i++) if (T[i] > T[i - 1]) for (let k = 1; k <= SUBDIV; k++) out.push(T[i - 1] + ((T[i] - T[i - 1]) * k) / SUBDIV)
   return out
 }
 
@@ -173,7 +175,7 @@ function lowpass(x: Float64Array, h: number) {
  * - Colonne ≥ 1 échantillon et ≫ τ : échantillonnage exact (échantillons voisins de chaque coin + bords).
  * - Sinon : signal reconstruit (sin(x)/x ≈ analogique filtré si fs ≫ BP, segments entre échantillons sinon).
  */
-export function envelope(f: (t: number) => number, src: SignalSource, tTrig: number, fs: number, rec: [number, number], view: [number, number], ncol: number): Envelope {
+export function envelope(f: (t: number) => number, src: SignalSource, tTrig: number, fs: number, rec: [number, number], view: [number, number], ncol: number, peak = false): Envelope {
   const [vL, vR] = view
   const env: Envelope = { min: new Float64Array(ncol).fill(NaN), max: new Float64Array(ncol).fill(NaN), n: new Float64Array(ncol) }
   const w = (vR - vL) / ncol
@@ -205,18 +207,25 @@ export function envelope(f: (t: number) => number, src: SignalSource, tTrig: num
       }
       take(k0)
       take(k1)
+      const takeT = (t: number) => {
+        const v = f(t)
+        if (v < mn) mn = v
+        if (v > mx) mx = v
+      }
       while (corners && j < corners.length && corners[j] < cb) {
         if (corners[j] >= ca) {
           const kf = Math.floor(kOf(corners[j]))
           take(kf)
           take(kf + 1)
+          // Peak Detect : le min/max analogique est vu à 2 GSa/s, même entre deux échantillons mémorisés
+          if (peak) takeT(corners[j])
         }
         j++
       }
       if (smooth) for (let m = 1; m < EXTRA_PER_COL; m++) take(k0 + Math.round((m * (k1 - k0)) / EXTRA_PER_COL))
       env.min[i] = mn
       env.max[i] = mx
-      env.n[i] = k1 - k0 + 1
+      env.n[i] = peak ? Math.max(1, w * OSCILLO.fsMax) : k1 - k0 + 1
     }
     return env
   }
@@ -258,7 +267,7 @@ export function envelope(f: (t: number) => number, src: SignalSource, tTrig: num
 }
 
 /** Limite de l'écran pour une voie : centre et demi-plage en V affichés */
-export const screenRange = (ch: ChannelSettings) => ({ center: -ch.pos * ch.vdiv, half: (divY / 2) * ch.vdiv })
+export const screenRange = (ch: ChannelSettings) => ({ center: ch.offset, half: (divY / 2) * ch.vdiv })
 
 export interface Trace {
   min: Float32Array
@@ -268,7 +277,7 @@ export interface Trace {
 }
 
 /** Ajoute le bruit (σ par échantillon, enveloppe élargie de σ·√(2 ln n)) puis quantifie sur 8 bits. */
-export function digitize(env: Envelope, ch: ChannelSettings, gauss: () => number): Trace {
+export function digitize(env: Envelope, ch: ChannelSettings, gauss: () => number, single = false): Trace {
   const n = env.min.length
   const out: Trace = { min: new Float32Array(n), max: new Float32Array(n), clipped: false }
   const sigma = OSCILLO.bruit * ch.probe
@@ -285,10 +294,75 @@ export function digitize(env: Envelope, ch: ChannelSettings, gauss: () => number
       out.min[i] = out.max[i] = NaN
       continue
     }
-    const spread = env.n[i] > 1 ? sigma * Math.sqrt(2 * Math.log(env.n[i])) : 0
+    const spread = !single && env.n[i] > 1 ? sigma * Math.sqrt(2 * Math.log(env.n[i])) : 0
     out.min[i] = q(env.min[i] - spread + sigma * gauss())
     out.max[i] = spread ? q(env.max[i] + spread + sigma * gauss()) : out.min[i]
     if (out.max[i] < out.min[i]) out.max[i] = out.min[i]
+  }
+  return out
+}
+
+/* ─────────────── Acquisition mémorisée (Stop / Single) ─────────────── */
+
+/** Échantillons numérisés d'une acquisition : l'échantillon i est pris à tTrig + (k0 + i)/fs. */
+export interface StoredRecord {
+  k0: number
+  min: Float32Array
+  max: Float32Array
+  clipped: boolean
+}
+
+/** Numérise l'enregistrement complet à fs (≤ 1 Mpts) : c'est ce que l'oscillo garde après Stop. */
+export function recordChannel(
+  f: (t: number) => number,
+  src: SignalSource,
+  tTrig: number,
+  fs: number,
+  rec: [number, number],
+  ch: ChannelSettings,
+  peak: boolean,
+  gauss: () => number,
+): StoredRecord {
+  const k0 = Math.ceil((rec[0] - tTrig) * fs - 1e-9)
+  const k1 = Math.floor((rec[1] - tTrig) * fs + 1e-9)
+  const n = Math.max(1, k1 - k0 + 1)
+  // Une colonne par échantillon, centrée dessus
+  const view: [number, number] = [tTrig + (k0 - 0.5) / fs, tTrig + (k0 + n - 0.5) / fs]
+  const tr = digitize(envelope(f, src, tTrig, fs, [view[0], view[1]], view, n, peak), ch, gauss, !peak)
+  return { k0, min: tr.min, max: tr.max, clipped: tr.clipped }
+}
+
+/**
+ * Relit un enregistrement mémorisé sur la vue [vL, vR] : min/max des échantillons de chaque colonne,
+ * ou interpolation linéaire entre échantillons quand on zoome au-delà de la résolution (aucun détail inventé).
+ */
+export function renderRecord(r: StoredRecord, tTrig: number, fs: number, view: [number, number], ncol: number): Trace {
+  const out: Trace = { min: new Float32Array(ncol).fill(NaN), max: new Float32Array(ncol).fill(NaN), clipped: r.clipped }
+  const n = r.min.length
+  const w = (view[1] - view[0]) / ncol
+  const kOf = (t: number) => (t - tTrig) * fs - r.k0
+  for (let c = 0; c < ncol; c++) {
+    const ca = view[0] + c * w
+    if (w * fs >= 1) {
+      const i0 = Math.max(0, Math.ceil(kOf(ca) - 1e-9))
+      const i1 = Math.min(n - 1, Math.ceil(kOf(ca + w) - 1e-9) - 1)
+      if (i1 < i0) continue
+      let mn = Infinity
+      let mx = -Infinity
+      for (let i = i0; i <= i1; i++) {
+        if (r.min[i] < mn) mn = r.min[i]
+        if (r.max[i] > mx) mx = r.max[i]
+      }
+      out.min[c] = mn
+      out.max[c] = mx
+    } else {
+      const u = kOf(ca + w / 2)
+      const i = Math.floor(u)
+      if (i < 0 || i >= n - 1) continue
+      const x = u - i
+      out.min[c] = r.min[i] + x * (r.min[i + 1] - r.min[i])
+      out.max[c] = r.max[i] + x * (r.max[i + 1] - r.max[i])
+    }
   }
   return out
 }
@@ -460,7 +534,7 @@ export function autoScale(sources: readonly (SignalSource | null)[], st: ScopeSe
     ch.coupling = 'DC'
     ch.fine = false
     ch.vdiv = stepAtLeast(VDIV_STEPS, (max - min) / 6) * ch.probe
-    ch.pos = Math.round((-(mid * ch.probe) / ch.vdiv) * 10) / 10
+    ch.offset = Math.round((mid * ch.probe) / (ch.vdiv / 10)) * (ch.vdiv / 10)
     if (!trigSet) {
       trigSet = true
       next.trig.source = c
