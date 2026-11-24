@@ -21,6 +21,7 @@ const MATIERES = [
     titre: 'Réseaux locaux industriels',
     accueil: '/modbus',
     liens: [
+      { to: '/modbus/tp1', label: 'TP1 : câble coaxial (réflexions, Zc, atténuation)' },
       { to: '/modbus/banc', label: 'TP2 : liaison série / MODBUS (banc)' },
       { to: '/modbus/questions', label: 'Questions du TP2' },
       { to: '/modbus/exercices', label: 'Message codé' },

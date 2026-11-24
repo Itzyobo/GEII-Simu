@@ -216,6 +216,104 @@ export const BRUIT = { min: 0.01, max: 0.02 } as const
 /** Pince ampèremétrique de l'oscilloscope : sensibilité — V/A (100 mV/A) — hypothèse */
 export const PINCE_SENSIBILITE = 0.1
 
+/* ───────── Oscilloscope numérique 2 voies réaliste (type InfiniiVision, src/lib/scope/) ───────── */
+
+export const OSCILLO = {
+  /** Divisions de l'écran, horizontales / verticales — sans unité — constructeur */
+  divX: 10,
+  divY: 8,
+  /** Calibres verticaux extrêmes à l'entrée BNC, suite 1-2-5 — V/div — constructeur */
+  vdivMin: 2e-3,
+  vdivMax: 5,
+  /** Bases de temps extrêmes, suite 1-2-5 — s/div — constructeur */
+  sdivMin: 2e-9,
+  sdivMax: 10,
+  /** Profondeur mémoire — points — ordre de grandeur, hypothèse */
+  memoire: 1e6,
+  /** Fréquence d'échantillonnage maximale — Sa/s (2 GSa/s) — constructeur */
+  fsMax: 2e9,
+  /** Résolution du CAN sur la plage verticale de l'écran — bits — constructeur */
+  bits: 8,
+  /** Bruit propre ramené à l'entrée — V RMS (≈ 1 mV) — ordre de grandeur, hypothèse */
+  bruit: 1e-3,
+  /** Bande passante à −3 dB, passe-bas du 1er ordre (montée ≈ 0,35/BP ≈ 3,5 ns) — Hz — constructeur */
+  bandePassante: 100e6,
+  /** Impédance d'entrée — Ω (1 MΩ) — constructeur */
+  rEntree: 1e6,
+  /** Temps mort entre deux acquisitions (≈ 50 000 acquisitions/s) — s — ordre de grandeur, hypothèse */
+  tempsMort: 20e-6,
+  /** Holdoff réglable, minimum = valeur par défaut — s — constructeur */
+  holdoffMin: 40e-9,
+  holdoffMax: 10,
+  /** Attente sans déclenchement avant balayage libre en mode Auto — s — hypothèse */
+  autoTimeout: 0.05,
+  /** Default Setup : CH1 seule, 5 V/div, 100 µs/div — constructeur */
+  defautVdiv: 5,
+  defautSdiv: 100e-6,
+  /** Cran du réglage fin du calibre vertical — facteur multiplicatif — hypothèse */
+  cranFin: 1.02,
+} as const
+
+/* ───────── Réseaux RES3 · TP1 câble coaxial (src/lib/reseaux/coax.ts) ───────── */
+
+export interface CableType {
+  /** Impédance caractéristique — Ω */
+  zc: number
+  /** Atténuation à 5 MHz — dB/100 m — ordre de grandeur, hypothèse */
+  alpha5M: number
+  /** Atténuation à 10 MHz (utilisée pour les impulsions de 40 ns) — dB/100 m — ordre de grandeur, hypothèse */
+  alpha10M: number
+}
+
+export const RES3 = {
+  /** Fém du générateur d'impulsions réglée à vide (consigne) — V — énoncé */
+  eg: 8,
+  /** Résistance interne du générateur — Ω — énoncé */
+  zg: 50,
+  /** Vitesse de propagation dans le câble (≈ 2c/3) — m/s — ordre de grandeur, hypothèse */
+  v: 2e8,
+  /** Impulsion de consigne : largeur et période — s (40 ns, 1 ms) — énoncé */
+  largeur: 40e-9,
+  periode: 1e-3,
+  /** Largeur d'impulsion de l'étude basse fréquence §3.2.3 — s (100 µs) — énoncé */
+  largeurBF: 100e-6,
+  /** Largeur au-delà de laquelle les pertes sont négligées (A = 1) — s — hypothèse */
+  seuilBF: 1e-6,
+  /** Temps de front du générateur d'impulsions — s (≈ 3 ns) — ordre de grandeur, hypothèse */
+  front: 3e-9,
+  /** Fréquence du sinus §3.2.2 e — Hz (5 MHz) — énoncé */
+  fSinus: 5e6,
+  /** Câbles : RG58 50 Ω et RG59 75 Ω — ordres de grandeur, hypothèse (RG59 à 10 MHz ≈ 2,5·√2) */
+  cables: {
+    RG58: { zc: 50, alpha5M: 3.5, alpha10M: 5 },
+    RG59: { zc: 75, alpha5M: 2.5, alpha10M: 3.5 },
+  } as const satisfies Record<string, CableType>,
+  /** Arrêt de la somme du treillis : terme < 1 mV ou 500 allers-retours — V, sans unité */
+  seuilTerme: 1e-3,
+  kMax: 500,
+  /** Potentiomètre d'extrémité — Ω (0 à 200 Ω) — énoncé */
+  potMax: 200,
+  /** Bouchons d'extrémité disponibles — Ω — énoncé */
+  bouchons: [50, 75] as const,
+  /** Précision de l'ohmmètre — relative (±0,5 %) — ordre de grandeur, hypothèse */
+  ohmmetreTol: 0.005,
+  /** Cordon BNC du mode « générateur à vide » — m — hypothèse */
+  lCordon: 1,
+  /** Câble mystère : longueur entière tirée dans [40 ; 120] m — énoncé */
+  lMin: 40,
+  lMax: 120,
+  /** Diamètres possibles de l'enroulement — m — hypothèse */
+  diametres: [0.2, 0.25, 0.3] as const,
+  /** Écart maximal entre N·π·D et la longueur réelle — relatif (±8 %) */
+  ecartSpires: 0.08,
+  /** Tolérances de correction : mesures ±5 %, longueur par les spires ±10 %, écart entre méthodes de Zc < 10 % */
+  tolMesure: 0.05,
+  tolSpires: 0.1,
+  ecartMethodes: 0.1,
+  /** Réglages du générateur à l'arrivée en salle (avant réglage par l'étudiant) — hypothèse */
+  genInitial: { eg: 1, largeur: 1e-6, periode: 10e-3, f: 1e6 },
+} as const
+
 
 /* ───────────── INFO3 : constantes dans reference.info3.ts, réexportées ici (seule source) ───────────── */
 export { INFO3, info3Hypothese, type Info3Hypothese, type SfrDef } from './reference.info3'

@@ -17,6 +17,8 @@ const PAGES = {
   'machine-asynchrone': lazy(() => import('./pages/AsyncPage')),
 }
 const ModbusApp = lazy(() => import('./modbus/App'))
+// Réseaux TP1 (câble coaxial) : hors de src/modbus, dans la barre du module Réseaux
+const Res3Tp1 = lazy(() => import('./pages/reseaux/Tp1'))
 // INFO3 : pages chargées à la demande (/info3/dev = page technique, sans lien public)
 const INFO3_PAGES = {
   home: lazy(() => import('./pages/info3/Home')),
@@ -75,6 +77,7 @@ createRoot(document.getElementById('root')!).render(
           ))}
           <Route path="/examen-blanc" element={<MockExam />} />
           <Route path="/demo" element={<Demo />} />
+          <Route path="/modbus/tp1" element={<Res3Tp1 />} />
           <Route path="/modbus/*" element={<ModbusApp />} />
           <Route path="/info3" element={<INFO3_PAGES.home />} />
           <Route path="/info3/tp1" element={<INFO3_PAGES.tp1 />} />

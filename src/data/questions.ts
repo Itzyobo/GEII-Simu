@@ -147,3 +147,86 @@ export const UNVERIFIED_BY_MODE: Partial<Record<'entier' | 'demi' | 'quart', Rec
 
 /* ───────────── INFO3 : dans questions.info3.ts (chargé avec /info3 seulement), réexporté ici ───────────── */
 export { INFO3_ANCHORS_HORS_QUESTION, INFO3_QUESTIONS, INFO3_VALIDATION, coverage, type CoverageState, type Info3Question, type Info3QuestionKind, type ValidationPoint } from './questions.info3'
+
+/* ───────────── Réseaux RES3 · TP1 câble coaxial (page /modbus/tp1) ───────────── */
+
+/** Questions notées du TP1 RES3, dans l'ordre du fascicule (progression localStorage, comme les autres TP). */
+export const RES3_TP1_QUESTIONS: QuestionRef[] = [
+  { id: 'res3-tp1-a-eg', label: '3.2.2 a — Eg à vide' },
+  { id: 'res3-tp1-a-rin', label: '3.2.2 a — justification 1 MΩ ≫ 50 Ω' },
+  { id: 'res3-tp1-b-gamma', label: '3.2.2 b — Γ circuit ouvert' },
+  { id: 'res3-tp1-b-ratio', label: '3.2.2 b — rapport écho / incident (ouvert)' },
+  { id: 'res3-tp1-b-dt', label: '3.2.2 b — retard de l’écho' },
+  { id: 'res3-tp1-b-l', label: '3.2.2 b — longueur du câble' },
+  { id: 'res3-tp1-b-spires', label: '3.2.2 b — longueur par les spires' },
+  { id: 'res3-tp1-b-ei', label: '3.2.2 b — amplitude incidente Ei' },
+  { id: 'res3-tp1-b-zc', label: '3.2.2 b — Zc, méthode 1' },
+  { id: 'res3-tp1-c-gamma', label: '3.2.2 c — Γ court-circuit' },
+  { id: 'res3-tp1-c-ratio', label: '3.2.2 c — rapport écho / incident (CC)' },
+  { id: 'res3-tp1-d-zc', label: '3.2.2 d — Zc, méthode 2 (potentiomètre)' },
+  { id: 'res3-tp1-d-ch2', label: '3.2.2 d — vérification sur CH2' },
+  { id: 'res3-tp1-e-sinus', label: '3.2.2 e — pourquoi un sinus' },
+  { id: 'res3-tp1-e-alpha', label: '3.2.2 e — atténuation en dB/100 m' },
+  { id: 'res3-tp1-e-phase', label: '3.2.2 e — déphasage' },
+  { id: 'res3-tp1-bf-open', label: '3.2.3 — tension finale, ouvert' },
+  { id: 'res3-tp1-bf-short', label: '3.2.3 — tension finale, court-circuit' },
+  { id: 'res3-tp1-bf-adapte', label: '3.2.3 — tension, adapté' },
+  { id: 'res3-tp1-bf-2tau', label: '3.2.3 — durée non équipotentielle' },
+  { id: 'res3-tp1-bf-conclusion', label: '3.2.3 — conclusion' },
+]
+
+/** Questions de cours (QCM) du TP1 RES3 ; la bonne réponse est l'index `correct`. */
+export const RES3_TP1_COURS: Record<string, { statement: string; choices: string[]; correct: number; explanation: string }> = {
+  'res3-tp1-a-rin': {
+    statement: 'Pourquoi la tension lue générateur à vide est-elle directement Eg ?',
+    choices: [
+      'L’entrée 1 MΩ de l’oscilloscope est très grande devant Zg = 50 Ω : presque aucun courant, aucune chute dans Zg',
+      'L’oscilloscope compense la résistance interne du générateur',
+      'Le générateur régule sa tension de sortie quelle que soit la charge',
+    ],
+    correct: 0,
+    explanation: 'V = Eg·1 MΩ / (1 MΩ + 50 Ω) = 0,99995·Eg : l’écart est invisible à l’écran.',
+  },
+  'res3-tp1-b-gamma': {
+    statement: 'Coefficient de réflexion théorique en bout de ligne ouverte (ZL → ∞) ?',
+    choices: ['Γ = +1', 'Γ = 0', 'Γ = −1', 'Γ = +0,5'],
+    correct: 0,
+    explanation: 'Γ = (ZL − Zc)/(ZL + Zc) → 1 quand ZL → ∞ : l’onde revient avec le même signe.',
+  },
+  'res3-tp1-c-gamma': {
+    statement: 'Coefficient de réflexion théorique en court-circuit (ZL = 0) ?',
+    choices: ['Γ = −1', 'Γ = 0', 'Γ = +1', 'Γ = −0,5'],
+    correct: 0,
+    explanation: 'Γ = (0 − Zc)/(0 + Zc) = −1 : l’écho revient inversé.',
+  },
+  'res3-tp1-d-ch2': {
+    statement: 'Bouchon Zc en bout de ligne, Té vers CH2 : qu’observe-t-on ?',
+    choices: [
+      'CH1 : l’impulsion incidente seule ; CH2 : la même impulsion, retardée de τ et un peu atténuée',
+      'CH1 : un écho positif à 2τ ; CH2 : rien',
+      'CH1 et CH2 : la même impulsion au même instant',
+    ],
+    correct: 0,
+    explanation: 'Ligne adaptée : ΓL = 0, aucune onde réfléchie. L’extrémité reçoit l’onde incidente après le temps de propagation τ = l/v.',
+  },
+  'res3-tp1-e-sinus': {
+    statement: 'Pourquoi mesurer l’atténuation avec un sinus plutôt qu’avec l’impulsion ?',
+    choices: [
+      'L’atténuation dépend de la fréquence : un sinus n’en contient qu’une, la mesure est sans ambiguïté',
+      'Le générateur ne sait pas produire d’impulsions à 5 MHz',
+      'Un sinus n’est jamais réfléchi',
+    ],
+    correct: 0,
+    explanation: 'Une impulsion de 40 ns a un spectre large (jusqu’à ≈ 25 MHz) : chaque composante est atténuée différemment et l’impulsion se déforme.',
+  },
+  'res3-tp1-bf-conclusion': {
+    statement: 'Conclusion de l’étude BF (durée du signal ≫ 2τ) :',
+    choices: [
+      'Après quelques allers-retours le câble est équipotentiel : la tension finale ne dépend que de Eg, Zg et ZL (pont diviseur)',
+      'Le câble se comporte toujours comme une résistance Zc',
+      'Les réflexions n’existent plus en BF',
+    ],
+    correct: 0,
+    explanation: 'L’escalier converge vers Eg·ZL/(Zg + ZL) : il y a toujours des réflexions, mais elles durent quelques τ, négligeables devant la durée du signal.',
+  },
+}
