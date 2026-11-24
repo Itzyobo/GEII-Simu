@@ -230,3 +230,97 @@ export const RES3_TP1_COURS: Record<string, { statement: string; choices: string
     explanation: 'L’escalier converge vers Eg·ZL/(Zg + ZL) : il y a toujours des réflexions, mais elles durent quelques τ, négligeables devant la durée du signal.',
   },
 }
+
+/* ───────────── Réseaux RES3 · TP3 Ethernet 10Base2 (page /modbus/tp3) ───────────── */
+
+/** Questions notées du TP3 RES3, dans l'ordre du fascicule */
+export const RES3_TP3_QUESTIONS: QuestionRef[] = [
+  { id: 'res3-tp3-21-z', label: '2.1 — impédance vue par la carte' },
+  { id: 'res3-tp3-21-vmin', label: '2.1 — tension minimale (valeur absolue)' },
+  { id: 'res3-tp3-21-vmax', label: '2.1 — tension maximale (valeur absolue)' },
+  { id: 'res3-tp3-21-signe', label: '2.1 — signe des tensions' },
+  { id: 'res3-tp3-22a-ordre', label: '2.2 a — champs de la trame' },
+  { id: 'res3-tp3-22b-pre', label: '2.2 b — chronogramme du préambule' },
+  { id: 'res3-tp3-22b-ff', label: '2.2 b — chronogramme de FFh' },
+  { id: 'res3-tp3-22b-sfd', label: '2.2 b — chronogramme SFD + broadcast' },
+  { id: 'res3-tp3-22b-fpre', label: '2.2 b — fréquence du préambule' },
+  { id: 'res3-tp3-22b-fff', label: '2.2 b — fréquence d’une suite de 1' },
+  { id: 'res3-tp3-31', label: '3.1 — réglages de l’oscilloscope' },
+  { id: 'res3-tp3-32-pre', label: '3.2 — durée préambule + SFD' },
+  { id: 'res3-tp3-32-11', label: '3.2 — repère de fin du SFD' },
+  { id: 'res3-tp3-32-mac', label: '3.2 — durée de la MAC destination' },
+  { id: 'res3-tp3-32-ff00', label: '3.2 — FF… et 00… indiscernables' },
+  { id: 'res3-tp3-33-50-us', label: '3.3 — ping 50 : durée' },
+  { id: 'res3-tp3-33-50-oct', label: '3.3 — ping 50 : octets' },
+  { id: 'res3-tp3-33-5-pad', label: '3.3 — ping 5 : octets de bourrage' },
+  { id: 'res3-tp3-33-5-val', label: '3.3 — ping 5 : valeur du bourrage' },
+  { id: 'res3-tp3-33-5-min', label: '3.3 — trame minimale' },
+  { id: 'res3-tp3-33-5000-n', label: '3.3 — ping 5000 : nombre de trames' },
+  { id: 'res3-tp3-33-5000-last', label: '3.3 — ping 5000 : dernière trame' },
+  { id: 'res3-tp3-33-5000-ifg', label: '3.3 — ping 5000 : espace inter-trame' },
+  { id: 'res3-tp3-33-5000-total', label: '3.3 — ping 5000 : durée totale' },
+  { id: 'res3-tp3-33-mystere', label: '3.3 — ping mystère : L' },
+  { id: 'res3-tp3-33-nb', label: '3.3 Nb — bouchon retiré' },
+  { id: 'res3-tp3-bonus', label: 'Bonus — 1er octet de la MAC destination' },
+]
+
+/** Questions de cours (QCM) du TP3 RES3 */
+export const RES3_TP3_COURS: Record<string, { statement: string; choices: string[]; correct: number; explanation: string }> = {
+  'res3-tp3-21-signe': {
+    statement: 'Pourquoi les tensions relevées sur le coax pendant une trame sont-elles négatives ?',
+    choices: [
+      'La carte absorbe un courant (40 ± 30 mA) qui sort du câble : l’âme descend sous la tresse, à −R·I',
+      'Le hub inverse le signal avant de le mettre sur le câble',
+      'Le couplage AC de l’oscilloscope retire la composante continue',
+    ],
+    correct: 0,
+    explanation: 'Au repos la ligne est à 0 V. Pendant la trame, la carte tire I = 40 ± 30 mA dans 50 Ω // 50 Ω = 25 Ω : V = −25·I, entre −0,25 V (10 mA) et −1,75 V (70 mA).',
+  },
+  'res3-tp3-22a-ordre': {
+    statement: 'Dans quel ordre les champs d’une trame Ethernet II passent-ils sur le câble ?',
+    choices: [
+      'Préambule, SFD, MAC destination, MAC source, Type, Données (+ bourrage), FCS',
+      'Préambule, SFD, MAC source, MAC destination, Type, Données, FCS',
+      'SFD, préambule, MAC destination, MAC source, Données, Type, FCS',
+      'Préambule, MAC destination, MAC source, SFD, Type, Données, FCS',
+    ],
+    correct: 0,
+    explanation: '7 octets 55h, SFD D5h, destination (6), source (6), Type (2 : 0800h pour IPv4, 0806h pour ARP), 46 à 1500 octets de données (bourrage si moins de 46), FCS (CRC-32, 4 octets).',
+  },
+  'res3-tp3-32-11': {
+    statement: 'Comment repère-t-on à l’oscilloscope le premier bit de la MAC destination ?',
+    choices: [
+      'Le SFD se termine par deux 1 consécutifs (…11) au lieu de l’alternance du préambule : le bit suivant est le 1er bit de la MAC',
+      'Un silence de 9,6 µs sépare le préambule de la MAC',
+      'La MAC destination est émise avec une amplitude plus grande',
+    ],
+    correct: 0,
+    explanation: 'D5h émis poids faible en premier donne 1,0,1,0,1,0,1,1 : le « 11 » final rompt le carré à 5 MHz du préambule, c’est la référence de phase.',
+  },
+  'res3-tp3-32-ff00': {
+    statement: 'Une suite d’octets FFh et une suite de 00h, vues seules à l’oscilloscope :',
+    choices: [
+      'sont deux carrés à 10 MHz qui ne diffèrent que par la phase : indiscernables sans la référence du SFD',
+      'se distinguent par leur fréquence (10 MHz pour FF, 5 MHz pour 00)',
+      'se distinguent par leur niveau moyen',
+    ],
+    correct: 0,
+    explanation: 'En Manchester, 1 = bas→haut et 0 = haut→bas : une suite de 1 ou de 0 donne un front à chaque demi-bit, donc un carré de période 100 ns. Seul le repère du SFD dit où commence chaque bit.',
+  },
+  'res3-tp3-33-5-val': {
+    statement: 'Avec ping -l 5, que contiennent les octets de bourrage ?',
+    choices: ['00h', 'FFh', '55h', 'La suite des données « fghij… »'],
+    correct: 0,
+    explanation: 'La charge (20 + 8 + 5 = 33 octets) est complétée jusqu’à 46 par 13 octets, ici à 00h (choix du pilote de la carte, à vérifier sur la trace).',
+  },
+  'res3-tp3-33-nb': {
+    statement: 'Bouchon de 50 Ω retiré à une extrémité : qu’observe-t-on ?',
+    choices: [
+      'Une trace déformée : l’écho de même signe (Γ = +1) revient après 2d/v et s’ajoute à la trame',
+      'Plus aucun signal : la ligne est ouverte',
+      'Le même signal, deux fois plus petit',
+    ],
+    correct: 0,
+    explanation: 'Extrémité ouverte : Γ = +1. L’onde revient après 2d/v (150 ns pour 15 m) et se superpose aux demi-bits suivants ; les niveaux atteignent −3,5 V et les fronts deviennent illisibles : collisions et erreurs de FCS sur le réseau.',
+  },
+}

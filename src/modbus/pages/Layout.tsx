@@ -22,7 +22,7 @@ export default function Layout({ children }: { children?: ReactNode }) {
           <Link to="/" className="text-sm text-muted hover:text-accent">
             ← Tous les simulateurs
           </Link>
-          <span className="font-semibold">Réseaux · TP1 câble coaxial · TP2 série / MODBUS</span>
+          <span className="font-semibold">Réseaux · TP1 coax · TP2 série / MODBUS · TP3 Ethernet</span>
           <nav className="flex flex-wrap gap-1 text-sm">
             {NAV.map(([to, label]) => (
               <NavLink
