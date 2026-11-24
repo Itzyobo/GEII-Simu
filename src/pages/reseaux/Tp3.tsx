@@ -64,7 +64,10 @@ export default function Tp3() {
   const mystery = useMemo(() => createPingExercise(seed).L, [seed])
   const L = Math.min(L_MAX, Math.max(0, Math.round(Number(lText.replace(',', '.')) || 0)))
   const pingL = mode === 'fond' ? null : mode === 'mystere' ? mystery : L
-  const scenario = useMemo((): Scenario => (pingL === null ? { kind: 'fond' } : { kind: 'ping', L: pingL }), [pingL])
+  // Instant où le prof lance le ping : 1re requête précédée d'un échange ARP
+  const [start, setStart] = useState(0)
+  const relaunch = () => setStart(performance.now() / 1000)
+  const scenario = useMemo((): Scenario => (pingL === null ? { kind: 'fond' } : { kind: 'ping', L: pingL, start }), [pingL, start])
   const traffic = useMemo(() => salleTraffic(seed, scenario, bouchon), [seed, scenario, bouchon])
   const sources = useMemo(() => [traffic.source, null] as const, [traffic])
   const annotate = useMemo(() => (reveal ? (a: number, b: number) => zonesOf(traffic.framesIn(a, b), a, b) : undefined), [reveal, traffic])
@@ -114,7 +117,10 @@ export default function Tp3() {
                     ] as const
                   ).map(([k, label]) => (
                     <label key={k} className="flex min-h-11 items-center gap-2 text-sm">
-                      <input type="radio" name="mode" checked={mode === k} onChange={() => setMode(k)} className="h-4 w-4" />
+                      <input type="radio" name="mode" checked={mode === k} onChange={() => {
+                          setMode(k)
+                          relaunch()
+                        }} className="h-4 w-4" />
                       {label}
                     </label>
                   ))}
@@ -122,7 +128,10 @@ export default function Tp3() {
                 {mode === 'ping' && (
                   <label className="mt-1 flex items-center gap-2 text-sm">
                     L =
-                    <input inputMode="numeric" value={lText} onChange={(e) => setLText(e.target.value)} className="min-h-11 w-24 rounded-lg bg-field px-2 font-mono ring-1 ring-line" aria-label="Taille des données du ping (0 à 6000 octets)" />
+                    <input inputMode="numeric" value={lText} onChange={(e) => {
+                        setLText(e.target.value)
+                        relaunch()
+                      }} className="min-h-11 w-24 rounded-lg bg-field px-2 font-mono ring-1 ring-line" aria-label="Taille des données du ping (0 à 6000 octets)" />
                     octets (0 à {L_MAX})
                   </label>
                 )}
@@ -192,7 +201,10 @@ function HexView({ frame }: { frame: TimedFrame }) {
           .join('\n')}
         {rows.length > shown.length ? `\n… ${rows.length - shown.length} lignes de plus` : ''}
       </pre>
-      <p className="mt-1 text-xs text-muted">Comme Wireshark : ni préambule, ni SFD, ni FCS ; le bourrage n’est pas montré ici.</p>
+      <p className="mt-2 rounded-lg bg-warn/10 p-2 text-xs text-warn ring-1 ring-warn/30" role="note">
+        Bourrage masqué, convention du cours (corrigé du DS : ping -l 10 ⇒ 52 octets affichés = 14 + 20 + 8 + 10). Ni préambule, ni SFD, ni FCS non plus. Le vrai Wireshark montre souvent le
+        bourrage : ne vous en étonnez pas en salle.
+      </p>
     </section>
   )
 }

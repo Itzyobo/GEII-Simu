@@ -477,6 +477,95 @@ export function measure(f: (t: number) => number, src: SignalSource, view: [numb
   return { vpp: max - min, max, min, ampl, largeurP, largeurN, periode, freq: 1 / periode, montee }
 }
 
+/** Part minimale des échantillons dans le mode de l'histogramme pour le retenir comme niveau haut/bas */
+const MODE_MIN = 0.05
+/** Hystérésis des franchissements sur données bruitées — fraction de l'amplitude */
+const HYST = 0.1
+
+/**
+ * Mesures sur l'enregistrement mémorisé (Stop/Single) : échantillons bruités et quantifiés, comme l'oscillo
+ * arrêté. Niveaux haut/bas par histogramme, franchissements à mi-hauteur avec hystérésis, montée 10-90 %
+ * interpolée entre échantillons. `rises` sert au retard entre voies.
+ */
+export function measureRecord(r: StoredRecord, tTrig: number, fs: number, view: [number, number]): Measures & { rises: number[] } {
+  const i0 = Math.max(0, Math.ceil((view[0] - tTrig) * fs - r.k0))
+  const i1 = Math.min(r.min.length - 1, Math.floor((view[1] - tTrig) * fs - r.k0))
+  const nan = { vpp: NaN, max: NaN, min: NaN, ampl: NaN, largeurP: NaN, largeurN: NaN, periode: NaN, freq: NaN, montee: NaN, rises: [] }
+  if (i1 <= i0) return nan
+  const t = (i: number) => tTrig + (r.k0 + i) / fs
+  const v = (i: number) => (r.min[i] + r.max[i]) / 2
+  let max = -Infinity
+  let min = Infinity
+  for (let i = i0; i <= i1; i++) {
+    max = Math.max(max, r.max[i])
+    min = Math.min(min, r.min[i])
+  }
+  const range = max - min
+  const bin = range / 100 || 1
+  const hist = new Map<number, number>()
+  for (let i = i0; i <= i1; i++) {
+    const k = Math.round(v(i) / bin)
+    hist.set(k, (hist.get(k) ?? 0) + 1)
+  }
+  const mid0 = (max + min) / 2
+  const n = i1 - i0 + 1
+  let top = max
+  let base = min
+  let cTop = MODE_MIN * n
+  let cBase = MODE_MIN * n
+  for (const [k, c] of hist) {
+    if (k * bin > mid0 && c > cTop) [top, cTop] = [k * bin, c]
+    if (k * bin < mid0 && c > cBase) [base, cBase] = [k * bin, c]
+  }
+  const ampl = top - base
+  const mid = (top + base) / 2
+  const h = HYST * ampl
+  const rises: number[] = []
+  const falls: number[] = []
+  let high = v(i0) > mid
+  let lastUp = NaN
+  let lastDown = NaN
+  for (let i = i0 + 1; i <= i1; i++) {
+    const [a, b] = [v(i - 1), v(i)]
+    const tc = t(i - 1) + ((mid - a) / (b - a || 1)) / fs
+    if (a < mid && b >= mid) lastUp = tc
+    if (a >= mid && b < mid) lastDown = tc
+    if (!high && b > mid + h) {
+      high = true
+      if (!Number.isNaN(lastUp)) rises.push(lastUp)
+    } else if (high && b < mid - h) {
+      high = false
+      if (!Number.isNaN(lastDown)) falls.push(lastDown)
+    }
+  }
+  const r0 = rises[0]
+  const f0 = falls[0]
+  const periode = rises.length >= 2 ? rises[1] - rises[0] : falls.length >= 2 ? falls[1] - falls[0] : NaN
+  let montee = NaN
+  if (r0 !== undefined && ampl > 0) {
+    const [l10, l90] = [base + 0.1 * ampl, base + 0.9 * ampl]
+    const ir = Math.round((r0 - tTrig) * fs - r.k0)
+    let a = ir
+    while (a > i0 && v(a) > l10) a--
+    let b = ir
+    while (b < i1 && v(b) < l90) b++
+    const at = (i: number, l: number) => t(i) + ((l - v(i)) / (v(i + 1) - v(i) || 1)) / fs
+    if (v(a) <= l10 && v(b) >= l90 && b > a) montee = at(b - 1, l90) - at(a, l10)
+  }
+  return {
+    vpp: max - min,
+    max,
+    min,
+    ampl,
+    largeurP: r0 !== undefined ? (falls.find((x) => x > r0) ?? NaN) - r0 : NaN,
+    largeurN: f0 !== undefined ? (rises.find((x) => x > f0) ?? NaN) - f0 : NaN,
+    periode,
+    freq: 1 / periode,
+    montee,
+    rises,
+  }
+}
+
 /** Franchissements montants à 10 % (dernier avant r0) et 90 % (premier après r0), sur le profil exact. */
 function levelsOfCross(f: (t: number) => number, src: SignalSource, view: [number, number], l10: number, l90: number, r0: number): [number, number] | null {
   const T = profileTimes(src, view[0], view[1])

@@ -224,3 +224,23 @@ describe('performance', () => {
     expect((performance.now() - t) / 10).toBeLessThan(30)
   })
 })
+
+describe('mesures après Stop : sur les échantillons mémorisés', () => {
+  it('impulsion de 40 ns enregistrée : amplitude et largeur bruitées mais justes', async () => {
+    const { recordChannel, measureRecord } = await import('./engine')
+    const { gaussien, mulberry32 } = await import('../../au3/sim/prng')
+    const s = settings((s) => {
+      s.sdiv = 20e-9
+      s.ch[0].vdiv = 1
+    })
+    const tTrig = findTrigger(matched, 2, 'montant', 0, 2e-3)!
+    const rec = screenWindow(s, tTrig)
+    const fs = sampleRate(s.sdiv)
+    const r = recordChannel(channelFn(matched, s.ch[0], rec), matched, tTrig, fs, rec, s.ch[0], false, gaussien(mulberry32(1)))
+    const m = measureRecord(r, tTrig, fs, rec)
+    // quantifié au LSB (8 div × 1 V / 256 = 31,25 mV), bruit compris
+    expect(Math.abs(m.ampl - 4)).toBeLessThan(0.05)
+    expect(Math.abs(m.largeurP - 40e-9)).toBeLessThan(1.5e-9)
+    expect(m.montee).toBeGreaterThan(2e-9)
+  })
+})

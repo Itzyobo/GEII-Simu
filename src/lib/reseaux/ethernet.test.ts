@@ -176,3 +176,18 @@ describe('API du partiel', () => {
     expect(ETH10B2.tolDuree).toBe(0.02)
   })
 })
+
+describe('ARP avant le ping', () => {
+  it('1re seconde de la séquence et toutes les 60 s : requête broadcast puis réponse unicast, avant l’ICMP', () => {
+    const sc = { kind: 'ping', L: 32, start: 100.3 } as const
+    const labels = (n: number) => framesOfSecond(2, sc, n).map((f) => f.label).filter((l) => !l.includes('(broadcast)') || l.startsWith('ARP requête'))
+    expect(framesOfSecond(2, sc, 100).some((f) => f.label.startsWith('ping'))).toBe(false)
+    expect(labels(101)).toEqual(['ARP requête (broadcast)', 'ARP réponse', 'ping requête', 'ping réponse'])
+    expect(labels(102)).toEqual(['ping requête', 'ping réponse'])
+    expect(labels(161)[0]).toBe('ARP requête (broadcast)')
+    const { pcs, tsx } = salle(2)
+    const rep = framesOfSecond(2, sc, 101).find((f) => f.label === 'ARP réponse')!
+    expect(Array.from(rep.frame.wire.subarray(8, 14))).toEqual(pcs[0].mac)
+    expect(Array.from(rep.frame.wire.subarray(14, 20))).toEqual(tsx.mac)
+  })
+})

@@ -19,6 +19,7 @@ import {
   renderRecord,
   measure,
   measureDelay,
+  measureRecord,
   SDIV_STEPS,
   screenWindow,
   VDIV_STEPS,
@@ -197,6 +198,7 @@ export default function ScopeInstrument({ sources, title = 'OSCILLOSCOPE NUMÉRI
       const ms: [Measures | null, Measures | null] = [null, null]
       const fns: (((t: number) => number) | null)[] = [null, null]
       const clipped: [boolean, boolean] = [false, false]
+      const recRises: (number[] | null)[] = [null, null]
       let view: [number, number] | null = null
       let measView: [number, number] | null = null
       if (cap) {
@@ -287,7 +289,14 @@ export default function ScopeInstrument({ sources, title = 'OSCILLOSCOPE NUMÉRI
             pMax = hi
           }
           ctx.stroke()
-          if (Date.now() - lastReadout > READOUT_MS) ms[c] = measure(f, src, measView, tr, cap.fs)
+          if (Date.now() - lastReadout > READOUT_MS) {
+            // Arrêté : mesures sur les échantillons mémorisés (bruit et quantification compris)
+            if (stopped && stored) {
+              const m = measureRecord(stored, cap.tTrig, cap.fs, measView)
+              ms[c] = m
+              recRises[c] = m.rises
+            } else ms[c] = measure(f, src, measView, tr, cap.fs)
+          }
         }
       }
       // Repères : masse des voies, niveau et instant de déclenchement
@@ -339,7 +348,14 @@ export default function ScopeInstrument({ sources, title = 'OSCILLOSCOPE NUMÉRI
         lastReadout = Date.now()
         const c0 = cap?.sources[0]
         const c1 = cap?.sources[1]
-        const delay = cap && measView && fns[0] && fns[1] && c0 && c1 ? measureDelay(fns[0], c0, fns[1], c1, measView, cap.tTrig) : NaN
+        const nearest = (ts: number[], t: number) => ts.reduce((b, x) => (Number.isNaN(b) || Math.abs(x - t) < Math.abs(b - t) ? x : b), NaN)
+        const [r1, r2] = recRises
+        const delay =
+          stopped && r1 && r2 && cap
+            ? nearest(r2, nearest(r1, cap.tTrig)) - nearest(r1, cap.tTrig)
+            : cap && measView && fns[0] && fns[1] && c0 && c1
+              ? measureDelay(fns[0], c0, fns[1], c1, measView, cap.tTrig)
+              : NaN
         setReadout({ status: r.status, mode: r.mode, fs: cap?.fs ?? 0, m: ms, delay, clipped, trigOff })
       }
     }

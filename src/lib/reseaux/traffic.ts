@@ -44,6 +44,8 @@ const PC_HOSTS = [121, 122, 123, 124, 125, 126, 127, 128]
 const TSX_HOST = 229
 const BCAST_HOST = 255
 const BYTE = 256
+/** Message ARP Ethernet/IPv4 — octets */
+const ARP_LEN = 28
 
 /** Postes de la salle, adresses MAC fixées par la graine */
 export function salle(seed: number): { pcs: Station[]; tsx: Station } {
@@ -53,7 +55,8 @@ export function salle(seed: number): { pcs: Station[]; tsx: Station } {
   return { pcs, tsx: { name: 'TSX 57', ip: [...NET, TSX_HOST], mac: nic(OUI_TSX) } }
 }
 
-export type Scenario = { kind: 'fond' } | { kind: 'ping'; L: number }
+/** ping -l L -t lancé à l'instant `start` (s, temps du banc) de `from` vers `to` (par défaut PC1 → TSX) */
+export type Scenario = { kind: 'fond' } | { kind: 'ping'; L: number; from?: Station; to?: Station; start?: number }
 
 /** Requête ARP « qui a ip ? » diffusée par `from` */
 function arpRequest(from: Station, target: Ip): Uint8Array {
@@ -63,6 +66,14 @@ function arpRequest(from: Station, target: Ip): Uint8Array {
   b.set(from.mac, 8)
   b.set(from.ip, 14)
   b.set(target, 24)
+  return b
+}
+
+/** Réponse ARP (opération 2) de `from` à `to`, en unicast */
+function arpReply(from: Station, to: Station): Uint8Array {
+  const b = arpRequest(from, to.ip)
+  b[7] = 2
+  b.set(to.mac, 18)
   return b
 }
 
@@ -105,14 +116,24 @@ export function framesOfSecond(seed: number, scenario: Scenario, n: number): Tim
     if (u >= PING_PHASE) u += PING_WINDOW
     const from = pick(pcs)
     const payload = rnd() < ETH10B2.partUdp ? udpBroadcast(from, 50, rnd) : arpRequest(from, pick([...pcs, tsx]).ip)
-    const type = payload.length === 28 ? ETHERTYPE_ARP : ETHERTYPE_IPV4
+    const type = payload.length === ARP_LEN ? ETHERTYPE_ARP : ETHERTYPE_IPV4
     frames.push(timed(n + u, ethFrame(BROADCAST, from.mac, type, payload), type === ETHERTYPE_ARP ? 'ARP (broadcast)' : 'UDP (broadcast)'))
   }
-  if (scenario.kind === 'ping') {
-    const from = pcs[0]
-    const req = pingFrames(n + PING_PHASE + rnd() * 1e-3, scenario.L, from, tsx, 8, n + 1)
-    const delay = ETH10B2.reponseMin + rnd() * (ETH10B2.reponseMax - ETH10B2.reponseMin)
-    frames.push(...req, ...pingFrames(activityEnd(req[req.length - 1]) + delay, scenario.L, tsx, from, 0, n + 1))
+  const nStart = scenario.kind === 'ping' ? Math.ceil(scenario.start ?? 0) : 0
+  if (scenario.kind === 'ping' && n >= nStart) {
+    const from = scenario.from ?? pcs[0]
+    const to = scenario.to ?? tsx
+    const delay = () => ETH10B2.reponseMin + rnd() * (ETH10B2.reponseMax - ETH10B2.reponseMin)
+    let t = n + PING_PHASE + rnd() * 1e-3
+    // 1er ping de la séquence, puis à chaque expiration du cache ARP : qui a l'IP du destinataire ?
+    if ((n - nStart) % ETH10B2.arpCache === 0) {
+      const req = timed(t, ethFrame(BROADCAST, from.mac, ETHERTYPE_ARP, arpRequest(from, to.ip)), 'ARP requête (broadcast)')
+      const rep = timed(activityEnd(req) + delay(), ethFrame(from.mac, to.mac, ETHERTYPE_ARP, arpReply(to, from)), 'ARP réponse')
+      frames.push(req, rep)
+      t = activityEnd(rep) + ETH10B2.ifg
+    }
+    const req = pingFrames(t, scenario.L, from, to, 8, n + 1)
+    frames.push(...req, ...pingFrames(activityEnd(req[req.length - 1]) + delay(), scenario.L, to, from, 0, n + 1))
   }
   frames.sort((a, b) => a.t0 - b.t0)
   // Accès au support : une trame attend la fin de la précédente + espace inter-trame

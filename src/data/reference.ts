@@ -284,6 +284,8 @@ export const ETH10B2 = {
   /** Délai de réponse de l'automate TSX 57 à un ping — s (0,5 à 2 ms) — hypothèse */
   reponseMin: 0.5e-3,
   reponseMax: 2e-3,
+  /** Durée de vie d'une entrée du cache ARP du PC (simulée) — s — hypothèse */
+  arpCache: 60,
   /** Broadcasts de fond (ARP, UDP) par seconde — hypothèse */
   broadcastsMin: 2,
   broadcastsMax: 5,
