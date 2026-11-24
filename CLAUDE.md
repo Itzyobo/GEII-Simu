@@ -1,5 +1,7 @@
 # TP-Sim — consignes pour Claude Code
 
+NE PUSH JAMAIS PAR TOI MEME
+
 Site React 100 % front (Vite, TypeScript strict, Tailwind, Vitest). Trois modules : ENER3 (`/ener`, `/tp/*`), MODBUS (`/modbus`), INFO3 (`/info3`).
 Commandes : `npm test`, `npm run build`, `npx oxlint`, `npm run check:375`.
 
