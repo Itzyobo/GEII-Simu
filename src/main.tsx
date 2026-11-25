@@ -21,6 +21,8 @@ const ModbusApp = lazy(() => import('./modbus/App'))
 const Res3Tp1 = lazy(() => import('./pages/reseaux/Tp1'))
 const Res3Tp3 = lazy(() => import('./pages/reseaux/Tp3'))
 const Res3Partiel = lazy(() => import('./pages/reseaux/Partiel'))
+// Maquette visuelle de la paillasse (phase 1, sans lien public)
+const Res3LaboMaquette = lazy(() => import('./pages/reseaux/LaboMaquette'))
 // INFO3 : pages chargées à la demande (/info3/dev = page technique, sans lien public)
 const INFO3_PAGES = {
   home: lazy(() => import('./pages/info3/Home')),
@@ -82,6 +84,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/modbus/tp1" element={<Res3Tp1 />} />
           <Route path="/modbus/tp3" element={<Res3Tp3 />} />
           <Route path="/modbus/partiel-reseaux" element={<Res3Partiel />} />
+          <Route path="/modbus/labo-maquette" element={<Res3LaboMaquette />} />
           <Route path="/modbus/*" element={<ModbusApp />} />
           <Route path="/info3" element={<INFO3_PAGES.home />} />
           <Route path="/info3/tp1" element={<INFO3_PAGES.tp1 />} />
