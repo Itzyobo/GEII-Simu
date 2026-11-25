@@ -183,8 +183,8 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
   const horizontal = (
     <Group title="HORIZONTAL">
       <div className="flex items-end justify-around gap-2">
-        <FrontKnob size={68} label="s/div" valueText={`${fr(st.sdiv, 's')}/div`} onStep={(n) => set({ sdiv: stepIn(SDIV_STEPS, st.sdiv, -n) })} />
-        <FrontKnob size={48} label="Retard" valueText={fr(st.delay, 's')} onStep={(n) => set({ delay: zero(st.delay + (n * st.sdiv) / 10) })} onPress={() => set({ delay: 0 })} pressLabel="0" />
+        <FrontKnob size={68} label="s/div" valueText={`${fr(st.sdiv, 's')}/div`} onStep={(n) => set({ sdiv: stepIn(SDIV_STEPS, st.sdiv, -n) })} onEnter={(v) => v > 0 && set({ sdiv: stepIn(SDIV_STEPS, v, 0) })} />
+        <FrontKnob size={48} label="Retard" valueText={fr(st.delay, 's')} onStep={(n) => set({ delay: zero(st.delay + (n * st.sdiv) / 10) })} onPress={() => set({ delay: 0 })} pressLabel="0" onEnter={(v) => set({ delay: v })} />
         <Key label="Zoom" onPress={() => setMenu('horiz')} active={menu === 'horiz'} />
       </div>
     </Group>
@@ -195,8 +195,15 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
         {([0, 1] as const).map((c) => (
           <div key={c} className="flex flex-col items-center gap-1.5">
             <Key label={String(c + 1)} lit={st.ch[c].on ? CH_COLORS[c] : undefined} round onPress={() => chKey(c)} aria={`Voie ${c + 1} : ${st.ch[c].on ? 'allumée' : 'éteinte'} (menu de la voie)`} active={menu === (c === 0 ? 'ch0' : 'ch1')} />
-            <FrontKnob size={52} label="V/div" tint={CH_COLORS[c]} valueText={`${fr(st.ch[c].vdiv, 'V')}`} onStep={(n) => turnVdiv(c, n)} />
-            <FrontKnob size={40} label="Position" valueText={fr(zero(st.ch[c].offset), 'V')} onStep={(n) => turnOffset(c, n)} onPress={() => setCh(c, { offset: 0 })} pressLabel="0" />
+            <FrontKnob
+              size={52}
+              label="V/div"
+              tint={CH_COLORS[c]}
+              valueText={`${fr(st.ch[c].vdiv, 'V')}`}
+              onStep={(n) => turnVdiv(c, n)}
+              onEnter={(v) => v > 0 && setCh(c, { vdiv: st.ch[c].fine ? Math.min(OSCILLO.vdivMax * st.ch[c].probe, Math.max(OSCILLO.vdivMin * st.ch[c].probe, v)) : stepIn(vdivSteps(c), v, 0) })}
+            />
+            <FrontKnob size={40} label="Position" valueText={fr(zero(st.ch[c].offset), 'V')} onStep={(n) => turnOffset(c, n)} onPress={() => setCh(c, { offset: 0 })} pressLabel="0" onEnter={(v) => setCh(c, { offset: Math.max(-OFFSET_DIV * st.ch[c].vdiv, Math.min(OFFSET_DIV * st.ch[c].vdiv, v)) })} />
           </div>
         ))}
       </div>
@@ -205,7 +212,7 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
   const trigger = (
     <Group title="TRIGGER">
       <div className="flex items-end justify-around gap-2">
-        <FrontKnob size={52} label="Niveau" tint={CH_COLORS[st.trig.source]} valueText={fr(st.trig.level, 'V')} onStep={turnLevel} onPress={fiftyPct} pressLabel="50 %" />
+        <FrontKnob size={52} label="Niveau" tint={CH_COLORS[st.trig.source]} valueText={fr(st.trig.level, 'V')} onStep={turnLevel} onPress={fiftyPct} pressLabel="50 %" onEnter={(v) => setTrig({ level: v })} />
         <div className="flex flex-col gap-2">
           <Key label="Menu" onPress={() => setMenu('trig')} active={menu === 'trig'} />
           <Key label="Force" onPress={forceTrigger} />
@@ -449,9 +456,7 @@ const FP_CSS = `
 .fp-key { color: #eceff2; background: linear-gradient(180deg, #474c53, #33373c); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 0 #141619, 0 3px 6px rgba(0,0,0,0.35); transition: transform 150ms ease, box-shadow 150ms ease, background 200ms ease; }
 .fp-key:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 1px 0 #141619; }
 .fp-key.is-active { box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 0 #141619, 0 0 0 2px #93c5fd; }
-.fp-key:focus-visible, .fk:focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
-.fk { filter: drop-shadow(0 4px 5px rgba(0,0,0,0.45)); }
-.fk .fk-rot { transition: transform 150ms ease; transform-box: view-box; transform-origin: 0 0; }
-@media (prefers-reduced-motion: reduce) { .fp-key, .fk .fk-rot { transition: none; } }
+.fp-key:focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .fp-key { transition: none; } }
 `
 

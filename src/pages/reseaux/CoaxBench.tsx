@@ -383,14 +383,14 @@ function Generator({ gen, setGen }: { gen: GenState; setGen: (g: GenState) => vo
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-2">
-        <FrontKnob size={46} label="Amplitude" valueText={`${n3(gen.eg)} V`} onStep={(n) => set({ eg: clamp(Math.round((gen.eg + n * 0.05) * 100) / 100, 0, 10) })} />
+        <FrontKnob size={46} label="Amplitude" valueText={`${n3(gen.eg)} V`} onStep={(n) => set({ eg: clamp(Math.round((gen.eg + n * 0.05) * 100) / 100, 0, 10) })} onEnter={(v) => set({ eg: clamp(v, 0, 10) })} />
         {gen.mode === 'pulse' ? (
           <>
-            <FrontKnob size={46} label="Largeur" valueText={formatSI(gen.width, 's')} onStep={(n) => set({ width: log(gen.width, n, 10e-9, 1e-3) })} />
-            <FrontKnob size={46} label="Période" valueText={formatSI(gen.period, 's')} onStep={(n) => set({ period: log(gen.period, n, 1e-6, 1) })} />
+            <FrontKnob size={46} label="Largeur" valueText={formatSI(gen.width, 's')} onStep={(n) => set({ width: log(gen.width, n, 10e-9, 1e-3) })} onEnter={(v) => set({ width: clamp(v, 10e-9, 1e-3) })} />
+            <FrontKnob size={46} label="Période" valueText={formatSI(gen.period, 's')} onStep={(n) => set({ period: log(gen.period, n, 1e-6, 1) })} onEnter={(v) => set({ period: clamp(v, 1e-6, 1) })} />
           </>
         ) : (
-          <FrontKnob size={46} label="Fréquence" valueText={formatSI(gen.f, 'Hz')} onStep={(n) => set({ f: log(gen.f, n, 1e3, 20e6, 1.05) })} />
+          <FrontKnob size={46} label="Fréquence" valueText={formatSI(gen.f, 'Hz')} onStep={(n) => set({ f: log(gen.f, n, 1e3, 20e6, 1.05) })} onEnter={(v) => set({ f: clamp(v, 1e3, 20e6) })} />
         )}
         <div className="flex flex-col items-center gap-1">
           <GenKey label="Output" lit={gen.on} onClick={() => set({ on: !gen.on })} />
