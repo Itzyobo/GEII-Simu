@@ -15,6 +15,7 @@ import {
   ETHERTYPE_IPV4,
   ethernetSource,
   ethFrame,
+  frameValue,
   ipv4,
   pingDatagrams,
   PROTO_UDP,
@@ -162,7 +163,33 @@ export function salleTraffic(seed: number, scenario: Scenario, bouchon: boolean)
     for (let n = Math.floor(a) - 1; n <= Math.floor(b); n++) for (const f of second(n)) if (activityEnd(f) >= a && f.t0 <= b) out.push(f)
     return out
   }
-  const clean = ethernetSource(framesIn)
+  /** Trame active à l'instant t (recherche dichotomique, sans allocation : appelée pour chaque échantillon) */
+  const activeAt = (t: number): TimedFrame | null => {
+    for (let n = Math.floor(t); n >= Math.floor(t) - 1; n--) {
+      const fs = second(n)
+      let lo = 0
+      let hi = fs.length - 1
+      let k = -1
+      while (lo <= hi) {
+        const m = (lo + hi) >> 1
+        if (fs[m]!.t0 <= t) {
+          k = m
+          lo = m + 1
+        } else hi = m - 1
+      }
+      const f = k >= 0 ? fs[k]! : null
+      if (f && activityEnd(f) >= t) return f
+    }
+    return null
+  }
+  const generic = ethernetSource(framesIn)
+  const clean: SignalSource = {
+    value: (t) => {
+      const f = activeAt(t)
+      return f ? frameValue(f, t) : 0
+    },
+    edges: generic.edges,
+  }
   // Bouchon retiré à d du point d'observation : extrémité ouverte, écho Γ = +1 après un aller-retour
   const source: SignalSource = bouchon ? clean : withEcho(clean, (2 * ETH10B2.dBouchon) / ETH10B2.v, gamma(Infinity, ETH10B2.zCharge * 2))
   return { source, framesIn }

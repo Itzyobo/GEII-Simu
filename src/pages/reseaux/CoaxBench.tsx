@@ -11,14 +11,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import ScopeInstrument from '../../components/ScopeInstrument'
 import FrontKnob from '../../components/scope/FrontKnob'
 import { RES3 } from '../../data/reference'
-import { mulberry32 } from '../../au3/sim/prng'
 import { formatSI } from '../../lib/format'
 import {
   ALL_FEMALES,
   benchSources,
   canPlug,
   describe,
-  femalesOf,
+  ohmmeterReading,
+  plugInto,
+  unplugDeep,
   NAMES,
   TEES,
   topology,
@@ -77,7 +78,7 @@ export default function CoaxBench({ cable, seed, top, onTopology }: { cable: Cab
   const sources = useMemo(() => benchSources(topo, { on: gen.on, eg: gen.eg, wave }, cable, potR), [topo, gen.on, gen.eg, wave, cable, potR])
 
   // Ohmmètre : lisible seulement potentiomètre relié à rien, ±0,5 % propre à la valeur réglée
-  const ohm = topo.potConnected ? null : potR * (1 + (2 * mulberry32(seed + Math.round(potR * 10))() - 1) * RES3.ohmmetreTol)
+  const ohm = ohmmeterReading(seed, potR, topo.potConnected)
 
   /* ─────────── Positions des BNC et des points de repos, mesurées dans la paillasse ─────────── */
   const board = useRef<HTMLDivElement>(null)
@@ -135,16 +136,10 @@ export default function CoaxBench({ cable, seed, top, onTopology }: { cable: Cab
     setHistory((h) => [...h.slice(-19), conn])
     setConn(next)
   }
-  const unplugDeep = (c: Connections, m: Male): Connections => {
-    const next = { ...c }
-    delete next[m]
-    // Un Té retiré emporte ce qui était branché sur ses bras
-    if (m === 'tee1' || m === 'tee2') for (const arm of femalesOf(m)) for (const [k, f] of Object.entries(next)) if (f === arm) delete next[k as Male]
-    return next
-  }
+  // Mêmes fonctions pures que le mode démonstration (plugInto, unplugDeep)
   const plug = (m: Male, f: Female) => {
     if (!canPlug(conn, m, f)) return
-    commit({ ...unplugDeep(conn, m), [m]: f })
+    commit(plugInto(conn, m, f))
     setSnapped(m)
     window.setTimeout(() => setSnapped(null), 320)
     try {

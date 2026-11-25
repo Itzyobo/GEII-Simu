@@ -25,6 +25,7 @@ import {
   type Measures,
   type Trace,
 } from '../../lib/scope/engine'
+import { patchChannel, patchCursors, patchSettings, patchTrig, withProbe } from '../../lib/scope/settings'
 import { initRun, stepRun, type RunMode, type RunState, type Status } from '../../lib/scope/runtime'
 import type { Ch, ChannelSettings, MeasureKind, ScopeSettings, SignalSource } from '../../lib/scope/types'
 
@@ -386,15 +387,11 @@ export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annota
   }, [st])
 
   /* ─────────── Réglages ─────────── */
-  const set = (patch: Partial<ScopeSettings>) => setSt((s) => ({ ...s, ...patch }))
-  const setCh = (c: Ch, patch: Partial<ChannelSettings>) =>
-    setSt((s) => {
-      const ch = [...s.ch] as ScopeSettings['ch']
-      ch[c] = { ...ch[c], ...patch }
-      return { ...s, ch }
-    })
-  const setTrig = (patch: Partial<ScopeSettings['trig']>) => setSt((s) => ({ ...s, trig: { ...s.trig, ...patch } }))
-  const setCur = (patch: Partial<ScopeSettings['cursors']>) => setSt((s) => ({ ...s, cursors: { ...s.cursors, ...patch } }))
+  // Mêmes fonctions pures que le mode démonstration (lib/scope/settings.ts)
+  const set = (patch: Partial<ScopeSettings>) => setSt((s) => patchSettings(s, patch))
+  const setCh = (c: Ch, patch: Partial<ChannelSettings>) => setSt((s) => patchChannel(s, c, patch))
+  const setTrig = (patch: Partial<ScopeSettings['trig']>) => setSt((s) => patchTrig(s, patch))
+  const setCur = (patch: Partial<ScopeSettings['cursors']>) => setSt((s) => patchCursors(s, patch))
   /** Touche Force : une acquisition immédiate, non déclenchée (puis Stop si Single) */
   const forceTrigger = () => {
     const tNow = performance.now() / 1000
@@ -413,13 +410,7 @@ export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annota
     run.current = mode === 'stop' ? { ...run.current, mode, status: 'Stop' } : { ...run.current, mode, armedAt: t, lastTrig: t }
     setReadout((r) => ({ ...r, mode, status: run.current.status }))
   }
-  const setProbe = (c: Ch, probe: 1 | 10) =>
-    setSt((s) => {
-      const k = probe / s.ch[c].probe
-      const ch = [...s.ch] as ScopeSettings['ch']
-      ch[c] = { ...ch[c], probe, vdiv: ch[c].vdiv * k }
-      return { ...s, ch, trig: s.trig.source === c ? { ...s.trig, level: s.trig.level * k } : s.trig }
-    })
+  const setProbe = (c: Ch, probe: 1 | 10) => setSt((s) => withProbe(s, c, probe))
 
   /* ─────────── Curseurs glissés à l'écran (zone tactile ≥ 22 px de chaque côté) ─────────── */
   const drag = useRef<typeof cursorKey | null>(null)

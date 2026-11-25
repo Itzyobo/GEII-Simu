@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { RES3_SERIE } from '../../data/reference'
 import { uartFrame } from '../../modbus/models/uart'
 import { REF } from '../../modbus/data/reference'
-import { createSerialExercise, gradeSerial, lineBits, serialSource, type SerialLine } from './serial'
+import { createSerialExercise, gradeSerial, lineBits, parityDecidable, serialSource, type SerialLine } from './serial'
 
 /** Relit la ligne au milieu de chaque bit (comme un récepteur UART) */
 function decode(l: SerialLine) {
@@ -61,6 +61,7 @@ describe('sujet tiré par graine', () => {
       expect(decode(line)).toEqual(lineBits(line))
     }
     expect(levels.size).toBe(2)
+    for (let s = 1; s <= 300; s++) expect(parityDecidable(createSerialExercise(s).line), `graine ${s}`).toBe(true)
     expect('amplitude' in createSerialExercise(1).line).toBe(false)
     expect(parities.size).toBe(3)
   })

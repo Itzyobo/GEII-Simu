@@ -62,6 +62,8 @@ export function stepRun(st: RunState, s: ScopeSettings, sources: readonly (Signa
     const t = findTrigger(src, level, s.trig.slope, from, tEnd, Math.max(span, 1e-6))
     if (t === null) break
     last = t
+    // Single : la première occasion de déclencher après l'armement, pas la dernière de la fenêtre
+    if (st.mode === 'single') break
     from = t + rearm
   }
   if (last !== null) return { mode: st.mode === 'single' ? 'stop' : 'run', status: st.mode === 'single' ? 'Stop' : "Trig'd", armedAt: from, lastTrig: tNow, capture: capture(last, true) }

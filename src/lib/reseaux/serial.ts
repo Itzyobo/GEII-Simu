@@ -103,20 +103,42 @@ const PARITIES: readonly Parity[] = ['none', 'even', 'odd']
 const LENTS = RES3_SERIE.debits.filter((d) => d <= RES3_SERIE.debitLentMax)
 const RAPIDES = RES3_SERIE.debits.filter((d) => d > RES3_SERIE.debitLentMax)
 
+/**
+ * La parité se déduit-elle du signal ? Avec parité : il faut un caractère où P = 0 (un stop vaudrait 1).
+ * Sans parité : il faut un caractère collé au précédent (le bit qui suit le stop est un start) ou des
+ * caractères dont le nombre de 1 n'a pas la même parité (aucune parité constante ne colle).
+ */
+export function parityDecidable(l: SerialLine): boolean {
+  const n = l.format.dataBits
+  const ones = l.bytes.map((b) => Array.from({ length: n }, (_, k) => (b >> k) & 1).reduce((a, x) => a + x, 0) % 2)
+  if (l.format.parity !== 'none') return l.bytes.some((b) => uartFrame(b, l.format)[1 + n] === 0)
+  return l.gaps.slice(1).some((g) => g === 0) || new Set(ones).size > 1
+}
+
+/** Tirages au plus pour obtenir un sujet dont la parité se déduit du signal */
+const MAX_TIRAGES = 40
+
 export function createSerialExercise(seed: number): SerialExercise {
   const rnd = mulberry32(seed ^ 0x27d4eb2f)
   const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)]
-  const message = pick(RES3_SERIE.mots)
-  const format: UartFormat = { dataBits: rnd() < 0.5 ? 7 : 8, parity: pick(PARITIES), stopBits: rnd() < 0.5 ? 1 : 2 }
-  const line: SerialLine = {
-    bytes: Array.from(message, (c) => c.charCodeAt(0)),
-    format,
-    // Débits lents bien plus fréquents en salle (pondération : hypothèse)
-    baud: pick(rnd() < RES3_SERIE.partDebitsLents ? LENTS : RAPIDES),
-    level: rnd() < 0.5 ? 'TTL' : 'RS232',
-    gaps: Array.from(message, () => Math.floor(rnd() * (RES3_SERIE.reposMax + 1))),
-    period: RES3_SERIE.periode,
+  const draw = (): SerialLine => {
+    const message = pick(RES3_SERIE.mots)
+    const format: UartFormat = { dataBits: rnd() < 0.5 ? 7 : 8, parity: pick(PARITIES), stopBits: rnd() < 0.5 ? 1 : 2 }
+    return {
+      bytes: Array.from(message, (c) => c.charCodeAt(0)),
+      format,
+      // Débits lents bien plus fréquents en salle (pondération : hypothèse)
+      baud: pick(rnd() < RES3_SERIE.partDebitsLents ? LENTS : RAPIDES),
+      level: rnd() < 0.5 ? 'TTL' : 'RS232',
+      gaps: Array.from(message, () => Math.floor(rnd() * (RES3_SERIE.reposMax + 1))),
+      period: RES3_SERIE.periode,
+    }
   }
+  // Un sujet dont la parité serait indécidable (même pour un étudiant parfait) est retiré
+  let line = draw()
+  for (let k = 1; k < MAX_TIRAGES && !parityDecidable(line); k++) line = draw()
+  const format = line.format
+  const message = String.fromCharCode(...line.bytes)
   return {
     seed,
     line,

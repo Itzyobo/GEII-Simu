@@ -10,6 +10,7 @@
  * Les erreurs de montage ont leur conséquence physique ; les topologies hors modèle sont refusées avec une raison.
  */
 import { OSCILLO, RES3 } from '../../data/reference'
+import { mulberry32 } from '../../au3/sim/prng'
 import type { SignalSource } from '../scope/types'
 import { alphaAt, coaxSources, termsSource, type Cable, type Waveform } from './coax'
 
@@ -67,6 +68,17 @@ export function canPlug(c: Connections, male: Male, female: Female): boolean {
   }
   return true
 }
+
+/** Débranche une fiche ; un Té retiré emporte ce qui était branché sur ses bras */
+export function unplugDeep(c: Connections, m: Male): Connections {
+  const next = { ...c }
+  delete next[m]
+  if (m === 'tee1' || m === 'tee2') for (const arm of femalesOf(m)) for (const [k, f] of Object.entries(next)) if (f === arm) delete next[k as Male]
+  return next
+}
+
+/** Branche une fiche sur une embase (la retire d'abord de là où elle était) ; inchangé si impossible */
+export const plugInto = (c: Connections, m: Male, f: Female): Connections => (canPlug(c, m, f) ? { ...unplugDeep(c, m), [m]: f } : c)
 
 /* ─────────────── Graphe électrique ─────────────── */
 
@@ -216,6 +228,11 @@ export function benchSources(t: Topology, gen: GenSettings, cable: Cable, potR: 
     s = coaxSources({ Eg: eg, Zg: zg, Zc: coax ? cable.Zc : RES3.cables.RG58.zc, l: coax ? cable.l : RES3.lCordon, ZL, alpha, wave: gen.wave })
   }
   return [pick(t.observe[0], s), pick(t.observe[1], s)]
+}
+
+/** Lecture de l'ohmmètre sur le potentiomètre : null s'il est relié à quelque chose ; ±0,5 % propre à la valeur */
+export function ohmmeterReading(seed: number, potR: number, potConnected: boolean): number | null {
+  return potConnected ? null : potR * (1 + (2 * mulberry32(seed + Math.round(potR * 10))() - 1) * RES3.ohmmetreTol)
 }
 
 /* ─────────────── Montages attendus du fascicule ─────────────── */
