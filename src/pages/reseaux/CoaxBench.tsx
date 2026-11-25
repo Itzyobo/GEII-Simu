@@ -7,8 +7,9 @@
  * puis toucher la BNC (doigt, clavier). Débrancher : glisser hors de la BNC, appui long, ou « Débrancher ».
  * Le montage est traduit en modèle physique par src/lib/reseaux/benchTopology.ts ; aucune topologie ne fait planter.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref, type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 import ScopeInstrument from '../../components/ScopeInstrument'
+import type { ScopeHandle, ScopeProps } from '../../components/scope/useScope'
 import FrontKnob from '../../components/scope/FrontKnob'
 import { RES3 } from '../../data/reference'
 import { formatSI } from '../../lib/format'
@@ -60,11 +61,59 @@ interface GenState {
 const n3 = (v: number) => String(Number(v.toPrecision(3))).replace('.', ',')
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
-export default function CoaxBench({ cable, seed, top, onTopology }: { cable: Cable; seed: number; top?: ReactNode; onTopology?: (t: Topology) => void }) {
-  const [gen, setGen] = useState<GenState>({ on: true, mode: 'pulse', eg: RES3.genInitial.eg, width: RES3.genInitial.largeur, period: RES3.genInitial.periode, f: RES3.genInitial.f })
-  const [conn, setConn] = useState<Connections>({})
+/** Ce que le mode démonstration (LiveLab) peut faire sur le banc : les mêmes gestes que l'utilisateur */
+export interface BenchHandle {
+  conn(): Connections
+  plug(m: Male, f: Female): void
+  unplug(m: Male): void
+  range(): void
+  setConn(c: Connections): void
+  gen(): GenState
+  setGen(p: Partial<GenState>): void
+  potR(): number
+  setPotR(r: number): void
+  ohmmeter(): number | null
+}
+
+export default function CoaxBench({
+  cable,
+  seed,
+  top,
+  onTopology,
+  apiRef,
+  scopeRef,
+  annotate,
+  annotateVersion,
+}: {
+  cable: Cable
+  seed: number
+  top?: ReactNode
+  onTopology?: (t: Topology) => void
+  apiRef?: Ref<BenchHandle | null>
+  scopeRef?: Ref<(ScopeHandle & { setView(v: 'face' | 'compact'): void }) | null>
+  annotate?: ScopeProps['annotate']
+  annotateVersion?: number
+}) {
+  const [gen, setGenRaw] = useState<GenState>({ on: true, mode: 'pulse', eg: RES3.genInitial.eg, width: RES3.genInitial.largeur, period: RES3.genInitial.periode, f: RES3.genInitial.f })
+  // États à jour sans attendre le rendu : plusieurs gestes enchaînés (démo) ne s'écrasent pas
+  const genRef = useRef(gen)
+  const setGen = (g: GenState) => {
+    genRef.current = g
+    setGenRaw(g)
+  }
+  const [conn, setConnRaw] = useState<Connections>({})
+  const connRef = useRef(conn)
+  const setConn = (c: Connections) => {
+    connRef.current = c
+    setConnRaw(c)
+  }
   const [history, setHistory] = useState<Connections[]>([])
-  const [potR, setPotR] = useState(120)
+  const [potR, setPotRRaw] = useState(120)
+  const potRef = useRef(potR)
+  const setPotR = (r: number) => {
+    potRef.current = r
+    setPotRRaw(r)
+  }
   const [selected, setSelected] = useState<Male | null>(null)
   const [drag, setDrag] = useState<{ male: Male; p: Pt } | null>(null)
   const [snapped, setSnapped] = useState<Male | null>(null)
@@ -133,13 +182,15 @@ export default function CoaxBench({ cable, seed, top, onTopology }: { cable: Cab
 
   /* ─────────── Brancher / débrancher ─────────── */
   const commit = (next: Connections) => {
-    setHistory((h) => [...h.slice(-19), conn])
+    const prev = connRef.current
+    setHistory((h) => [...h.slice(-19), prev])
     setConn(next)
   }
   // Mêmes fonctions pures que le mode démonstration (plugInto, unplugDeep)
   const plug = (m: Male, f: Female) => {
-    if (!canPlug(conn, m, f)) return
-    commit(plugInto(conn, m, f))
+    const c = connRef.current
+    if (!canPlug(c, m, f)) return
+    commit(plugInto(c, m, f))
     setSnapped(m)
     window.setTimeout(() => setSnapped(null), 320)
     try {
@@ -150,9 +201,22 @@ export default function CoaxBench({ cable, seed, top, onTopology }: { cable: Cab
     setSelected(null)
   }
   const unplug = (m: Male) => {
-    if (conn[m]) commit(unplugDeep(conn, m))
+    const c = connRef.current
+    if (c[m]) commit(unplugDeep(c, m))
     setSelected(null)
   }
+  useImperativeHandle(apiRef, () => ({
+    conn: () => connRef.current,
+    plug,
+    unplug,
+    range: () => commit({}),
+    setConn: (c) => commit(c),
+    gen: () => genRef.current,
+    setGen: (p) => setGen({ ...genRef.current, ...p }),
+    potR: () => potRef.current,
+    setPotR,
+    ohmmeter: () => ohmmeterReading(seed, potRef.current, topology(connRef.current).potConnected),
+  }))
   const isOwnArm = (m: Male, f: Female) => (m === 'tee1' || m === 'tee2') && f.startsWith(m)
   const targets = (m: Male): Female[] => ALL_FEMALES.filter((f) => conn[m] !== f && !isOwnArm(m, f) && canPlug(conn, m, f) && femalePos(f) !== null)
 
@@ -251,6 +315,7 @@ export default function CoaxBench({ cable, seed, top, onTopology }: { cable: Cab
       style={{ left: p.x - dx, top: p.y - dy, width: w, height: h }}
       aria-label={label}
       aria-pressed={selected === m}
+      data-demo={`male-${m}`}
       {...itemHandlers(m)}
     >
       {shape}
@@ -284,7 +349,7 @@ export default function CoaxBench({ cable, seed, top, onTopology }: { cable: Cab
               canUndo={history.length > 0}
             />
           </div>
-          <ScopeInstrument sources={sources} />
+          <ScopeInstrument sources={sources} apiRef={scopeRef} annotate={annotate} annotateVersion={annotateVersion} />
         </div>
 
         {/* Câbles, Té et bouchons montés, cibles d'aimantation */}
@@ -357,7 +422,7 @@ function Generator({ gen, setGen }: { gen: GenState; setGen: (g: GenState) => vo
   const set = (p: Partial<GenState>) => setGen({ ...gen, ...p })
   const log = (v: number, n: number, lo: number, hi: number, k = 1.1) => clamp(v * k ** n, lo, hi)
   return (
-    <div className="inst-case rounded-[20px] p-3 sm:p-4" role="group" aria-label="Générateur d’impulsions GEII PG-50">
+    <div data-demo="gen" className="inst-case rounded-[20px] p-3 sm:p-4" role="group" aria-label="Générateur d’impulsions GEII PG-50">
       <div className="flex items-baseline justify-between gap-2">
         <span className="inst-silk text-[13px] font-semibold tracking-[0.18em]">GEII PG-50</span>
         <span className="inst-silk text-[10px] tracking-[0.14em] opacity-75">PULSE GENERATOR · Zg 50 Ω</span>
@@ -378,14 +443,14 @@ function Generator({ gen, setGen }: { gen: GenState; setGen: (g: GenState) => vo
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-2">
-        <FrontKnob size={46} label="Amplitude" valueText={`${n3(gen.eg)} V`} onStep={(n) => set({ eg: clamp(Math.round((gen.eg + n * 0.05) * 100) / 100, 0, 10) })} onEnter={(v) => set({ eg: clamp(v, 0, 10) })} />
+        <FrontKnob demoId="knob-eg" size={46} label="Amplitude" valueText={`${n3(gen.eg)} V`} onStep={(n) => set({ eg: clamp(Math.round((gen.eg + n * 0.05) * 100) / 100, 0, 10) })} onEnter={(v) => set({ eg: clamp(v, 0, 10) })} />
         {gen.mode === 'pulse' ? (
           <>
-            <FrontKnob size={46} label="Largeur" valueText={formatSI(gen.width, 's')} onStep={(n) => set({ width: log(gen.width, n, 10e-9, 1e-3) })} onEnter={(v) => set({ width: clamp(v, 10e-9, 1e-3) })} />
-            <FrontKnob size={46} label="Période" valueText={formatSI(gen.period, 's')} onStep={(n) => set({ period: log(gen.period, n, 1e-6, 1) })} onEnter={(v) => set({ period: clamp(v, 1e-6, 1) })} />
+            <FrontKnob demoId="knob-width" size={46} label="Largeur" valueText={formatSI(gen.width, 's')} onStep={(n) => set({ width: log(gen.width, n, 10e-9, 1e-3) })} onEnter={(v) => set({ width: clamp(v, 10e-9, 1e-3) })} />
+            <FrontKnob demoId="knob-period" size={46} label="Période" valueText={formatSI(gen.period, 's')} onStep={(n) => set({ period: log(gen.period, n, 1e-6, 1) })} onEnter={(v) => set({ period: clamp(v, 1e-6, 1) })} />
           </>
         ) : (
-          <FrontKnob size={46} label="Fréquence" valueText={formatSI(gen.f, 'Hz')} onStep={(n) => set({ f: log(gen.f, n, 1e3, 20e6, 1.05) })} onEnter={(v) => set({ f: clamp(v, 1e3, 20e6) })} />
+          <FrontKnob demoId="knob-f" size={46} label="Fréquence" valueText={formatSI(gen.f, 'Hz')} onStep={(n) => set({ f: log(gen.f, n, 1e3, 20e6, 1.05) })} onEnter={(v) => set({ f: clamp(v, 1e3, 20e6) })} />
         )}
         <div className="flex flex-col items-center gap-1">
           <GenKey label="Output" lit={gen.on} onClick={() => set({ on: !gen.on })} />
@@ -446,7 +511,7 @@ function Accessories({
       <div className="grid gap-3">
         {/* Touret : les deux bouts du câble long en partent */}
         <div className="flex items-center gap-3">
-          <div className="relative h-32 w-32 shrink-0" aria-label={`Câble coaxial long enroulé : ${cable.N} spires, diamètre ${n3(cable.D)} m`} role="img">
+          <div data-demo="touret" className="relative h-32 w-32 shrink-0" aria-label={`Câble coaxial long enroulé : ${cable.N} spires, diamètre ${n3(cable.D)} m`} role="img">
             <svg viewBox="-64 -64 128 128" className="h-full w-full" aria-hidden="true">
               <circle r="62" fill="#2c2f33" />
               {Array.from({ length: 11 }, (_, i) => (
@@ -485,6 +550,7 @@ function Accessories({
                   className={`tray-item flex min-h-11 touch-none flex-col items-center justify-center rounded-xl px-2 py-1 ${selected === m ? 'is-selected' : ''}`}
                   aria-label={`${NAMES[m]} (glisser, ou toucher puis choisir une BNC)`}
                   aria-pressed={selected === m}
+                  data-demo={`tray-${m}`}
                   {...itemHandlers(m)}
                 >
                   {m === 'tee1' || m === 'tee2' ? (
@@ -517,11 +583,11 @@ function Accessories({
       {/* Potentiomètre et multimètre */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="inst-case flex items-end gap-3 rounded-2xl px-3 py-2" role="group" aria-label="Boîtier potentiomètre 0 à 200 Ω">
-          <FrontKnob size={44} label="Potentiomètre" valueText="0–200 Ω" onStep={(n) => setPotR(clamp(Math.round((potR + n * 0.5) * 2) / 2, 0, RES3.potMax))} />
+          <FrontKnob demoId="knob-pot" size={44} label="Potentiomètre" valueText="0–200 Ω" onStep={(n) => setPotR(clamp(Math.round((potR + n * 0.5) * 2) / 2, 0, RES3.potMax))} />
           <BncFemale port="pot" label="ENTRÉE" />
         </div>
         <div className="meter flex items-center gap-3 rounded-2xl px-3 py-2" role="group" aria-label="Multimètre en ohmmètre sur le potentiomètre">
-          <div className="lcd-meter rounded-md px-3 py-1.5 font-mono text-base" aria-live="polite" data-testid="ohmmetre">
+          <div className="lcd-meter rounded-md px-3 py-1.5 font-mono text-base" aria-live="polite" data-testid="ohmmetre" data-demo="ohmmetre">
             {ohm === null ? 'OL' : `${ohm.toFixed(1).replace('.', ',')} Ω`}
           </div>
           <span className="max-w-[14rem] text-xs text-[#e9ecef]">{ohm === null ? 'Débranchez le potentiomètre pour le mesurer.' : 'Ohmmètre sur les bornes du potentiomètre'}</span>

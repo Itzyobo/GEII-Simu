@@ -21,6 +21,8 @@ export interface Presenter {
   highlight?(target: { dom: string } | { zone: { from: number; to: number } }, label: string): Promise<void>
   calc?(card: CalcCard): Promise<void>
   step?(step: Step, index: number, narration: string): void
+  /** Narration complétée après les actions (valeurs lues pendant l'étape) */
+  narrate?(narration: string): void
   wait?(ms: number): Promise<void>
 }
 
@@ -116,8 +118,18 @@ export class DemoRunner {
     const step = this.script.steps[i]!
     this.hl = []
     this.pushZones()
-    this.presenter.step?.(step, i, resolve(step.narration, this.ctx))
+    // Une narration peut citer des valeurs lues pendant l'étape : texte provisoire, puis texte final
+    let first = '…'
+    try {
+      first = resolve(step.narration, this.ctx)
+    } catch {
+      /* valeurs pas encore lues */
+    }
+    this.presenter.step?.(step, i, first)
     for (const a of step.actions) await this.apply(a)
+    // Toujours évaluée (même sans mise en scène) : une narration fautive fait échouer les tests
+    const final = resolve(step.narration, this.ctx)
+    if (final !== first) this.presenter.narrate?.(final)
     this.index = i + 1
   }
 

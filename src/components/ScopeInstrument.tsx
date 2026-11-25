@@ -3,13 +3,13 @@
  * (par défaut sous 480 px), avec bascule visible. Même moteur pour les deux : components/scope/useScope.ts.
  * Le banc ne fournit que deux SignalSource (null = rien sur la BNC).
  */
-import { useState, type ReactNode } from 'react'
+import { useImperativeHandle, useState, type ReactNode, type Ref } from 'react'
 import Knob from './Knob'
 import { OSCILLO } from '../data/reference'
 import { autoScale, defaultSetup, SDIV_STEPS, VDIV_STEPS } from '../lib/scope/engine'
 import type { AcqMode, Ch, Coupling } from '../lib/scope/types'
 import ScopeFrontPanel, { BncJack, CH_COLORS } from './scope/ScopeFrontPanel'
-import { AVG_STEPS, CHS, COLORS, fr, MEASURES, OFFSET_DIV, STATUS_COLOR, useScope, zero, type ScopeApi, type ScopeProps } from './scope/useScope'
+import { AVG_STEPS, CHS, COLORS, fr, MEASURES, OFFSET_DIV, STATUS_COLOR, useScope, zero, type ScopeApi, type ScopeHandle, type ScopeProps } from './scope/useScope'
 
 export type { ScopeZone } from './scope/useScope'
 
@@ -17,9 +17,10 @@ const { divY } = OSCILLO
 /** Sous cette largeur d'écran, la vue compacte est proposée par défaut */
 const COMPACT_MAX_PX = 480
 
-export default function ScopeInstrument(props: ScopeProps) {
+export default function ScopeInstrument(props: ScopeProps & { apiRef?: Ref<(ScopeHandle & { setView(v: 'face' | 'compact'): void }) | null>; view?: 'face' | 'compact' }) {
   const scope = useScope(props)
-  const [view, setView] = useState<'face' | 'compact'>(() => (typeof window !== 'undefined' && window.innerWidth <= COMPACT_MAX_PX ? 'compact' : 'face'))
+  const [view, setView] = useState<'face' | 'compact'>(() => props.view ?? (typeof window !== 'undefined' && window.innerWidth <= COMPACT_MAX_PX ? 'compact' : 'face'))
+  useImperativeHandle(props.apiRef, () => ({ ...scope.handle, setView }))
   return (
     <div className="min-w-0">
       <div role="group" aria-label="Affichage de l'oscilloscope" className="mb-2 flex justify-end">
@@ -36,7 +37,7 @@ export default function ScopeInstrument(props: ScopeProps) {
           ))}
         </div>
       </div>
-      {view === 'face' ? <ScopeFrontPanel scope={scope} /> : <CompactView scope={scope} />}
+      <div data-demo="scope">{view === 'face' ? <ScopeFrontPanel scope={scope} /> : <CompactView scope={scope} />}</div>
     </div>
   )
 }
@@ -89,6 +90,7 @@ function CompactView({ scope }: { scope: ScopeApi }) {
               {readout.trigOff !== 0 && <span className="text-[#fb923c]">déclenchement hors écran {readout.trigOff < 0 ? '◂' : '▸'}</span>}
             </div>
             <canvas
+              data-demo="screen"
               ref={canvasRef}
               className="block aspect-[5/4] w-full touch-none"
               onPointerDown={onDown}
@@ -126,9 +128,9 @@ function CompactView({ scope }: { scope: ScopeApi }) {
                 )}
                 {st.cursors.on && (
                   <div className="flex flex-wrap gap-x-4">
-                    <span>ΔX {fr(dX, 's')}</span>
+                    <span data-demo="readout-dx">ΔX {fr(dX, 's')}</span>
                     <span>1/ΔX {fr(1 / dX, 'Hz')}</span>
-                    <span style={{ color: COLORS[st.cursors.ych] }}>ΔY({st.cursors.ych + 1}) {fr(dY, 'V')}</span>
+                    <span data-demo="readout-dy" style={{ color: COLORS[st.cursors.ych] }}>ΔY({st.cursors.ych + 1}) {fr(dY, 'V')}</span>
                   </div>
                 )}
               </div>

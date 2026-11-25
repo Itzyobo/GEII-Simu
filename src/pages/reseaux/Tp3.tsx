@@ -15,6 +15,7 @@ import { createPingExercise, framesOfSecond, salle, salleTraffic, type Scenario 
 import { bonusExercise, checkScope31, CHRONOS, CONSEILS_TP3, halvesOf, tp3Attendus } from '../../lib/reseaux/tp3'
 import type { ScopeSettings } from '../../lib/scope/types'
 import Layout from '../../modbus/pages/Layout'
+import { Link } from 'react-router'
 import { Btn, Card } from './ui'
 
 const SEED_KEY = 'tp-sim:res3-tp3:seed'
@@ -90,6 +91,14 @@ export default function Tp3() {
           <h1 className="mt-1 text-2xl font-bold">Trames Ethernet 10Base2 à l’oscilloscope</h1>
           <p className="mt-1 text-sm text-muted">
             Questions réussies : {done} / {RES3_TP3_QUESTIONS.length}. L’oscilloscope démarre en Default Setup : à vous de le régler.
+          </p>
+          <p className="mt-2 flex flex-wrap gap-2 text-sm">
+            <Link to="/modbus/partiel-reseaux?demo=pingCourt" className="inline-flex min-h-11 items-center rounded-lg px-3 ring-1 ring-line hover:ring-accent">
+              Voir la démonstration (ping court, bourrage)
+            </Link>
+            <Link to="/modbus/partiel-reseaux?demo=pingLong" className="inline-flex min-h-11 items-center rounded-lg px-3 ring-1 ring-line hover:ring-accent">
+              Démonstration ping long
+            </Link>
           </p>
 
           <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">

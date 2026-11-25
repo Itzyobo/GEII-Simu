@@ -45,6 +45,8 @@ interface Props {
   size?: number
   tint?: string
   disabled?: boolean
+  /** Repère pour le mode démonstration */
+  demoId?: string
 }
 
 /** Style de la molette, injecté une fois dans la page (la molette sert aussi hors de la face avant) */
@@ -71,7 +73,7 @@ function useFkCss() {
   }, [])
 }
 
-export default function FrontKnob({ label, valueText, onStep, onPress, pressLabel, onEnter, size = 56, tint, disabled }: Props) {
+export default function FrontKnob({ label, valueText, onStep, onPress, pressLabel, onEnter, size = 56, tint, disabled, demoId }: Props) {
   // Angle affiché = crans entiers + fraction en cours de glisser (le repère suit le doigt)
   const [steps, setSteps] = useState(0)
   const [frac, setFrac] = useState(0)
@@ -192,6 +194,7 @@ export default function FrontKnob({ label, valueText, onStep, onPress, pressLabe
       <button
         ref={el}
         type="button"
+        data-demo={demoId}
         disabled={disabled}
         className={`fk relative flex touch-none select-none items-center justify-center rounded-full disabled:opacity-40 ${dragging ? 'is-dragging' : ''}`}
         style={{ width: hit, height: hit, cursor: dragging ? 'grabbing' : 'grab' }}

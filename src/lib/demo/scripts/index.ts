@@ -36,6 +36,17 @@ export function seedsFor(v: Variant, count: number, from = 1): number[] {
 /** Seed de démonstration fixe (le premier qui convient à partir de 100) */
 export const demoSeed = (v: Variant) => seedsFor(v, 1, 100)[0]!
 
+/** Seed qui convient à plusieurs variantes à la fois (démonstration complète) */
+export function demoSeedFor(vs: readonly Variant[]): number {
+  for (let s = 100; s < 5100; s++) if (vs.every((v) => fits(v, subjectOf(s)))) return s
+  return 100
+}
+
+/** Démonstration complète : câble 50 Ω, trame série, ping court (avec bourrage) */
+export const COMPLETE: Variant[] = ['cable50', 'serie', 'pingCourt']
+export const PART_INDEX: Record<DemoPart, 0 | 1 | 2> = { cable: 0, serie: 1, ping: 2 }
+export const partOf = (v: Variant): DemoPart => VARIANTS.find((x) => x.id === v)!.part
+
 export function scriptFor(part: DemoPart, s: PartielSubject): DemoScript {
   return part === 'cable' ? cableScript() : part === 'serie' ? serieScript(s.serie.expected.message.length) : pingScript()
 }

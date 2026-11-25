@@ -31,7 +31,21 @@ import {
 import { parityFr, type Level, type Parity } from '../../lib/reseaux/serial'
 import { salleTraffic } from '../../lib/reseaux/traffic'
 import Layout from '../../modbus/pages/Layout'
-import CoaxBench from './CoaxBench'
+import CoaxBench, { type BenchHandle } from './CoaxBench'
+import DemoPlayer from './demo/DemoPlayer'
+import { createLiveLab } from './demo/liveLab'
+import type { Zone } from '../../lib/demo/lab'
+import type { ScopeHandle } from '../../components/scope/useScope'
+import { COMPLETE, demoSeedFor, PART_INDEX, partOf, scriptFor, VARIANTS, type Variant } from '../../lib/demo/scripts'
+
+type ScopeRef = ScopeHandle & { setView(v: 'face' | 'compact'): void }
+/** Démonstration en cours : variantes à jouer, partie courante, récapitulatif de fin de partie, vitesse */
+interface DemoState {
+  variants: Variant[]
+  i: number
+  recap: string[] | null
+  speed: number
+}
 
 const fr = (v: number, d = 4) => String(Number(v.toPrecision(d))).replace('.', ',')
 const clock = (s: number) => {
@@ -92,7 +106,24 @@ export default function PartielReseaux() {
     }, 1000)
     return () => window.clearInterval(id)
   }, [])
-  useEffect(() => saveSession(session), [session])
+  const [demo, setDemo] = useState<DemoState | null>(null)
+  // Pendant la démo : ni sauvegarde de session, ni historique, ni note
+  useEffect(() => {
+    if (!demo) saveSession(session)
+  }, [session, demo])
+  const startDemo = (variants: Variant[], speed = 1) => {
+    const seed = demoSeedFor(variants)
+    setSession({ ...newSession(seed, 'train', Date.now()), tab: PART_INDEX[partOf(variants[0]!)] })
+    setDemo({ variants, i: 0, recap: null, speed })
+  }
+  // Lien direct depuis TP1 / TP3 : ?demo=cable50 | serie | pingLong… ou ?demo=complet (&vitesse=…)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const d = q.get('demo')
+    if (!d) return
+    const vs = d === 'complet' ? COMPLETE : VARIANTS.some((v) => v.id === d) ? [d as Variant] : null
+    if (vs) startDemo(vs, Number(q.get('vitesse')) || 1)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (f: (s: PartielSession) => PartielSession) => setSession((s) => (s ? f(s) : s))
 
@@ -100,8 +131,32 @@ export default function PartielReseaux() {
     <Layout>
       <style>{PARTIEL_CSS}</style>
       <main className="partiel mx-auto max-w-7xl px-4 py-6 sm:py-8">
-        {!session && <Start onStart={(seed, mode) => setSession(newSession(seed, mode, Date.now()))} />}
-        {session && !session.submittedAt && <Running s={session} now={now} update={update} finish={finish} />}
+        {!session && <Start onStart={(seed, mode) => setSession(newSession(seed, mode, Date.now()))} onDemo={startDemo} />}
+        {session && !session.submittedAt && (
+          <Running
+            s={session}
+            now={now}
+            update={update}
+            finish={finish}
+            demo={demo}
+            onDemoEnd={(recap) => setDemo((d) => (d ? { ...d, recap } : d))}
+            onDemoNext={() => {
+              if (!demo) return
+              const i = demo.i + 1
+              update((x) => switchTab(x, PART_INDEX[partOf(demo.variants[i]!)], Date.now()))
+              setDemo({ ...demo, i, recap: null })
+            }}
+            onMine={(part) => {
+              setDemo(null)
+              setSession({ ...newSession(Math.floor(Math.random() * 1e6), 'train', Date.now()), tab: part })
+              window.scrollTo({ top: 0 })
+            }}
+            onQuitDemo={() => {
+              setDemo(null)
+              setSession(null)
+            }}
+          />
+        )}
         {session?.submittedAt && <Result s={session} onNew={() => setSession(null)} />}
       </main>
     </Layout>
@@ -143,7 +198,7 @@ function Hero({ children }: { children?: ReactNode }) {
   )
 }
 
-function Start({ onStart }: { onStart: (seed: number, mode: PartielSession['mode']) => void }) {
+function Start({ onStart, onDemo }: { onStart: (seed: number, mode: PartielSession['mode']) => void; onDemo: (vs: Variant[]) => void }) {
   const [seedText, setSeedText] = useState(() => String(Math.floor(Math.random() * 1e6)))
   const [mode, setMode] = useState<PartielSession['mode']>('exam')
   const seed = Number(seedText)
@@ -219,6 +274,25 @@ function Start({ onStart }: { onStart: (seed: number, mode: PartielSession['mode
           <p id="graine-aide" className="mt-2 text-xs text-muted">
             Même graine = même sujet : partagez-la pour comparer vos résultats.
           </p>
+        </section>
+
+        <section className="panel rounded-3xl p-5 sm:p-6 lg:col-span-2" aria-labelledby="demo-titre">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h2 id="demo-titre" className="text-lg font-semibold">
+              Démonstration
+            </h2>
+            <p className="text-sm text-muted">Le simulateur fait le partiel devant toi, lentement : chaque geste, chaque valeur lue, chaque calcul. Rien n’est noté.</p>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {VARIANTS.map((v) => (
+              <button key={v.id} type="button" onClick={() => onDemo([v.id])} className="ghost-btn min-h-11 rounded-xl px-3 text-sm">
+                {v.label}
+              </button>
+            ))}
+            <button type="button" onClick={() => onDemo(COMPLETE)} className="primary-btn min-h-11 rounded-xl px-4 text-sm font-semibold">
+              Démonstration complète
+            </button>
+          </div>
         </section>
 
         <section className="panel rounded-3xl p-5 sm:p-6" aria-labelledby="tentatives">
@@ -314,8 +388,72 @@ function History({ h }: { h: HistoryEntry[] }) {
 
 /* ─────────── Épreuve en cours ─────────── */
 
-function Running({ s, now, update, finish }: { s: PartielSession; now: number; update: (f: (s: PartielSession) => PartielSession) => void; finish: () => void }) {
+function Running({
+  s,
+  now,
+  update,
+  finish,
+  demo,
+  onDemoEnd,
+  onDemoNext,
+  onMine,
+  onQuitDemo,
+}: {
+  s: PartielSession
+  now: number
+  update: (f: (s: PartielSession) => PartielSession) => void
+  finish: () => void
+  demo: DemoState | null
+  onDemoEnd: (recap: string[]) => void
+  onDemoNext: () => void
+  onMine: (part: PartIndex) => void
+  onQuitDemo: () => void
+}) {
   const subject = useMemo(() => subjectOf(s.seed), [s.seed])
+  // Mode démonstration : les instruments exposent leurs setters, le LiveLab les relie
+  const scopeRefs = [useRef<ScopeRef>(null), useRef<ScopeRef>(null), useRef<ScopeRef>(null)] as const
+  const benchRef = useRef<BenchHandle>(null)
+  const sRef = useRef(s)
+  sRef.current = s
+  const [zonesVersion, setZonesVersion] = useState(0)
+  const zonesRef = useRef<Zone[]>([])
+  const setZones = (z: Zone[]) => {
+    zonesRef.current = z
+    setZonesVersion((v) => v + 1)
+  }
+  const lab = useMemo(
+    () =>
+      createLiveLab({
+        scope: () => scopeRefs[sRef.current.tab].current,
+        bench: () => benchRef.current,
+        answers: () => sRef.current.answers,
+        setAnswer: (k, p) => update((x) => ({ ...x, answers: { ...x.answers, [k]: { ...x.answers[k], ...p } } })),
+        setAllAnswers: (a) => update((x) => ({ ...x, answers: a })),
+        setTab: (i) => {
+          sRef.current = { ...sRef.current, tab: i }
+          update((x) => switchTab(x, i, Date.now()))
+        },
+        tab: () => sRef.current.tab,
+        zones: () => zonesRef.current,
+        setZones,
+        reveal: async () => {
+          const el = document.querySelector(`[data-demo-part="${sRef.current.tab}"] [data-demo="screen"]`)
+          const r = el?.getBoundingClientRect()
+          if (el && r && (r.bottom < 80 || r.top > window.innerHeight - 40)) {
+            el.scrollIntoView({ block: 'center' })
+            await new Promise((ok) => window.setTimeout(ok, 120))
+          }
+        },
+      }),
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const annotate = useMemo(() => (demo ? (a: number, b: number) => zonesRef.current.filter((z) => z.to >= a && z.from <= b) : undefined), [demo])
+  useEffect(() => {
+    // Les molettes et touches de la face avant sont les cibles du pointeur
+    if (demo) for (const r of scopeRefs) r.current?.setView('face')
+  }, [demo]) // eslint-disable-line react-hooks/exhaustive-deps
+  const demoVariant = demo ? demo.variants[demo.i]! : null
+  const demoPart = demoVariant ? PART_INDEX[partOf(demoVariant)] : 0
   const [fascicule, setFascicule] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const setAns = <K extends keyof PartielAnswers>(k: K, patch: Partial<PartielAnswers[K]>) => update((x) => ({ ...x, answers: { ...x.answers, [k]: { ...x.answers[k], ...patch } } }))
@@ -334,7 +472,13 @@ function Running({ s, now, update, finish }: { s: PartielSession; now: number; u
       <div className="exam-bar sticky top-0 z-20 -mx-4 px-4 py-2">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex min-w-0 items-center gap-3">
-            {s.mode === 'exam' ? <Timer remaining={remaining} urgent={urgent} /> : <span className="chip rounded-xl px-3 py-1.5 text-sm font-semibold">Entraînement</span>}
+            {demo ? (
+              <span className="chip rounded-xl px-3 py-1.5 text-sm font-semibold">Démonstration</span>
+            ) : s.mode === 'exam' ? (
+              <Timer remaining={remaining} urgent={urgent} />
+            ) : (
+              <span className="chip rounded-xl px-3 py-1.5 text-sm font-semibold">Entraînement</span>
+            )}
             <div className="min-w-0 text-xs leading-tight">
               <p className="font-semibold">Partiel Réseaux</p>
               <p className="text-muted">
@@ -346,7 +490,7 @@ function Running({ s, now, update, finish }: { s: PartielSession; now: number; u
             <button type="button" onClick={() => setFascicule(!fascicule)} aria-pressed={fascicule} className={`ghost-btn min-h-11 rounded-xl px-3 text-sm ${fascicule ? 'is-on' : ''}`}>
               Fascicule
             </button>
-            {confirm ? (
+            {demo ? null : confirm ? (
               <span className="confirm flex flex-wrap items-center gap-2 rounded-xl px-2 py-1">
                 <span className="text-sm font-medium">Rendre la copie ?</span>
                 <button type="button" onClick={finish} className="primary-btn min-h-11 rounded-xl px-3 text-sm font-semibold">
@@ -377,6 +521,7 @@ function Running({ s, now, update, finish }: { s: PartielSession; now: number; u
               key={p}
               type="button"
               role="tab"
+              data-demo={`tab-${i}`}
               aria-selected={on}
               onClick={() => {
                 update((x) => switchTab(x, i as PartIndex, Date.now()))
@@ -406,10 +551,14 @@ function Running({ s, now, update, finish }: { s: PartielSession; now: number; u
       </div>
 
       {/* Les trois bancs restent montés : leurs réglages survivent au changement d'onglet */}
-      <div hidden={s.tab !== 0}>
+      <div hidden={s.tab !== 0} data-demo-part="0">
         <CoaxBench
           cable={subject.coax.cable}
           seed={s.seed}
+          apiRef={benchRef}
+          scopeRef={scopeRefs[0]}
+          annotate={demoPart === 0 ? annotate : undefined}
+          annotateVersion={zonesVersion}
           onTopology={(t) => update((x) => withMontageIssue(x, montageIssue(t)))}
           top={
             <Brief part={0} title="Câble coaxial">
@@ -418,45 +567,45 @@ function Running({ s, now, update, finish }: { s: PartielSession; now: number; u
           }
         />
         <Answers part={0}>
-          <Field n={1} label="Zc (Ω)" value={a.cable.zc} onChange={(v) => setAns('cable', { zc: v })} />
-          <Field n={2} label="Longueur l (m)" value={a.cable.l} onChange={(v) => setAns('cable', { l: v })} />
-          <Field n={3} label="Γ en circuit ouvert" value={a.cable.gammaOpen} onChange={(v) => setAns('cable', { gammaOpen: v })} />
-          <Field n={4} label="Γ en court-circuit" value={a.cable.gammaShort} onChange={(v) => setAns('cable', { gammaShort: v })} />
-          <Select n={5} label="Méthode utilisée pour Zc" value={a.cable.methode} onChange={(v) => setAns('cable', { methode: v as PartielAnswers['cable']['methode'] })} options={METHODES} wide />
+          <Field demo="ans-cable-zc" n={1} label="Zc (Ω)" value={a.cable.zc} onChange={(v) => setAns('cable', { zc: v })} />
+          <Field demo="ans-cable-l" n={2} label="Longueur l (m)" value={a.cable.l} onChange={(v) => setAns('cable', { l: v })} />
+          <Field demo="ans-cable-gammaOpen" n={3} label="Γ en circuit ouvert" value={a.cable.gammaOpen} onChange={(v) => setAns('cable', { gammaOpen: v })} />
+          <Field demo="ans-cable-gammaShort" n={4} label="Γ en court-circuit" value={a.cable.gammaShort} onChange={(v) => setAns('cable', { gammaShort: v })} />
+          <Select demo="ans-cable-methode" n={5} label="Méthode utilisée pour Zc" value={a.cable.methode} onChange={(v) => setAns('cable', { methode: v as PartielAnswers['cable']['methode'] })} options={METHODES} wide />
         </Answers>
       </div>
 
-      <div hidden={s.tab !== 1}>
+      <div hidden={s.tab !== 1} data-demo-part="1">
         <section className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-          <Brief part={1} title="Trame série">
+          <Brief part={1} title="Trame série" demo="brief-serie">
             La sonde est branchée sur la ligne TXD d’une liaison série asynchrone qui émet un court message en boucle (toutes les ≈ 200 ms). Format des caractères : <b>{subject.serie.enonce.dataBits} bits de données</b>,{' '}
             <b>
               {subject.serie.enonce.stopBits} bit{subject.serie.enonce.stopBits > 1 ? 's' : ''} de stop
             </b>
             , poids faible en premier. Trouvez le débit, le type de parité, la norme électrique et le message.
           </Brief>
-          <ScopeInstrument sources={serieSources} />
+          <ScopeInstrument sources={serieSources} apiRef={scopeRefs[1]} annotate={demoPart === 1 ? annotate : undefined} annotateVersion={zonesVersion} />
         </section>
         <Answers part={1}>
-          <Field n={1} label="Débit (bauds)" value={a.serie.baud} onChange={(v) => setAns('serie', { baud: v })} />
-          <Select n={2} label="Parité" value={a.serie.parity} onChange={(v) => setAns('serie', { parity: v as Parity | '' })} options={(['none', 'even', 'odd'] as const).map((p) => [p, parityFr(p)])} />
-          <Select n={3} label="Norme" value={a.serie.level} onChange={(v) => setAns('serie', { level: v as Level | '' })} options={(['TTL', 'RS232'] as const).map((l) => [l, levelFr(l)])} />
-          <Field n={4} label="Message (casse comprise)" value={a.serie.message} onChange={(v) => setAns('serie', { message: v })} mono text />
+          <Field demo="ans-serie-baud" n={1} label="Débit (bauds)" value={a.serie.baud} onChange={(v) => setAns('serie', { baud: v })} />
+          <Select demo="ans-serie-parity" n={2} label="Parité" value={a.serie.parity} onChange={(v) => setAns('serie', { parity: v as Parity | '' })} options={(['none', 'even', 'odd'] as const).map((p) => [p, parityFr(p)])} />
+          <Select demo="ans-serie-level" n={3} label="Norme" value={a.serie.level} onChange={(v) => setAns('serie', { level: v as Level | '' })} options={(['TTL', 'RS232'] as const).map((l) => [l, levelFr(l)])} />
+          <Field demo="ans-serie-message" n={4} label="Message (casse comprise)" value={a.serie.message} onChange={(v) => setAns('serie', { message: v })} mono text />
         </Answers>
       </div>
 
-      <div hidden={s.tab !== 2}>
+      <div hidden={s.tab !== 2} data-demo-part="2">
         <section className="mt-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-          <Brief part={2} title="Ping Ethernet 10Base2">
+          <Brief part={2} title="Ping Ethernet 10Base2" demo="brief-ping">
             Réseau 10Base2 de la salle (coax bouchonné aux deux bouts), avec son trafic de fond. Le poste {ping.from.ip.join('.')} lance <span className="font-mono">ping -l ? -t {ping.to.ip.join('.')}</span>. Retrouvez L, le bourrage, la durée d’une trame de requête sur le câble et le 1er octet de la MAC destination.
           </Brief>
-          <ScopeInstrument sources={pingSources} />
+          <ScopeInstrument sources={pingSources} apiRef={scopeRefs[2]} annotate={demoPart === 2 ? annotate : undefined} annotateVersion={zonesVersion} />
         </section>
         <Answers part={2}>
-          <Field n={1} label="L (octets) : ping -l L" value={a.ping.L} onChange={(v) => setAns('ping', { L: v })} />
-          <Field n={2} label="Octets de bourrage" value={a.ping.padding} onChange={(v) => setAns('ping', { padding: v })} />
-          <Field n={3} label="Durée de la trame sur le câble (µs)" value={a.ping.durationUs} onChange={(v) => setAns('ping', { durationUs: v })} />
-          <Field n={4} label="1er octet de la MAC destination (hexa)" value={a.ping.macByte} onChange={(v) => setAns('ping', { macByte: v })} mono text />
+          <Field demo="ans-ping-L" n={1} label="L (octets) : ping -l L" value={a.ping.L} onChange={(v) => setAns('ping', { L: v })} />
+          <Field demo="ans-ping-padding" n={2} label="Octets de bourrage" value={a.ping.padding} onChange={(v) => setAns('ping', { padding: v })} />
+          <Field demo="ans-ping-durationUs" n={3} label="Durée de la trame sur le câble (µs)" value={a.ping.durationUs} onChange={(v) => setAns('ping', { durationUs: v })} />
+          <Field demo="ans-ping-macByte" n={4} label="1er octet de la MAC destination (hexa)" value={a.ping.macByte} onChange={(v) => setAns('ping', { macByte: v })} mono text />
         </Answers>
       </div>
       <p className="mt-6 flex items-center gap-2 text-xs text-muted">
@@ -465,6 +614,47 @@ function Running({ s, now, update, finish }: { s: PartielSession; now: number; u
         </svg>
         Réponses enregistrées au fil de la saisie. Aucune correction pendant l’épreuve.
       </p>
+
+      {demo && demoVariant && !demo.recap && (
+        <DemoPlayer
+          key={demo.i}
+          script={scriptFor(partOf(demoVariant), subject)}
+          lab={lab}
+          subject={subject}
+          part={demoPart}
+          initialSpeed={demo.speed}
+          onEnd={onDemoEnd}
+          onQuit={onQuitDemo}
+        />
+      )}
+      {demo?.recap && demoVariant && (
+        <div className="demo-recap fixed inset-x-3 bottom-3 z-[75] rounded-3xl p-4 md:inset-x-auto md:right-5 md:bottom-5 md:w-[26rem]" role="dialog" aria-label="Récapitulatif de la démonstration">
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-muted">FIN DE LA PARTIE {demoPart + 1}</p>
+          <h2 className="mt-1 text-lg font-semibold">Ce qu’on a déduit</h2>
+          <ul className="mt-2 grid gap-1.5 text-sm" data-testid="demo-recap">
+            {demo.recap.map((r) => (
+              <li key={r} className="flex gap-2">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: PART_COLORS[demoPart] }} aria-hidden="true" />
+                {r}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {demo.i < demo.variants.length - 1 && (
+              <button type="button" onClick={onDemoNext} className="primary-btn min-h-11 rounded-xl px-4 text-sm font-semibold">
+                Partie suivante
+              </button>
+            )}
+            <button type="button" onClick={() => onMine(demoPart)} className={`${demo.i < demo.variants.length - 1 ? 'ghost-btn' : 'primary-btn'} min-h-11 rounded-xl px-4 text-sm font-semibold`}>
+              À moi
+            </button>
+            <button type="button" onClick={onQuitDemo} className="ghost-btn min-h-11 rounded-xl px-3 text-sm">
+              Quitter la démo
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-muted">« À moi » : même partie, nouveau sujet, en entraînement, sans aide.</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -486,9 +676,9 @@ function Timer({ remaining, urgent }: { remaining: number; urgent: boolean }) {
 }
 
 /** Énoncé d'une partie */
-function Brief({ part, title, children }: { part: PartIndex; title: string; children: ReactNode }) {
+function Brief({ part, title, children, demo }: { part: PartIndex; title: string; children: ReactNode; demo?: string }) {
   return (
-    <div className="brief rounded-3xl p-4 sm:p-5" style={{ '--part': PART_COLORS[part] } as CSSProperties}>
+    <div data-demo={demo} className="brief rounded-3xl p-4 sm:p-5" style={{ '--part': PART_COLORS[part] } as CSSProperties}>
       <div className="flex items-center gap-3">
         <span className="part-icon flex h-10 w-10 items-center justify-center rounded-2xl">{PART_ICONS[part]}</span>
         <div>
@@ -528,25 +718,25 @@ function Num({ n, done }: { n: number; done: boolean }) {
   )
 }
 
-function Field({ n, label, value, onChange, mono, text }: { n: number; label: string; value: string; onChange: (v: string) => void; mono?: boolean; text?: boolean }) {
+function Field({ n, label, value, onChange, mono, text, demo }: { n: number; label: string; value: string; onChange: (v: string) => void; mono?: boolean; text?: boolean; demo?: string }) {
   return (
     <div className="flex gap-2">
       <Num n={n} done={value.trim() !== ''} />
       <label className="grid min-w-0 flex-1 gap-1 text-sm">
         {label}
-        <input value={value} onChange={(e) => onChange(e.target.value)} inputMode={text ? 'text' : 'decimal'} autoComplete="off" className={`field min-h-11 rounded-xl px-3 ${mono ? 'font-mono' : ''}`} />
+        <input data-demo={demo} value={value} onChange={(e) => onChange(e.target.value)} inputMode={text ? 'text' : 'decimal'} autoComplete="off" className={`field min-h-11 rounded-xl px-3 ${mono ? 'font-mono' : ''}`} />
       </label>
     </div>
   )
 }
 
-function Select({ n, label, value, onChange, options, wide }: { n: number; label: string; value: string; onChange: (v: string) => void; options: readonly (readonly [string, string])[]; wide?: boolean }) {
+function Select({ n, label, value, onChange, options, wide, demo }: { n: number; label: string; value: string; onChange: (v: string) => void; options: readonly (readonly [string, string])[]; wide?: boolean; demo?: string }) {
   return (
     <div className={`flex gap-2 ${wide ? 'sm:col-span-2' : ''}`}>
       <Num n={n} done={value !== ''} />
       <label className="grid min-w-0 flex-1 gap-1 text-sm">
         {label}
-        <select value={value} onChange={(e) => onChange(e.target.value)} className="field min-h-11 w-full min-w-0 rounded-xl px-3">
+        <select data-demo={demo} value={value} onChange={(e) => onChange(e.target.value)} className="field min-h-11 w-full min-w-0 rounded-xl px-3">
           <option value="">— choisir —</option>
           {options.map(([k, l]) => (
             <option key={k} value={k}>
@@ -803,6 +993,7 @@ const PARTIEL_CSS = `
 .partiel .line.is-mid .status { background: var(--color-warn); }
 .partiel .line.is-ko .status { background: var(--color-err); }
 .partiel .line.is-ko { box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-err) 35%, var(--color-line)); }
+.partiel .demo-recap { background: var(--color-card); box-shadow: 0 0 0 1px var(--color-line), 0 20px 40px -18px rgba(0,0,0,.45); }
 .partiel .tip { background: color-mix(in srgb, var(--part) 10%, var(--color-card-2)); }
 .partiel .score-ring { transition: stroke-dashoffset 900ms cubic-bezier(.2,.7,.2,1); }
 .partiel .score-bar { animation: partiel-grow 700ms cubic-bezier(.2,.7,.2,1) both; transform-origin: left; }

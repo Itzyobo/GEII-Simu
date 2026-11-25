@@ -26,7 +26,9 @@ import {
   type Trace,
 } from '../../lib/scope/engine'
 import { patchChannel, patchCursors, patchSettings, patchTrig, withProbe } from '../../lib/scope/settings'
-import { initRun, stepRun, type RunMode, type RunState, type Status } from '../../lib/scope/runtime'
+import { initRun, stepRun, type Capture, type RunMode, type RunState, type Status } from '../../lib/scope/runtime'
+import type { StoredRecord } from '../../lib/scope/engine'
+import type { CaptureInfo } from '../../lib/demo/lab'
 import type { Ch, ChannelSettings, MeasureKind, ScopeSettings, SignalSource } from '../../lib/scope/types'
 
 const { divX, divY } = OSCILLO
@@ -56,6 +58,8 @@ export interface ScopeProps {
   onStateChange?: (s: ScopeSettings) => void
   /** Zones à surligner entre deux instants du banc (révélation des champs d'une trame) */
   annotate?: (t0: number, t1: number) => ScopeZone[]
+  /** À incrémenter quand les zones changent : l'écran arrêté est alors redessiné */
+  annotateVersion?: number
 }
 
 export const MEASURES: { kind: MeasureKind; label: string; unit: string }[] = [
@@ -98,14 +102,45 @@ const idOf = (s: SignalSource) => srcIds.get(s) ?? (srcIds.set(s, nextSrcId), ne
 
 export const DEFAULT_TITLE = 'OSCILLOSCOPE NUMÉRIQUE · 2 VOIES · 100 MHz · 2 GSa/s'
 
-export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annotate }: ScopeProps) {
-  const [st, setSt] = useState<ScopeSettings>(defaultSetup)
+/** Numérise l'acquisition arrêtée (≤ 1 Mpts), comme la boucle de dessin : sert aussi à la démo */
+function buildRecords(cap: Capture, s: ScopeSettings): (StoredRecord | null)[] {
+  const gauss = gaussien(mulberry32(Math.floor(cap.tTrig * 1e6)))
+  return CHS.map((c) => {
+    const src = cap.sources[c]
+    const ch = s.ch[c]
+    return src && ch.on ? recordChannel(channelFn(src, ch, cap.rec), src, cap.tTrig, cap.fs, cap.rec, ch, s.acq.mode === 'peak', gauss) : null
+  })
+}
+
+/** Ce que le mode démonstration (LiveLab) peut faire sur l'oscilloscope : les mêmes setters que la façade */
+export interface ScopeHandle {
+  settings(): ScopeSettings
+  setSettings(s: ScopeSettings): void
+  set(p: Partial<ScopeSettings>): void
+  setCh(c: Ch, p: Partial<ChannelSettings>): void
+  setTrig(p: Partial<ScopeSettings['trig']>): void
+  setCur(p: Partial<ScopeSettings['cursors']>): void
+  setMode(m: RunMode): void
+  mode(): RunMode
+  /** Acquisition arrêtée et numérisée, ou null */
+  capture(): CaptureInfo | null
+  cursorReadout(): { dx: number; dy: number }
+}
+
+export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annotate, annotateVersion = 0 }: ScopeProps) {
+  const [st, setStRaw] = useState<ScopeSettings>(defaultSetup)
+  // Réglages à jour sans attendre le rendu : plusieurs réglages enchaînés (démo) ne s'écrasent pas
+  const latest = useRef(st)
+  const setSt = (next: ScopeSettings | ((s: ScopeSettings) => ScopeSettings)) => {
+    latest.current = typeof next === 'function' ? next(latest.current) : next
+    setStRaw(latest.current)
+  }
   const [readout, setReadout] = useState<Readout>({ status: 'Armé', mode: 'run', fs: 0, m: [null, null], delay: NaN, clipped: [false, false], trigOff: 0 })
   const [cursorKey, setCursorKey] = useState<'x1' | 'x2' | 'y1' | 'y2'>('x1')
   // Ref de rappel : le canevas peut changer quand on bascule face avant / compact
   const [canvasEl, canvasRef] = useState<HTMLCanvasElement | null>(null)
-  const live = useRef({ st, sources, annotate })
-  live.current = { st, sources, annotate }
+  const live = useRef({ st, sources, annotate, annotateVersion })
+  live.current = { st, sources, annotate, annotateVersion }
   const onState = useRef(onStateChange)
   onState.current = onStateChange
   useEffect(() => onState.current?.(st), [st])
@@ -151,7 +186,7 @@ export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annota
       const px = H / divY
       frameNo++
       const stopped = r.mode === 'stop'
-      const key = JSON.stringify([s, W, cap?.tTrig, r.status])
+      const key = JSON.stringify([s, W, cap?.tTrig, r.status, live.current.annotateVersion, !!live.current.annotate])
       if (stopped && key === prevKey) return
       prevKey = key
 
@@ -227,12 +262,7 @@ export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annota
         const avg = s.acq.mode === 'moyenne'
         const gauss = gaussien(mulberry32(stopped ? Math.floor(cap.tTrig * 1e6) : frameNo))
         // Acquisition arrêtée : tout l'enregistrement (≤ 1 Mpts) est numérisé une fois, puis seulement relu
-        if (stopped && !cap.records)
-          cap.records = CHS.map((c) => {
-            const src = cap.sources[c]
-            const ch = s.ch[c]
-            return src && ch.on ? recordChannel(channelFn(src, ch, cap.rec), src, cap.tTrig, cap.fs, cap.rec, ch, peak, gauss) : null
-          })
+        if (stopped && !cap.records) cap.records = buildRecords(cap, s)
         for (const c of CHS) {
           const src = cap.sources[c]
           const ch = s.ch[c]
@@ -384,7 +414,7 @@ export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annota
   }, [canvasEl])
   useEffect(() => {
     redraw.current?.()
-  }, [st])
+  }, [st, annotateVersion, annotate])
 
   /* ─────────── Réglages ─────────── */
   // Mêmes fonctions pures que le mode démonstration (lib/scope/settings.ts)
@@ -464,7 +494,25 @@ export function useScope({ sources, title = DEFAULT_TITLE, onStateChange, annota
   }
   const span = divX * st.sdiv
 
-  return { st, setSt, readout, cursorKey, setCursorKey, canvasRef, set, setCh, setTrig, setCur, setMode, setProbe, onDown, onMove, endDrag, forceTrigger, nudgeCursor, dX, dY, measureValue, fiftyPct, span, sources, title }
+  const handle: ScopeHandle = {
+    settings: () => latest.current,
+    setSettings: (s) => setSt(s),
+    set,
+    setCh,
+    setTrig,
+    setCur,
+    setMode,
+    mode: () => run.current.mode,
+    capture: () => {
+      const cap = run.current.capture
+      if (run.current.mode !== 'stop' || !cap) return null
+      if (!cap.records) cap.records = buildRecords(cap, latest.current)
+      return { tTrig: cap.tTrig, fs: cap.fs, rec: cap.rec, records: cap.records, settings: latest.current }
+    },
+    cursorReadout: () => ({ dx: latest.current.cursors.x2 - latest.current.cursors.x1, dy: latest.current.cursors.y2 - latest.current.cursors.y1 }),
+  }
+
+  return { handle, st, setSt, readout, cursorKey, setCursorKey, canvasRef, set, setCh, setTrig, setCur, setMode, setProbe, onDown, onMove, endDrag, forceTrigger, nudgeCursor, dX, dY, measureValue, fiftyPct, span, sources, title }
 }
 
 export type ScopeApi = ReturnType<typeof useScope>

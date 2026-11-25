@@ -183,8 +183,8 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
   const horizontal = (
     <Group title="HORIZONTAL">
       <div className="flex items-end justify-around gap-2">
-        <FrontKnob size={68} label="s/div" valueText={`${fr(st.sdiv, 's')}/div`} onStep={(n) => set({ sdiv: stepIn(SDIV_STEPS, st.sdiv, -n) })} onEnter={(v) => v > 0 && set({ sdiv: stepIn(SDIV_STEPS, v, 0) })} />
-        <FrontKnob size={48} label="Retard" valueText={fr(st.delay, 's')} onStep={(n) => set({ delay: zero(st.delay + (n * st.sdiv) / 10) })} onPress={() => set({ delay: 0 })} pressLabel="0" onEnter={(v) => set({ delay: v })} />
+        <FrontKnob demoId="knob-sdiv" size={68} label="s/div" valueText={`${fr(st.sdiv, 's')}/div`} onStep={(n) => set({ sdiv: stepIn(SDIV_STEPS, st.sdiv, -n) })} onEnter={(v) => v > 0 && set({ sdiv: stepIn(SDIV_STEPS, v, 0) })} />
+        <FrontKnob demoId="knob-delay" size={48} label="Retard" valueText={fr(st.delay, 's')} onStep={(n) => set({ delay: zero(st.delay + (n * st.sdiv) / 10) })} onPress={() => set({ delay: 0 })} pressLabel="0" onEnter={(v) => set({ delay: v })} />
         <Key label="Zoom" onPress={() => setMenu('horiz')} active={menu === 'horiz'} />
       </div>
     </Group>
@@ -196,6 +196,7 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
           <div key={c} className="flex flex-col items-center gap-1.5">
             <Key label={String(c + 1)} lit={st.ch[c].on ? CH_COLORS[c] : undefined} round onPress={() => chKey(c)} aria={`Voie ${c + 1} : ${st.ch[c].on ? 'allumée' : 'éteinte'} (menu de la voie)`} active={menu === (c === 0 ? 'ch0' : 'ch1')} />
             <FrontKnob
+              demoId={`knob-vdiv${c}`}
               size={52}
               label="V/div"
               tint={CH_COLORS[c]}
@@ -203,7 +204,7 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
               onStep={(n) => turnVdiv(c, n)}
               onEnter={(v) => v > 0 && setCh(c, { vdiv: st.ch[c].fine ? Math.min(OSCILLO.vdivMax * st.ch[c].probe, Math.max(OSCILLO.vdivMin * st.ch[c].probe, v)) : stepIn(vdivSteps(c), v, 0) })}
             />
-            <FrontKnob size={40} label="Position" valueText={fr(zero(st.ch[c].offset), 'V')} onStep={(n) => turnOffset(c, n)} onPress={() => setCh(c, { offset: 0 })} pressLabel="0" onEnter={(v) => setCh(c, { offset: Math.max(-OFFSET_DIV * st.ch[c].vdiv, Math.min(OFFSET_DIV * st.ch[c].vdiv, v)) })} />
+            <FrontKnob demoId={`knob-offset${c}`} size={40} label="Position" valueText={fr(zero(st.ch[c].offset), 'V')} onStep={(n) => turnOffset(c, n)} onPress={() => setCh(c, { offset: 0 })} pressLabel="0" onEnter={(v) => setCh(c, { offset: Math.max(-OFFSET_DIV * st.ch[c].vdiv, Math.min(OFFSET_DIV * st.ch[c].vdiv, v)) })} />
           </div>
         ))}
       </div>
@@ -212,7 +213,7 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
   const trigger = (
     <Group title="TRIGGER">
       <div className="flex items-end justify-around gap-2">
-        <FrontKnob size={52} label="Niveau" tint={CH_COLORS[st.trig.source]} valueText={fr(st.trig.level, 'V')} onStep={turnLevel} onPress={fiftyPct} pressLabel="50 %" onEnter={(v) => setTrig({ level: v })} />
+        <FrontKnob demoId="knob-level" size={52} label="Niveau" tint={CH_COLORS[st.trig.source]} valueText={fr(st.trig.level, 'V')} onStep={turnLevel} onPress={fiftyPct} pressLabel="50 %" onEnter={(v) => setTrig({ level: v })} />
         <div className="flex flex-col gap-2">
           <Key label="Menu" onPress={() => setMenu('trig')} active={menu === 'trig'} />
           <Key label="Force" onPress={forceTrigger} />
@@ -224,14 +225,15 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
     <div className="grid gap-2">
       <Group title="RUN CONTROL">
         <div className="flex justify-around gap-2">
-          <Key label="Run/Stop" wide lit={stopped ? STOP_RED : RUN_GREEN} onPress={() => setMode(stopped ? 'run' : 'stop')} aria={`Run/Stop : ${stopped ? 'arrêté' : 'en marche'}`} />
-          <Key label="Single" wide lit={readout.mode === 'single' ? AMBER : undefined} onPress={() => setMode('single')} />
+          <Key demo="key-run" label="Run/Stop" wide lit={stopped ? STOP_RED : RUN_GREEN} onPress={() => setMode(stopped ? 'run' : 'stop')} aria={`Run/Stop : ${stopped ? 'arrêté' : 'en marche'}`} />
+          <Key demo="key-single" label="Single" wide lit={readout.mode === 'single' ? AMBER : undefined} onPress={() => setMode('single')} />
         </div>
       </Group>
       <Group title="">
         <div className="grid grid-cols-2 gap-2">
           <Key label="Auto Scale" wide onPress={() => setSt(autoScale(sources, st, performance.now() / 1000))} />
           <Key
+            demo="key-defaultSetup"
             label="Default Setup"
             wide
             onPress={() => {
@@ -244,7 +246,7 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
           <Key label="Cursors" wide onPress={() => setMenu('cursors')} active={menu === 'cursors'} />
           <Key label="Meas" wide onPress={() => setMenu('meas')} active={menu === 'meas'} />
           <div className="flex justify-center">
-            <FrontKnob size={44} label="Universelle" onStep={uni} />
+            <FrontKnob demoId="knob-holdoff" size={44} label="Universelle" onStep={uni} />
           </div>
         </div>
       </Group>
@@ -299,6 +301,7 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
                 </div>
                 <div className="grid @lg:grid-cols-[minmax(0,1fr)_96px]">
                   <canvas
+                    data-demo="screen"
                     ref={canvasRef}
                     className="block aspect-[5/4] w-full touch-none"
                     onPointerDown={onDown}
@@ -341,7 +344,10 @@ export default function ScopeFrontPanel({ scope }: { scope: ScopeApi }) {
                     ))}
                     {st.cursors.on && (
                       <span className="text-[#e7eaee]">
-                        ΔX {fr(dX, 's')} · 1/ΔX {fr(1 / dX, 'Hz')} · <span style={{ color: CH_COLORS[st.cursors.ych] }}>ΔY {fr(dY, 'V')}</span>
+                        <span data-demo="readout-dx">ΔX {fr(dX, 's')}</span> · 1/ΔX {fr(1 / dX, 'Hz')} ·{' '}
+                        <span data-demo="readout-dy" style={{ color: CH_COLORS[st.cursors.ych] }}>
+                          ΔY {fr(dY, 'V')}
+                        </span>
                       </span>
                     )}
                   </div>
@@ -409,6 +415,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 
 /** Touche caoutchouc, éventuellement lumineuse (halo à la couleur de la fonction) */
 function Key({
+  demo,
   label,
   lit,
   wide,
@@ -419,6 +426,7 @@ function Key({
   active,
   disabled,
 }: {
+  demo?: string
   label: string
   lit?: string
   wide?: boolean
@@ -434,6 +442,7 @@ function Key({
       type="button"
       onClick={onPress}
       disabled={disabled}
+      data-demo={demo}
       aria-label={aria}
       aria-pressed={active}
       className={`fp-key ${round ? 'rounded-full' : 'rounded-lg'} ${small ? 'h-11 w-10' : wide ? 'min-h-11 px-3' : 'min-h-11 min-w-12 px-2'} text-[12px] font-semibold ${active ? 'is-active' : ''} disabled:opacity-60`}

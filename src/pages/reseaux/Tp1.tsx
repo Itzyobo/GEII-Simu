@@ -13,6 +13,7 @@ import { useProgress } from '../../lib/progress'
 import { generateCable } from '../../lib/reseaux/coax'
 import { gammasTheoriques, tp1Attendus, tp1Conseils, type Conseil } from '../../lib/reseaux/tp1'
 import Layout from '../../modbus/pages/Layout'
+import { Link } from 'react-router'
 import CoaxBench from './CoaxBench'
 import { checkMontage, topology, type ExpectedMontage, type Topology } from '../../lib/reseaux/benchTopology'
 import { Btn, Card } from './ui'
@@ -59,6 +60,14 @@ export default function Tp1() {
         <h1 className="mt-1 text-2xl font-bold">Câble coaxial : réflexions, impédance caractéristique, atténuation</h1>
         <p className="mt-1 text-sm text-muted">
           Questions réussies : {done} / {RES3_TP1_QUESTIONS.length}. Tout se règle à la main : générateur et oscilloscope démarrent sur leurs réglages par défaut.
+        </p>
+        <p className="mt-2 flex flex-wrap gap-2 text-sm">
+          <Link to="/modbus/partiel-reseaux?demo=cable50" className="inline-flex min-h-11 items-center rounded-lg px-3 ring-1 ring-line hover:ring-accent">
+            Voir la démonstration (câble 50 Ω)
+          </Link>
+          <Link to="/modbus/partiel-reseaux?demo=cable75" className="inline-flex min-h-11 items-center rounded-lg px-3 ring-1 ring-line hover:ring-accent">
+            Démonstration câble 75 Ω
+          </Link>
         </p>
 
         <CoaxBench
