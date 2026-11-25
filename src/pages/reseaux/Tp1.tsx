@@ -14,6 +14,7 @@ import { generateCable } from '../../lib/reseaux/coax'
 import { gammasTheoriques, tp1Attendus, tp1Conseils, type Conseil } from '../../lib/reseaux/tp1'
 import Layout from '../../modbus/pages/Layout'
 import CoaxBench from './CoaxBench'
+import { checkMontage, topology, type ExpectedMontage, type Topology } from '../../lib/reseaux/benchTopology'
 import { Btn, Card } from './ui'
 
 const SEED_KEY = 'tp-sim:res3-tp1:seed'
@@ -43,6 +44,8 @@ export default function Tp1() {
     }
   }
   const [reveal, setReveal] = useState(false)
+  // Montage réalisé sur le banc, vérifié à chaque étape du parcours
+  const [topo, setTopo] = useState<Topology>(() => topology({}))
   const cable = useMemo(() => generateCable(seed), [seed])
   const exam = useMemo<ExamApi>(() => ({ active: false, record: () => {}, answerOf: () => undefined, register: () => {}, penalize: () => {}, scope: `res3-tp1:${seed}` }), [seed])
   const progress = useProgress()
@@ -61,6 +64,7 @@ export default function Tp1() {
         <CoaxBench
           cable={cable}
           seed={seed}
+          onTopology={setTopo}
           top={
             <Card title="Câble mystère">
               <p className="text-sm">
@@ -81,7 +85,7 @@ export default function Tp1() {
           }
         />
 
-        <Parcours seed={seed} />
+        <Parcours seed={seed} topo={topo} />
       </main>
     </ExamContext.Provider>
     </Layout>
@@ -90,8 +94,9 @@ export default function Tp1() {
 
 /* ─────────── Parcours guidé ─────────── */
 
-function Parcours({ seed }: { seed: number }) {
+function Parcours({ seed, topo }: { seed: number; topo: Topology }) {
   const cable = generateCable(seed)
+  const M = (title: string, e: ExpectedMontage) => <MontageCheck title={title} errors={checkMontage(topo, e, cable.Zc)} />
   const a = tp1Attendus(cable)
   const k = tp1Conseils(cable)
   const g = gammasTheoriques(cable.Zc)
@@ -127,13 +132,15 @@ function Parcours({ seed }: { seed: number }) {
       <p className="mt-1 text-sm text-muted">Dans l’ordre du fascicule. Les réponses attendues sont calculées pour le câble tiré (graine {seed}).</p>
 
       <Step title="3.2.2 a — Générateur à vide" conseil={k.a}>
-        <p>Cochez « générateur à vide ». Réglez le générateur : impulsions de 8 V à vide, 40 ns, période 1 ms. Mesurez Eg sur CH1.</p>
+        <p>Branchez le cordon de 1 m de la sortie du générateur directement sur CH1, sans le câble long. Réglez le générateur : impulsions de 8 V à vide, 40 ns, période 1 ms. Mesurez Eg sur CH1.</p>
+        {M('générateur → cordon → CH1', { kind: 'vide' })}
         {num('res3-tp1-a-eg', 'Eg lue à vide sur CH1 (V)', a.egVide, 'V', `Eg·1 MΩ/(1 MΩ + 50 Ω) = ${n3(a.egVide)} V. Le petit palier de ≈ 10 ns au début est l’aller-retour dans le cordon de 1 m (2·1 m / v).`)}
         {qcm('res3-tp1-a-rin')}
       </Step>
 
       <Step title="3.2.2 b — Extrémité ouverte" conseil={k.b}>
-        <p>Branchez le câble, extrémité ouverte. Relevez l’impulsion incidente et l’écho ; mesurez leurs amplitudes et le retard entre eux.</p>
+        <p>Montez un Té sur CH1. Reliez la sortie du générateur à un bras du Té par le cordon, et le câble long à l’autre bras ; laissez l’autre bout du câble ouvert. Relevez l’impulsion incidente et l’écho ; mesurez leurs amplitudes et le retard entre eux.</p>
+        {M('générateur → Té sur CH1 → câble → extrémité ouverte', { kind: 'ligne', end: 'ouverte' })}
         {qcm('res3-tp1-b-gamma')}
         {num('res3-tp1-b-ei', 'Amplitude incidente Ei sur CH1 (V)', a.Ei, 'V', `Pont diviseur Zg / Zc à l’instant 0 : Ei = Eg·Zc/(Zg + Zc) = 8·${cable.Zc}/(50 + ${cable.Zc}) = ${n3(a.Ei)} V.`)}
         {num(
@@ -157,7 +164,8 @@ function Parcours({ seed }: { seed: number }) {
       </Step>
 
       <Step title="3.2.2 c — Court-circuit" conseil={k.c}>
-        <p>Mettez l’extrémité en court-circuit (ou le potentiomètre branché, réglé à 0 Ω). Relevez l’écho.</p>
+        <p>Mettez l’extrémité en court-circuit : un Té au bout du câble avec le bouchon court-circuit (ou le potentiomètre branché au bout, réglé à 0 Ω). Relevez l’écho.</p>
+        {M('… → câble → court-circuit', { kind: 'ligne', end: 'cc' })}
         {qcm('res3-tp1-c-gamma')}
         {num('res3-tp1-c-ratio', 'Rapport V_écho / V_incident mesuré sur CH1 (court-circuit)', a.ratioShort, '', `ΓL = −1 : écho inversé, rapport = −(1 + Γg) × crête après 2l = ${n3(a.ratioShort)}.`, { unverified: hypPeau })}
       </Step>
@@ -167,6 +175,8 @@ function Parcours({ seed }: { seed: number }) {
           Branchez le potentiomètre et tournez-le jusqu’à la disparition de l’écho. Débranchez-le et lisez sa valeur à l’ohmmètre : c’est Zc (méthode 2). Si l’écart avec la méthode 1 dépasse 10 %, refaites les
           mesures. Remplacez ensuite le potentiomètre par le bouchon de même valeur, puis vérifiez avec le Té vers CH2.
         </p>
+        {M('1. … → câble → potentiomètre', { kind: 'ligne', end: 'pot' })}
+        {M(`2. … → câble → Té avec bouchon ${cable.Zc} Ω et CH2`, { kind: 'ligne', end: 'zc+ch2' })}
         {num('res3-tp1-d-zc', 'Zc, méthode 2 : valeur du potentiomètre à l’adaptation (Ω)', cable.Zc, 'Ω', `ΓL = (R − Zc)/(R + Zc) = 0 ⇔ R = Zc = ${cable.Zc} Ω (Γ adapté = ${g.adapte}).`)}
         <EcartZc seed={seed} />
         {qcm('res3-tp1-d-ch2')}
@@ -174,6 +184,7 @@ function Parcours({ seed }: { seed: number }) {
 
       <Step title="3.2.2 e — Régime sinusoïdal à 5 MHz" conseil={k.e} conseilTexte="CH1 et CH2 au même calibre ; mesures Vpp sur les deux voies et Retard 1→2.">
         <p>Ligne adaptée (Té vers CH2 + bouchon Zc). Générateur en sinus, 5 MHz. Mesurez Ve (CH1) et Vs (CH2), puis le déphasage. Prévoyez le déphasage avant de le mesurer.</p>
+        {M(`… → câble → Té avec bouchon ${cable.Zc} Ω et CH2`, { kind: 'ligne', end: 'zc+ch2' })}
         {qcm('res3-tp1-e-sinus')}
         {num(
           'res3-tp1-e-alpha',
@@ -193,6 +204,7 @@ function Parcours({ seed }: { seed: number }) {
 
       <Step title="3.2.3 — Étude basse fréquence" conseil={k.bfLent} conseilTexte={`Puis base rapide : ${conseilTxt(k.bfRapide)}`}>
         <p>Impulsions de 100 µs (période 1 ms). Observez d’abord à base de temps lente, puis rapide autour du front montant, en court-circuit, en ouvert et adapté.</p>
+        {M('… → câble → extrémité ouverte (puis court-circuit, puis bouchon Zc)', { kind: 'ligne', end: 'ouverte' })}
         {num('res3-tp1-bf-open', 'Tension finale sur CH1, extrémité ouverte (V)', a.bfOpen, 'V', `Escalier convergeant vers Eg·ZL/(Zg + ZL) → Eg = ${n3(a.bfOpen)} V (ZL → ∞).`)}
         {num('res3-tp1-bf-short', 'Tension finale sur CH1, court-circuit (V)', a.bfShort, 'V', `Eg·0/(Zg + 0) = 0 V.`, { tolerance: RES3.tolMesure })}
         {num('res3-tp1-bf-adapte', 'Tension sur CH1, ligne adaptée (V)', a.bfAdapte, 'V', `Eg·Zc/(Zg + Zc) = ${n3(a.bfAdapte)} V, constante dès le début : aucune réflexion.`)}
@@ -200,6 +212,31 @@ function Parcours({ seed }: { seed: number }) {
         {qcm('res3-tp1-bf-conclusion')}
       </Step>
     </section>
+  )
+}
+
+/** Montage attendu d'une étape, comparé au banc : ✓ ou liste des écarts */
+function MontageCheck({ title, errors }: { title: string; errors: string[] }) {
+  const ok = errors.length === 0
+  return (
+    <div className={`flex gap-3 rounded-card p-3 text-sm ring-1 ${ok ? 'bg-ok/10 ring-ok/30' : 'bg-card ring-line'}`} role="status" aria-live="polite">
+      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${ok ? 'bg-ok' : 'bg-err'}`} aria-hidden="true">
+        {ok ? '✓' : '✗'}
+      </span>
+      <div className="min-w-0">
+        <p>
+          <span className="text-muted">Montage attendu : </span>
+          <b>{title}</b> {ok ? <span className="text-ok">— conforme</span> : <span className="sr-only">— non conforme</span>}
+        </p>
+        {!ok && (
+          <ul className="mt-1 list-disc pl-5 text-xs text-muted">
+            {errors.map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   )
 }
 

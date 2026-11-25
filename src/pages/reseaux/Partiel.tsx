@@ -14,6 +14,8 @@ import {
   loadHistory,
   loadSession,
   METHODES,
+  montageIssue,
+  withMontageIssue,
   newSession,
   PARTIES,
   remainingS,
@@ -408,6 +410,7 @@ function Running({ s, now, update, finish }: { s: PartielSession; now: number; u
         <CoaxBench
           cable={subject.coax.cable}
           seed={s.seed}
+          onTopology={(t) => update((x) => withMontageIssue(x, montageIssue(t)))}
           top={
             <Brief part={0} title="Câble coaxial">
               Câble inconnu enroulé : <b>{subject.coax.cable.N} spires</b> de diamètre <b>{formatSI(subject.coax.cable.D, 'm')}</b>. Déterminez son impédance caractéristique, sa longueur et les coefficients de réflexion en bout ouvert et en court-circuit. Générateur : Zg = 50 Ω ; v = 2·10⁸ m/s.
@@ -662,6 +665,21 @@ function Result({ s, onNew }: { s: PartielSession; onNew: () => void }) {
                 )
               })}
           </ul>
+          {i === 0 && (
+            <div className={`line mt-4 rounded-2xl p-3 text-sm ${(s.montage ?? []).length ? 'is-mid' : 'is-ok'}`}>
+              <p className="font-semibold">Montage sur le banc</p>
+              {(s.montage ?? []).length === 0 ? (
+                <p className="mt-1 text-xs text-muted">Aucune erreur de montage relevée.</p>
+              ) : (
+                <ul className="mt-1 list-disc pl-5 text-xs text-muted">
+                  {(s.montage ?? []).map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-1 text-xs text-muted">Montage attendu : générateur → cordon → Té sur CH1 → câble → extrémité (ouverte, puis court-circuit, puis potentiomètre).</p>
+            </div>
+          )}
           <div className="tip mt-4 flex gap-3 rounded-2xl p-3 text-xs leading-relaxed">
             <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <rect x="3" y="5" width="18" height="12" rx="2" />

@@ -3,7 +3,7 @@
  * Rotation au glisser circulaire ou vertical, à la molette de souris, aux flèches du clavier ; appui (clic sans
  * rotation, Entrée ou Espace) = action de la molette (50 %, remise à 0…). Légère vibration par cran sur mobile.
  */
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useId, useRef, useState, type PointerEvent } from 'react'
 
 const DEG_PER_STEP = 18
 /** Glisser vertical : pixels par cran */
@@ -25,6 +25,7 @@ interface Props {
 
 export default function FrontKnob({ label, valueText, onStep, onPress, pressLabel, size = 56, tint, disabled }: Props) {
   const [angle, setAngle] = useState(0)
+  const cap = `fk${useId().replace(/:/g, '')}`
   const stepRef = useRef(onStep)
   stepRef.current = onStep
   const turn = (n: number) => {
@@ -120,6 +121,13 @@ export default function FrontKnob({ label, valueText, onStep, onPress, pressLabe
         }}
       >
         <svg width={size} height={size} viewBox={`${-r} ${-r} ${size} ${size}`} aria-hidden="true">
+          <defs>
+            <radialGradient id={cap} cx="35%" cy="30%" r="80%">
+              <stop offset="0" stopColor="#5b6168" />
+              <stop offset="0.55" stopColor="#30343a" />
+              <stop offset="1" stopColor="#17191c" />
+            </radialGradient>
+          </defs>
           <circle r={r - 0.5} fill="#111316" />
           <g stroke="#4c5157" strokeWidth="1.2">
             {Array.from({ length: teeth }, (_, i) => {
@@ -127,7 +135,7 @@ export default function FrontKnob({ label, valueText, onStep, onPress, pressLabe
               return <line key={i} x1={Math.cos(a) * (r - 1)} y1={Math.sin(a) * (r - 1)} x2={Math.cos(a) * (r - 4)} y2={Math.sin(a) * (r - 4)} />
             })}
           </g>
-          <circle r={r - 5} fill="url(#fk-cap)" />
+          <circle r={r - 5} fill={`url(#${cap})`} />
           {tint && <circle r={r - 5} fill="none" stroke={tint} strokeOpacity="0.7" strokeWidth="1.6" />}
           <g className="fk-rot" style={{ transform: `rotate(${angle}deg)` }}>
             <line x1="0" y1={-(r - 7)} x2="0" y2={-(r * 0.38)} stroke="#eceff2" strokeWidth="2" strokeLinecap="round" />

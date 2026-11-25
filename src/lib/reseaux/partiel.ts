@@ -8,6 +8,7 @@ import { parseAnswer } from '../grading'
 import { createCoaxExercise, gamma, gradeCoax } from './coax'
 import { createSerialExercise, gradeSerial, parityFr, type Level, type Parity, type SerialExercise } from './serial'
 import { createPingExercise, gradePing } from './traffic'
+import type { Topology } from './benchTopology'
 
 export const PARTIES = ['Câble coaxial', 'Trame série', 'Ping Ethernet'] as const
 export type PartIndex = 0 | 1 | 2
@@ -163,6 +164,8 @@ export interface PartielSession {
   /** Arrivée sur l'onglet courant — ms */
   tabSince: number
   submittedAt?: number
+  /** Erreurs de montage relevées sur le banc de la partie 1 (montrées à la correction, sans pénalité) */
+  montage?: string[]
 }
 
 export const newSession = (seed: number, mode: PartielSession['mode'], now: number): PartielSession => ({ v: 1, seed, mode, startAt: now, answers: emptyAnswers(), tab: 0, partMs: [0, 0, 0], tabSince: now })
@@ -227,6 +230,18 @@ export function addHistory(e: HistoryEntry, storage = local()) {
     /* historique non conservé */
   }
 }
+
+/** Erreur de montage à relever pour une topologie du banc (null si rien à signaler) */
+export function montageIssue(t: Topology): string | null {
+  if (!t.ok) return t.error ?? 'montage non pris en charge'
+  if (t.line === 'coax' && t.observe[0] === 'B') return 'câble long branché directement sur CH1, sans Té : CH1 ne voyait que le bout du câble, pas la sortie du générateur'
+  if (t.genConnected && t.observe[0] === 'flat') return 'CH1 branchée sur une partie du montage non reliée au générateur : trace plate'
+  return null
+}
+
+/** Ajoute une erreur de montage à la session (sans doublon, 8 au plus) */
+export const withMontageIssue = (s: PartielSession, issue: string | null): PartielSession =>
+  !issue || (s.montage ?? []).includes(issue) ? s : { ...s, montage: [...(s.montage ?? []), issue].slice(-8) }
 
 /** Réponses justes d'un sujet (tests, contrôle Playwright) */
 export function correctAnswers(s: PartielSubject): PartielAnswers {

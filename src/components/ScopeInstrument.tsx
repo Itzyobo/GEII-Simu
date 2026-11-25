@@ -8,7 +8,7 @@ import Knob from './Knob'
 import { OSCILLO } from '../data/reference'
 import { autoScale, defaultSetup, SDIV_STEPS, VDIV_STEPS } from '../lib/scope/engine'
 import type { AcqMode, Ch, Coupling } from '../lib/scope/types'
-import ScopeFrontPanel from './scope/ScopeFrontPanel'
+import ScopeFrontPanel, { BncJack, CH_COLORS } from './scope/ScopeFrontPanel'
 import { AVG_STEPS, CHS, COLORS, fr, MEASURES, OFFSET_DIV, STATUS_COLOR, useScope, zero, type ScopeApi, type ScopeProps } from './scope/useScope'
 
 export type { ScopeZone } from './scope/useScope'
@@ -96,6 +96,12 @@ function CompactView({ scope }: { scope: ScopeApi }) {
               onPointerUp={endDrag}
               aria-label="Écran de l'oscilloscope"
             />
+            {/* Entrées BNC (points de branchement du banc) */}
+            <div className="mt-1 flex items-center justify-end gap-4 rounded-md bg-[#24272b] px-2 py-1 text-[#eceff2]">
+              <span className="mr-auto text-[10px] opacity-70">Entrées 1 MΩ</span>
+              <BncJack label="CH1" color={CH_COLORS[0]} port="scope-ch1" />
+              <BncJack label="CH2" color={CH_COLORS[1]} port="scope-ch2" />
+            </div>
             {/* Bandeau du bas : voies */}
             <div className="flex flex-wrap gap-x-4 px-1 pt-1 font-mono text-[11px]">
               {CHS.map((c) =>

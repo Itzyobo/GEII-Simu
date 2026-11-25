@@ -18,6 +18,7 @@ npm run build    # vérification TypeScript stricte + bundle de production dans 
 npx oxlint       # lint
 npm run check:375            # Playwright : chaque route à 375 px, sans débordement ni erreur console
 npm run check:partiel-res3   # Playwright : partiel Réseaux complet (entraînement), 375 px et ordinateur, note 20/20 attendue
+npm run check:banc-tp1       # Playwright : banc TP1 branché à la souris et au doigt (3.2.2 b, court-circuit, rangement)
 ```
 
 Node 20 ou plus récent. Le dossier `dist/` se sert comme un site statique. Il faut prévoir un repli vers `index.html` pour les routes `/tp/...` et `/examen-blanc`.

@@ -5,7 +5,7 @@
  * Ne fait que réexposer les réglages de useScope : le comportement est celui de la vue compacte.
  * Sur mobile : écran pleine largeur, commandes en panneaux balayables.
  */
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useId, useState, type CSSProperties, type ReactNode } from 'react'
 import { OSCILLO } from '../../data/reference'
 import { autoScale, defaultSetup, SDIV_STEPS, VDIV_STEPS } from '../../lib/scope/engine'
 import type { AcqMode, Ch, Coupling, MeasureKind } from '../../lib/scope/types'
@@ -14,7 +14,7 @@ import { AVG_STEPS, fr, MEASURES, OFFSET_DIV, STATUS_COLOR, zero, type ScopeApi 
 
 const { divX } = OSCILLO
 /** Couleurs standard des voies d'oscilloscope (jaune, vert) */
-const CH_COLORS = ['#f5d90a', '#34d399'] as const
+export const CH_COLORS = ['#f5d90a', '#34d399'] as const
 const RUN_GREEN = '#22c55e'
 const STOP_RED = '#ef4444'
 const AMBER = '#f59e0b'
@@ -38,12 +38,20 @@ const cycle = <T,>(xs: readonly T[], v: T): T => xs[(xs.indexOf(v) + 1) % xs.len
 
 /** Embase BNC femelle en façade ; `port` sert de point de branchement au banc */
 export function BncJack({ label, color, port, sub }: { label: string; color?: string; port?: string; sub?: string }) {
+  const gid = `bnc${useId().replace(/:/g, '')}`
   return (
     <div className="flex flex-col items-center gap-1">
       <svg width="48" height="48" viewBox="-24 -24 48 48" role="img" aria-label={`Embase BNC ${label}`} data-port={port}>
+        <defs>
+          <radialGradient id={gid} cx="35%" cy="30%" r="75%">
+            <stop offset="0" stopColor="#f4f6f8" />
+            <stop offset="0.5" stopColor="#a9b1b9" />
+            <stop offset="1" stopColor="#5d646b" />
+          </radialGradient>
+        </defs>
         {color && <circle r="22" fill="none" stroke={color} strokeWidth="2.5" />}
-        <polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" fill="url(#fk-chrome)" stroke="#3b4046" strokeWidth="0.8" />
-        <circle r="11" fill="url(#fk-chrome)" stroke="#3b4046" strokeWidth="0.8" />
+        <polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" fill={`url(#${gid})`} stroke="#3b4046" strokeWidth="0.8" />
+        <circle r="11" fill={`url(#${gid})`} stroke="#3b4046" strokeWidth="0.8" />
         <rect x="-13.5" y="-2" width="4" height="4" rx="1" fill="#c9ced3" stroke="#555" strokeWidth="0.5" />
         <rect x="9.5" y="-2" width="4" height="4" rx="1" fill="#c9ced3" stroke="#555" strokeWidth="0.5" />
         <circle r="7" fill="#e9e4d6" />

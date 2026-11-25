@@ -12,6 +12,7 @@
     "test:perf": "vitest run --config vitest.perf.config.ts",
     "check:375": "node scripts/check-375.mjs",
     "check:partiel-res3": "node scripts/check-partiel-res3.mjs",
+    "check:banc-tp1": "node scripts/check-banc-tp1.mjs",
     "check:size": "node scripts/check-size.mjs",
     "sync:prd": "node scripts/sync-prd.mjs"
   },
